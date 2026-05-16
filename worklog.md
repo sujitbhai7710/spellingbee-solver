@@ -28,3 +28,34 @@ Stage Summary:
 - Dark gradient hero section with hex pattern background
 - Proper Inter font, card system, stat cards, word chips, pangram chips
 - Deployed and tested on Cloudflare Pages
+
+---
+Task ID: fix-2
+Agent: Main Agent
+Task: Fix hexagon design, solver page, autofill, brand name bugs
+
+Work Log:
+- Visited nytbee.com with Playwright to identify all features/data they show
+- Visited beesolver.com with Playwright and downloaded hexagon source code structure
+- Visited sbsolver.online (our deployed site) to identify current visual issues
+- Visited NYT Spelling Bee official site for hexagon reference
+- Found bugs: today page showing "SbAnswer.com" brand, broken hexagon positioning, missing autofill button, solver page poor design
+- Rewrote Honeycomb.astro using beesolver.com's CSS-based approach (absolute positioning + transforms)
+- Rewrote solver.astro with beesolver.com-style interactive hexagon inputs inside each hex cell
+- Added Autofill Today's NYT Puzzle button (fetches from /today API endpoint)
+- Fixed today.astro title (was "SbAnswer.com" now "SB Solver")
+- Fixed BaseLayout.astro title format
+- Updated [slug].astro to use new CSS hexagon display
+- Updated global.css with beesolver.com-style honeycomb CSS
+- Built and deployed to Cloudflare Pages (spellingbee-solver.pages.dev)
+- Pushed to GitHub (sujitbhai7710/spellingbee-solver)
+- Added sbsolver.online as custom domain to Cloudflare Pages project
+- Tested: solver hexagon input works, autofill works (fills N,B,D,E,L,M,O), solve returns 124 words
+- NOTE: sbsolver.online currently points to old Vercel deployment (different Cloudflare account), needs DNS update
+
+Stage Summary:
+- Hexagon completely redesigned using beesolver.com CSS approach (transforms instead of SVG pixel offsets)
+- Solver page now has interactive hexagons with input fields inside each cell
+- Autofill button fetches today's puzzle from API and auto-solves
+- Brand name bug fixed (SbAnswer.com → SB Solver)
+- Deployed to Cloudflare Pages, but sbsolver.online DNS needs updating from Vercel to CF Pages
