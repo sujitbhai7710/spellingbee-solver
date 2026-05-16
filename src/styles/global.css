@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --bee-gold: #f7b731;
+  --bee-gold-light: #fce588;
+  --bee-gold-dark: #d4a017;
+  --bee-honey: #ff9f43;
+  --bee-dark: #2d3436;
+  --bee-gray: #636e72;
+  --bee-light: #dfe6e9;
+  --bee-white: #fafafa;
+  --bee-success: #00b894;
+  --bee-danger: #d63031;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bee-white);
+  color: var(--bee-dark);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Honeycomb hex shape */
+.hex-shape {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+/* Center hex highlight */
+.hex-center {
+  background: var(--bee-gold) !important;
+  color: white !important;
+  font-weight: 700;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Letter badge */
+.letter-badge {
+  @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold;
+}
+
+.letter-badge-center {
+  @apply bg-amber-400 text-white;
+}
+
+.letter-badge-outer {
+  @apply bg-gray-200 text-gray-700;
+}
+
+/* Word list item hover */
+.word-item {
+  @apply px-3 py-1.5 rounded-md text-sm transition-colors duration-150;
+}
+
+.word-item:hover {
+  @apply bg-amber-50;
+}
+
+/* Pangram highlight */
+.pangram-word {
+  @apply font-semibold text-amber-700;
+  background: linear-gradient(120deg, rgba(247, 183, 49, 0.15) 0%, rgba(247, 183, 49, 0.05) 100%);
+}
+
+/* Scrollbar styling */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

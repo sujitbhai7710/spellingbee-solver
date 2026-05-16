@@ -1,0 +1,164 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+const res = await fetch(`${API_BASE}/today`);
+const data = await res.json();
+const puzzle = data.puzzle || {};
+const words = data.words || [];
+
+const todayPuzzle = {
+  ...puzzle,
+  words,
+  totalPoints: data.totalPoints || 0,
+  hasPerfectPangram: data.hasPerfectPangram || false,
+};
+
+const center = todayPuzzle.letters || '';
+const allLetters = todayPuzzle.all_letters || '';
+const outerLetters = allLetters.split('').filter(l => l !== center);
+const pangrams = words.filter(w => w.is_pangram === 1);
+const regularWords = words.filter(w => w.is_pangram !== 1);
+const totalPoints = todayPuzzle.totalPoints;
+
+// Get last 7 puzzles for the sidebar
+const lastRes = await fetch(`${API_BASE}/api/last/7`);
+const lastData = await lastRes.json();
+const recentPuzzles = (lastData.puzzles || []).filter(p => p.puzzle_id !== todayPuzzle.puzzle_id).slice(0, 6);
+---
+
+<BaseLayout title="Today's Spelling Bee Answers" description={`NYT Spelling Bee answers for ${todayPuzzle.date}. Find all ${todayPuzzle.word_count} words and ${todayPuzzle.pangrams_count} pangrams.`}>
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Main Content -->
+      <div class="flex-1 min-w-0">
+        <div class="mb-6">
+          <div class="flex items-center gap-3 mb-1">
+            <span class="bg-amber-400 text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">Today</span>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+          </div>
+          <p class="text-gray-500">{todayPuzzle.date}</p>
+        </div>
+
+        <!-- Honeycomb -->
+        <div class="flex justify-center mb-6">
+          <div class="relative w-52 h-56">
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-18 h-18 hex-shape hex-center flex items-center justify-center text-3xl z-10" style="width:72px;height:72px;">
+              {center}
+            </div>
+            {outerLetters.map((letter, i) => {
+              const angles = [270, 330, 30, 90, 150, 210];
+              const angle = (angles[i] || 0) * Math.PI / 180;
+              const radius = 68;
+              const x = 50 + radius * Math.cos(angle) / 110 * 100;
+              const y = 50 + radius * Math.sin(angle) / 110 * 100;
+              return (
+                <div
+                  class="absolute w-16 h-16 hex-shape bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-2xl font-bold text-gray-700"
+                  style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%);`}
+                >
+                  {letter}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-4 text-center hover:border-amber-300 transition-colors">
+            <p class="text-2xl font-bold text-amber-600">{todayPuzzle.word_count}</p>
+            <p class="text-xs text-gray-500 mt-1">Words</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4 text-center hover:border-amber-300 transition-colors">
+            <p class="text-2xl font-bold text-amber-600">{todayPuzzle.pangrams_count}</p>
+            <p class="text-xs text-gray-500 mt-1">Pangrams</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4 text-center hover:border-amber-300 transition-colors">
+            <p class="text-2xl font-bold text-amber-600">{totalPoints}</p>
+            <p class="text-xs text-gray-500 mt-1">Max Points</p>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4 text-center hover:border-amber-300 transition-colors">
+            <p class="text-2xl font-bold text-amber-600">{todayPuzzle.hasPerfectPangram ? '✓' : '—'}</p>
+            <p class="text-xs text-gray-500 mt-1">Perfect Pangram</p>
+          </div>
+        </div>
+
+        <!-- Pangrams -->
+        {pangrams.length > 0 && (
+          <div class="mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span class="text-amber-500 text-xl">★</span> Pangrams ({pangrams.length})
+            </h2>
+            <div class="flex flex-wrap gap-2">
+              {pangrams.map(w => (
+                <span class="pangram-word px-3 py-1.5 rounded-md text-sm border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors">
+                  {w.word}
+                  <span class="text-xs text-amber-400 ml-1">{w.length}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <!-- Words by Length -->
+        <div>
+          <h2 class="text-lg font-bold text-gray-800 mb-3">All Words ({words.length})</h2>
+          <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scroll">
+            {(() => {
+              const byLen = {};
+              for (const w of regularWords) {
+                const l = w.length;
+                if (!byLen[l]) byLen[l] = [];
+                byLen[l].push(w);
+              }
+              return Object.keys(byLen).sort((a,b) => b-a).map(len => (
+                <div class="px-4 py-3">
+                  <p class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{len}-Letter Words ({byLen[len].length})</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    {byLen[len].map(w => (
+                      <span class="word-item bg-gray-50 text-gray-700 border border-gray-100 cursor-pointer hover:border-amber-300">{w.word}</span>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        <!-- SEO Block -->
+        <div class="mt-10">
+          <h2 class="text-xl font-bold text-gray-800 mb-3">About Today's Puzzle</h2>
+          <p class="text-gray-600 leading-relaxed">The NYT Spelling Bee for {todayPuzzle.date} uses <strong>{center}</strong> as the center letter with {outerLetters.length} outer letters: <strong>{outerLetters.join(', ')}</strong>. Today's puzzle contains <strong>{todayPuzzle.word_count} words</strong> and <strong>{todayPuzzle.pangrams_count} pangram{todayPuzzle.pangrams_count !== 1 ? 's' : ''}</strong>, with a maximum possible score of <strong>{totalPoints} points</strong>. Use our solver to find hints or check your answers.</p>
+        </div>
+      </div>
+
+      <!-- Sidebar: Recent Puzzles -->
+      <aside class="w-full lg:w-72 flex-shrink-0">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 class="font-bold text-gray-800 mb-4">Recent Puzzles</h3>
+          <div class="space-y-2">
+            {recentPuzzles.map(p => {
+              const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+              return (
+                <a href={`/answer-for-${slug}`} class="block p-3 rounded-lg hover:bg-amber-50 transition-colors group">
+                  <p class="text-sm font-medium text-gray-700 group-hover:text-amber-700">{p.date}</p>
+                  <p class="text-xs text-gray-400">Center: {p.letters} &middot; {p.word_count} words</p>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5 mt-4">
+          <h3 class="font-bold text-gray-800 mb-3">Quick Links</h3>
+          <div class="space-y-2">
+            <a href="/solver" class="block p-3 rounded-lg bg-amber-50 text-amber-700 font-medium text-sm hover:bg-amber-100 transition-colors text-center">🐝 Use Solver</a>
+            <a href="/yesterday" class="block p-3 rounded-lg bg-gray-50 text-gray-600 font-medium text-sm hover:bg-gray-100 transition-colors text-center">Yesterday's Answers</a>
+            <a href="/archive" class="block p-3 rounded-lg bg-gray-50 text-gray-600 font-medium text-sm hover:bg-gray-100 transition-colors text-center">Puzzle Archive</a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const res = await fetch(`${API_BASE}/api/puzzles/list?limit=20&page=${page}`);
+const data = await res.json();
+const puzzles = data.puzzles || [];
+const pagination = data.pagination || {};
+---
+
+<BaseLayout title="Puzzle Archive" description="Browse all NYT Spelling Bee puzzles chronologically with answers and word counts.">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
+    <p class="text-gray-500 mb-6">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
+
+    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+      {puzzles.map(p => {
+        const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+        return (
+          <a href={`/answer-for-${slug}`} class="flex items-center justify-between p-4 hover:bg-amber-50 transition-colors group">
+            <div>
+              <p class="font-medium text-gray-800 group-hover:text-amber-700">{p.date}</p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-white text-xs font-bold">{p.letters}</span>
+                <span class="text-xs text-gray-400">{p.all_letters}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-medium text-gray-600">{p.word_count} words</p>
+              <p class="text-xs text-gray-400">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+
+    <!-- Pagination -->
+    {pagination.total_pages > 1 && (
+      <div class="flex items-center justify-center gap-2 mt-8">
+        {pagination.page > 1 && (
+          <a href={`/archive?page=${pagination.page - 1}`} class="px-4 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">← Previous</a>
+        )}
+        <span class="text-sm text-gray-500">Page {pagination.page} of {pagination.total_pages}</span>
+        {pagination.has_next && (
+          <a href={`/archive?page=${pagination.page + 1}`} class="px-4 py-2 rounded-lg bg-amber-400 text-sm font-medium text-white hover:bg-amber-500">Next →</a>
+        )}
+      </div>
+    )}
+  </div>
+</BaseLayout>

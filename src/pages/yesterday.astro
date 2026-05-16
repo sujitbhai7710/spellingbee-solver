@@ -1,0 +1,111 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+const res = await fetch(`${API_BASE}/yesterday`);
+const data = await res.json();
+const puzzle = data.puzzle || {};
+const words = data.words || [];
+const totalPoints = data.totalPoints || 0;
+const hasPerfectPangram = data.hasPerfectPangram || false;
+
+const center = puzzle.letters || '';
+const allLetters = puzzle.all_letters || '';
+const outerLetters = allLetters.split('').filter(l => l !== center);
+const pangrams = words.filter(w => w.is_pangram === 1);
+const regularWords = words.filter(w => w.is_pangram !== 1);
+---
+
+<BaseLayout title="Yesterday's Spelling Bee Answers" description={`NYT Spelling Bee answers for ${puzzle.date}. All ${puzzle.word_count} words and ${puzzle.pangrams_count} pangrams.`}>
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-1">
+        <span class="bg-gray-500 text-white text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">Yesterday</span>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+      </div>
+      <p class="text-gray-500">{puzzle.date}</p>
+    </div>
+
+    <!-- Honeycomb -->
+    <div class="flex justify-center mb-6">
+      <div class="relative w-52 h-56">
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-18 h-18 hex-shape hex-center flex items-center justify-center text-3xl z-10" style="width:72px;height:72px;">
+          {center}
+        </div>
+        {outerLetters.map((letter, i) => {
+          const angles = [270, 330, 30, 90, 150, 210];
+          const angle = (angles[i] || 0) * Math.PI / 180;
+          const radius = 68;
+          const x = 50 + radius * Math.cos(angle) / 110 * 100;
+          const y = 50 + radius * Math.sin(angle) / 110 * 100;
+          return (
+            <div class="absolute w-16 h-16 hex-shape bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-2xl font-bold text-gray-700" style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%);`}>
+              {letter}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <p class="text-2xl font-bold text-amber-600">{puzzle.word_count}</p>
+        <p class="text-xs text-gray-500 mt-1">Words</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <p class="text-2xl font-bold text-amber-600">{puzzle.pangrams_count}</p>
+        <p class="text-xs text-gray-500 mt-1">Pangrams</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <p class="text-2xl font-bold text-amber-600">{totalPoints}</p>
+        <p class="text-xs text-gray-500 mt-1">Max Points</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
+        <p class="text-2xl font-bold text-amber-600">{hasPerfectPangram ? '✓' : '—'}</p>
+        <p class="text-xs text-gray-500 mt-1">Perfect Pangram</p>
+      </div>
+    </div>
+
+    <!-- Pangrams -->
+    {pangrams.length > 0 && (
+      <div class="mb-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="text-amber-500 text-xl">★</span> Pangrams ({pangrams.length})
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          {pangrams.map(w => (
+            <span class="pangram-word px-3 py-1.5 rounded-md text-sm border border-amber-200">
+              {w.word} <span class="text-xs text-amber-400 ml-1">{w.length}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- All Words -->
+    <div>
+      <h2 class="text-lg font-bold text-gray-800 mb-3">All Words ({words.length})</h2>
+      <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scroll">
+        {(() => {
+          const byLen = {};
+          for (const w of regularWords) {
+            const l = w.length;
+            if (!byLen[l]) byLen[l] = [];
+            byLen[l].push(w);
+          }
+          return Object.keys(byLen).sort((a,b) => b-a).map(len => (
+            <div class="px-4 py-3">
+              <p class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{len}-Letter Words ({byLen[len].length})</p>
+              <div class="flex flex-wrap gap-1.5">
+                {byLen[len].map(w => (
+                  <span class="word-item bg-gray-50 text-gray-700 border border-gray-100">{w.word}</span>
+                ))}
+              </div>
+            </div>
+          ));
+        })()}
+      </div>
+    </div>
+  </div>
+</BaseLayout>
