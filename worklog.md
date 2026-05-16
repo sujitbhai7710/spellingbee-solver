@@ -59,3 +59,43 @@ Stage Summary:
 - Autofill button fetches today's puzzle from API and auto-solves
 - Brand name bug fixed (SbAnswer.com → SB Solver)
 - Deployed to Cloudflare Pages, but sbsolver.online DNS needs updating from Vercel to CF Pages
+---
+Task ID: 1
+Agent: Main Agent
+Task: Complete overhaul of SbSolver website - fix all bugs, add features, SEO optimization
+
+Work Log:
+- Fixed API date bug: Modified getLatestPuzzle() in worker to filter by `date_iso <= todayISO`, preventing future puzzles from showing
+- Fixed `/api/last/:count` endpoint to also filter future puzzles
+- Deployed worker fix to Cloudflare Workers
+- Fixed Perfect Pangram rendering: Changed `&#10003;` to "Yes" or em-dash across today, yesterday, and [slug] pages
+- Fixed brand name: Changed all page titles from "SbAnswer.com" to "SbSolver" in BaseLayout.astro
+- Fixed stats page crash: Added `safeLocale()` and `safeNum()` helper functions to handle undefined/null values that caused toLocaleString() errors
+- Added spoiler "Show All Answers" button on today and yesterday pages (nytbee.com feature)
+- Added "Words by First Letter" section with bar charts (nytbee.com feature)
+- Added Genius threshold display in puzzle stats
+- Added Perfect Pangram highlight section with green styling
+- Added Date Picker + "Go!" button on archive page (nytbee.com feature)
+- Added FAQ sections with FAQPage schema on today, yesterday, stats, and archive pages
+- Added HowTo schema on solver page
+- Added WebSite schema on home page
+- Rewrote solver page with 1500+ words of SEO content, HowTo guide, comprehensive FAQ
+- Rewrote today page with 600+ words SEO content, detailed puzzle breakdown, FAQ
+- Rewrote yesterday page with SEO content and FAQ
+- Rewrote stats page with SEO content and FAQ
+- Rewrote archive page with date picker, SEO content, and FAQ
+- Rewrote home page with 600+ words SEO content about Spelling Bee
+- Added Open Graph and Twitter Card meta tags to BaseLayout
+- Added author meta tag for E-E-A-T
+- Added canonical URL tags
+- Deployed to Cloudflare Pages (spellingbee-solver.pages.dev)
+- Pushed to GitHub
+
+Stage Summary:
+- All critical bugs fixed (dates, brand, stats crash, ✓ character)
+- nytbee.com features implemented: spoiler reveal, date picker, words by first letter, genius threshold, puzzle stats header
+- Comprehensive SEO with FAQ schema, HowTo schema, WebSite schema
+- 600-700 word SEO content on every page, 1500+ words on solver
+- E-E-A-T signals added (author, about sections, honest limitations)
+- Human writing skill applied (conversational tone, specific details, no AI-speak)
+- Site deployed and live
