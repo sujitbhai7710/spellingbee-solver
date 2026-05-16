@@ -87,17 +87,16 @@ export function getStaticPaths() {
       return;
     }
     try {
-      var res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
+      // Use the date search API endpoint for efficient lookup
+      var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
       var data = await res.json();
-      var results = data.puzzles || [];
+      var results = data.results || [];
 
-      // Try alternate search if no results
+      // Fallback: try the puzzle list with search param
       if (results.length === 0) {
-        res = await fetch(API_BASE + '/api/puzzles/list?limit=200&page=1');
+        res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
         data = await res.json();
-        results = (data.puzzles || []).filter(function(p) {
-          return p.date === dateStr;
-        });
+        results = data.puzzles || [];
       }
 
       if (results.length === 0) {
@@ -118,7 +117,7 @@ export function getStaticPaths() {
       var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
       var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
 
-      document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SB Solver';
+      document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SbSolver';
 
       var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombHTML(center, outerLetters) + '</div>';
 
@@ -126,7 +125,7 @@ export function getStaticPaths() {
         '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.pangrams_count + '</p><p class="stat-label">Pangrams</p></div>' +
         '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Points</p></div>' +
-        '<div class="stat-card"><p class="stat-value">' + (hasPerfectPangram ? '&#10003;' : '&mdash;') + '</p><p class="stat-label">Perfect Pangram</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + (hasPerfectPangram ? 'Yes' : '\u2014') + '</p><p class="stat-label">Perfect Pangram</p></div>' +
         '</div>';
 
       var pangramsHtml = pangrams.length > 0 ? '<div class="mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg> Pangrams (' + pangrams.length + ')</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-chip"><span class="star">&#9733;</span>' + w.word + ' <span class="text-xs text-amber-500 opacity-70">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';

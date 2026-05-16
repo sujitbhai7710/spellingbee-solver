@@ -17,7 +17,7 @@ const wordCount = puzzle.word_count || 0;
 const pangramCount = puzzle.pangrams_count || 0;
 const puzzleDate = puzzle.date || '';
 
-// Get recent puzzles (last 7, then filter today)
+// Get recent puzzles
 const recentRes = await fetch(`${API_BASE}/api/last/8`);
 const recentData = await recentRes.json();
 const recentPuzzles = (recentData.puzzles || [])
@@ -29,13 +29,24 @@ const statsRes = await fetch(`${API_BASE}/api/statistics`);
 const statsData = await statsRes.json();
 const totalPuzzles = statsData.overview?.totalPuzzles || 0;
 const totalWords = statsData.overview?.totalWords || 0;
+
+const websiteSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "SbSolver",
+  "url": "https://sbsolver.online",
+  "description": "Free NYT Spelling Bee solver and answer tool. Get today's answers, use the solver, and browse the complete puzzle archive.",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://sbsolver.online/archive?search={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+});
 ---
 
-<BaseLayout title="Spelling Bee Solver - Daily NYT Answers & Hints" description="Solve NYT Spelling Bee puzzles instantly. Get today's answers, hints, word lists, and use our free solver tool.">
-
+<BaseLayout title="Spelling Bee Solver - Daily NYT Answers & Hints" description="Solve NYT Spelling Bee puzzles instantly. Get today's answers, hints, word lists, and use our free solver tool. Updated daily." schema={websiteSchema}>
   <!-- Hero Section -->
   <section class="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-amber-900">
-    <!-- Background decoration -->
     <div class="absolute inset-0 opacity-10">
       <svg width="100%" height="100%">
         <defs>
@@ -49,7 +60,6 @@ const totalWords = statsData.overview?.totalWords || 0;
 
     <div class="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
       <div class="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-        <!-- Left: Text -->
         <div class="flex-1 text-center lg:text-left">
           <div class="badge badge-gold mb-5 inline-flex">
             <span class="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
@@ -71,7 +81,6 @@ const totalWords = statsData.overview?.totalWords || 0;
               Solver Tool
             </a>
           </div>
-          <!-- Quick stats -->
           <div class="flex items-center justify-center lg:justify-start gap-6 mt-8 text-sm text-gray-400">
             <span class="font-semibold">{totalPuzzles.toLocaleString()}+ <span class="font-normal text-gray-500">puzzles</span></span>
             <span class="text-gray-600">|</span>
@@ -79,7 +88,6 @@ const totalWords = statsData.overview?.totalWords || 0;
           </div>
         </div>
 
-        <!-- Right: Honeycomb -->
         <div class="flex-shrink-0">
           <div class="relative">
             <Honeycomb center={center} outer={outerLetters} size="lg" />
@@ -101,7 +109,6 @@ const totalWords = statsData.overview?.totalWords || 0;
     </div>
 
     <div class="flex flex-col lg:flex-row gap-8">
-      <!-- Left: Honeycomb -->
       <div class="flex flex-col items-center">
         <Honeycomb center={center} outer={outerLetters} size="md" />
         <div class="text-center mt-3">
@@ -110,7 +117,6 @@ const totalWords = statsData.overview?.totalWords || 0;
         </div>
       </div>
 
-      <!-- Right: Quick Word Preview -->
       <div class="flex-1 min-w-0">
         <div class="grid grid-cols-3 gap-3 mb-6">
           <div class="stat-card">
@@ -220,12 +226,18 @@ const totalWords = statsData.overview?.totalWords || 0;
     </section>
   )}
 
-  <!-- SEO Content -->
+  <!-- SEO Content - 600-700 words -->
   <section class="bg-gray-50 py-12 border-t border-gray-100">
     <div class="max-w-4xl mx-auto px-4 sm:px-6">
-      <h2 class="text-xl font-bold text-gray-800 mb-4">What is the NYT Spelling Bee?</h2>
-      <p class="text-gray-600 leading-relaxed mb-3">The New York Times Spelling Bee is a daily word puzzle where players must find as many words as possible using seven letters arranged in a honeycomb pattern. Every word must include the center letter, must be at least four letters long, and each letter can be used multiple times. Words that use all seven letters are called "pangrams" and earn bonus points.</p>
-      <p class="text-gray-600 leading-relaxed">SB Solver provides instant access to all Spelling Bee answers, hints, and statistics. Whether you're stuck on today's puzzle or want to analyze patterns across thousands of historical puzzles, our free tool has you covered. We update our database daily with the latest puzzle data from the NYT.</p>
+      <h2 class="text-xl font-bold text-gray-800 mb-4">What Is the NYT Spelling Bee?</h2>
+      <p class="text-gray-600 leading-relaxed mb-3">The New York Times Spelling Bee is a daily word puzzle where players must find as many words as possible using seven letters arranged in a honeycomb pattern. Every word must include the center letter, must be at least four letters long, and each letter can be used multiple times. Words that use all seven letters are called "pangrams" and earn bonus points. The puzzle refreshes every day at midnight Eastern time, and thousands of players compete to reach the top rank of Queen Bee.</p>
+      <p class="text-gray-600 leading-relaxed mb-3">The game launched in the NYT Magazine in 2018 and quickly became one of the most popular features in the NYT Games app. Unlike Wordle's single-guess-per-day mechanic, the Spelling Bee lets you keep guessing words until you find them all or give up. The satisfaction of discovering a pangram — especially a perfect pangram that uses each letter exactly once — keeps players coming back every day.</p>
+      <p class="text-gray-600 leading-relaxed mb-3">Scoring follows a consistent system: four-letter words earn 1 point, while longer words earn points equal to their letter count. Pangrams get a 7-point bonus, making them the highest-value words in any puzzle. Progress tiers range from Beginner (0% of total points) to Queen Bee (100%), with Genius at 70% being the target most players aim for.</p>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-3 mt-6">How SbSolver Helps You Play Better</h3>
+      <p class="text-gray-600 leading-relaxed mb-3">SbSolver provides three core tools for Spelling Bee players. The <strong>daily answers page</strong> shows the complete word list for today's puzzle, including pangram highlights, word counts by length, and scoring data. The <strong>solver tool</strong> lets you enter any seven letters and instantly find all valid English words that can be formed from them — useful for checking your own puzzle or exploring hypothetical letter combinations. The <strong>puzzle archive</strong> contains {totalPuzzles.toLocaleString()}+ past puzzles with full answer data, making it easy to review old games or study patterns.</p>
+      <p class="text-gray-600 leading-relaxed mb-3">Our statistics section breaks down the data across the entire puzzle history. You can see which letters appear most often as the center letter, how word length distributions trend over time, and how frequently pangrams and perfect pangrams occur. This information helps players develop better solving strategies by understanding the patterns the NYT uses when constructing puzzles.</p>
+      <p class="text-gray-600 leading-relaxed">Everything on SbSolver is free with no sign-up required. The solver runs entirely in your browser for instant results, and the daily answers update automatically each day. Whether you're a casual player who wants to check a few missing words or a dedicated solver aiming for Queen Bee every day, our tools give you the data you need without any paywall or subscription.</p>
     </div>
   </section>
 </BaseLayout>

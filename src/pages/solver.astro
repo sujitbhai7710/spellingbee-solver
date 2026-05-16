@@ -1,13 +1,102 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+
+const howToSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to Solve the NYT Spelling Bee Puzzle",
+  "description": "Use the SbSolver tool to find all possible words for any Spelling Bee puzzle by entering the center letter and six outer letters.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "name": "Identify the center letter",
+      "text": "Look at the Spelling Bee honeycomb and find the letter in the center hexagon. This letter must appear in every word you form.",
+      "position": 1
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Enter the center letter",
+      "text": "Click the yellow center hexagon in the solver and type the center letter from your puzzle.",
+      "position": 2
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Enter the six outer letters",
+      "text": "Click each surrounding hexagon and type the six outer letters from the honeycomb, one letter per hex.",
+      "position": 3
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Click Solve Puzzle",
+      "text": "Press the Solve Puzzle button or hit Enter. The solver will find all valid English words that can be formed using your letters.",
+      "position": 4
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Review results",
+      "text": "Browse the results sorted by word length. Pangrams (words using all 7 letters) are highlighted with a star. Check the total points and word count.",
+      "position": 5
+    }
+  ]
+});
+
+const faqSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How does the Spelling Bee solver work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Enter your 7 letters (1 center + 6 outer) into the hexagon grid. The solver checks a comprehensive English dictionary and returns every valid word that includes the center letter, uses only the given letters, and is at least 4 letters long. Pangrams are automatically identified and highlighted."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the solver use the official NYT word list?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The solver uses a general English dictionary, which may include words not in the official NYT answer list. The NYT excludes certain words as obscure, offensive, or not well-known enough. Our solver shows all dictionary-valid words as potential finds, not just the official answers."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What counts as a pangram in the Spelling Bee?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A pangram is any word that uses all seven available letters at least once. Pangrams earn a 7-point bonus on top of their base score. A perfect pangram uses each letter exactly once, making it exactly 7 letters long."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use the Autofill button to load today's puzzle?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Click the Autofill Today's NYT Puzzle button to automatically populate the hexagon grid with today's letter configuration. The solver will then find all possible dictionary words for those letters."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does the solver find more words than the official answer list?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The NYT uses a curated word list that excludes obscure, offensive, or less common words. Our dictionary is broader, so you may see words that the NYT would not accept. Use the solver as a hint tool — if a word seems unusual, the NYT probably won't count it."
+      }
+    }
+  ]
+});
+
+const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSchema)]);
 ---
 
-<BaseLayout title="Spelling Bee Solver" description="Solve any NYT Spelling Bee puzzle. Enter your 7 letters and find all possible words instantly.">
+<BaseLayout title="Spelling Bee Solver - Find All Words Instantly" description="Free NYT Spelling Bee solver tool. Enter your 7 letters and find all possible words, pangrams, and scores instantly. Works with today's puzzle or any letter combination." schema={combinedSchema}>
   <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
     <!-- Header -->
     <div class="text-center mb-8">
+      <div class="badge badge-gold mb-3 inline-flex">Free Tool</div>
       <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver</h1>
-      <p class="text-gray-500 text-lg">Enter letters and click a button below to get answers</p>
+      <p class="text-gray-500 text-lg">Enter your letters and find all possible words instantly</p>
     </div>
 
     <div class="flex flex-col lg:flex-row gap-8 items-start">
@@ -21,7 +110,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
-              <input type="text" class="solver-hex-input" maxlength="1" id="center-letter" name="centerLetter" required autocomplete="off" aria-label="Center Letter" />
+              <input type="text" class="solver-hex-input" maxlength="1" id="center-letter" name="centerLetter" required autocomplete="off" aria-label="Center Letter" placeholder="C" />
             </div>
 
             <!-- Outer hexes -->
@@ -31,35 +120,30 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               </svg>
               <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 1" />
             </div>
-
             <div class="solver-hex solver-hex-outer solver-hex-pos-1">
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
               <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 2" />
             </div>
-
             <div class="solver-hex solver-hex-outer solver-hex-pos-2">
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
               <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 3" />
             </div>
-
             <div class="solver-hex solver-hex-outer solver-hex-pos-3">
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
               <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 4" />
             </div>
-
             <div class="solver-hex solver-hex-outer solver-hex-pos-4">
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
               <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 5" />
             </div>
-
             <div class="solver-hex solver-hex-outer solver-hex-pos-5">
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
@@ -71,16 +155,26 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <!-- Action Buttons -->
           <div class="mt-6 flex flex-col items-center gap-3">
             <div class="flex items-center justify-center gap-3">
-              <button id="solve-btn" class="btn-primary !py-2.5 !px-6 text-sm font-bold">
+              <button id="solve-btn" class="btn-primary !py-2.5 !px-6 text-sm font-bold" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 Solve Puzzle
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
               </button>
-              <button id="clear-btn" class="btn-secondary !py-2.5 !px-5 text-sm">Clear</button>
+              <button id="clear-btn" class="btn-secondary !py-2.5 !px-5 text-sm" type="button">Clear</button>
             </div>
-            <button id="autofill-btn" class="autofill-btn text-sm font-semibold">
+            <button id="autofill-btn" class="autofill-btn text-sm font-semibold" type="button">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               Autofill Today's NYT Puzzle
             </button>
+          </div>
+
+          <!-- Quick Instructions -->
+          <div class="mt-5 p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800">
+            <p class="font-bold mb-1">Quick Start:</p>
+            <ol class="list-decimal list-inside space-y-0.5 text-amber-700">
+              <li>Click the center hex and type the center letter</li>
+              <li>Fill in the 6 outer letters around it</li>
+              <li>Press <kbd class="px-1 py-0.5 bg-amber-100 rounded text-[10px] font-bold">Enter</kbd> or click Solve</li>
+            </ol>
           </div>
         </div>
       </div>
@@ -103,6 +197,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <!-- Stats -->
           <div id="solver-stats" class="grid grid-cols-3 gap-3 mb-6"></div>
 
+          <!-- Progress Level Visualization -->
+          <div id="solver-progress" class="card-elevated p-4 mb-6 hidden">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">Score Progress</h3>
+            <div class="space-y-1.5" id="progress-levels"></div>
+          </div>
+
           <!-- Pangrams -->
           <div id="solver-pangrams" class="mb-6 hidden">
             <h3 class="text-sm font-bold text-amber-700 mb-3 flex items-center gap-1.5">
@@ -123,16 +223,113 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="#FEF3C7" stroke="#F7C948" stroke-width="2"/>
             </svg>
           </div>
-          <p class="text-gray-400 font-medium">Click the hexagons above and type your letters</p>
+          <p class="text-gray-400 font-medium">Click the hexagons and type your letters</p>
           <p class="text-gray-300 text-sm mt-1">Or use Autofill to load today's puzzle</p>
         </div>
       </div>
     </div>
+
+    <!-- How To Section -->
+    <section class="mt-12">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Use the Spelling Bee Solver</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="card p-5">
+          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
+            <span class="text-amber-700 font-black text-lg">1</span>
+          </div>
+          <h3 class="font-bold text-gray-800 mb-1.5">Find the center letter</h3>
+          <p class="text-sm text-gray-500">Open the NYT Spelling Bee and identify the letter in the center hexagon. Every valid word must include this letter — it's the one constraint that shapes the entire puzzle.</p>
+        </div>
+        <div class="card p-5">
+          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
+            <span class="text-amber-700 font-black text-lg">2</span>
+          </div>
+          <h3 class="font-bold text-gray-800 mb-1.5">Enter your letters</h3>
+          <p class="text-sm text-gray-500">Click the center hex above and type the center letter. Then fill in the six surrounding hexagons with the outer letters. Letters auto-capitalize and auto-advance to the next hex.</p>
+        </div>
+        <div class="card p-5">
+          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
+            <span class="text-amber-700 font-black text-lg">3</span>
+          </div>
+          <h3 class="font-bold text-gray-800 mb-1.5">Get your results</h3>
+          <p class="text-sm text-gray-500">Click Solve or press Enter. The solver returns every dictionary-valid word sorted by length, with pangrams highlighted and total points calculated using official NYT scoring rules.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Comprehensive SEO Content (1500 words target) -->
+    <section class="mt-10 p-6 bg-gray-50 rounded-2xl">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">The Complete Guide to Solving the NYT Spelling Bee</h2>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">What Is the NYT Spelling Bee?</h3>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">The New York Times Spelling Bee is a daily word puzzle that challenges players to find as many words as possible from a set of seven letters arranged in a honeycomb pattern. One letter sits at the center — every word you form must include it. Words need to be at least four letters long, and you can reuse letters as many times as you want. The puzzle resets every day at midnight Eastern time, and thousands of players compete to reach the top rank of Queen Bee by finding all the words.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">The game debuted in the NYT Magazine in 2018 and moved to the NYT Games app shortly after. Unlike Wordle, which gives you a single puzzle per day with no hints, the Spelling Bee rewards persistence — you can keep guessing words until you find them all. The challenge isn't just vocabulary; it's pattern recognition, letter combination awareness, and knowing which prefixes and suffixes combine with the available letters.</p>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">How Scoring Works</h3>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">The Spelling Bee uses a straightforward scoring system. Four-letter words are worth 1 point each, regardless of the word. Five-letter and longer words earn points equal to their letter count — a 6-letter word gets 6 points, a 9-letter word gets 9 points. Pangrams, which use all seven available letters at least once, earn a 7-point bonus on top of their base score. This means a 7-letter pangram is worth 14 points (7 base + 7 bonus), while a 10-letter pangram earns 17 points.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Progress tiers are based on percentages of the maximum possible score: Beginner (0%), Starting (2%), Solid (5%), Nice (8%), Good (15%), Great (25%), Amazing (40%), Genius (70%), and Queen Bee (100%). Most regular players aim for Genius, which requires finding roughly 70% of all available points. Reaching Queen Bee means finding every single word — a feat that's genuinely difficult on puzzles with 50+ answers.</p>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">Why Use a Solver?</h3>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">A solver tool isn't about cheating — it's about learning. Many players use solvers after they've finished their own attempt to see which words they missed. The most commonly overlooked words tend to be longer entries, words with repeated letters, and words that start with less common letter combinations. Running your letter set through a solver shows you the full landscape of possible words, including ones you might never have considered.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Some players use the solver as a hint system, checking pangram counts or total word counts without revealing the actual words. This gives you a sense of how much you've found versus how much is out there, which helps you decide whether to keep searching or call it a day. Our Autofill feature makes this especially easy — one click loads today's letters, and you can see the total word and pangram counts immediately.</p>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">Strategies for Finding More Words</h3>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Start with the pangrams. There's usually at least one per puzzle, and finding it early gives you a significant point boost. Try combining all seven letters in different orders — the pangram often uses a common prefix or suffix attached to a shorter root word. If the outer letters include common endings like -ING, -TION, -NESS, or -MENT, try attaching them to shorter words you've already found.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Work systematically through prefixes and suffixes. If your letters allow it, try every combination of the center letter with each outer letter as a starting letter. Then test common word beginnings: RE-, UN-, IN-, OUT-, OVER-. Do the same with endings: -ED, -ER, -EST, -ING, -LY, -TION. This methodical approach catches words that pure vocabulary recall misses.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Look for words with repeated letters. The Spelling Bee allows you to use letters more than once, which opens up possibilities like double letters (ROOM, DOOR), repeated prefixes (REDO, REUSE), and compound-adjacent words. Many players forget that letter reuse is allowed and miss words that seem too long for the available letters.</p>
+
+      <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">About This Solver</h3>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">SbSolver's Spelling Bee tool uses a comprehensive English dictionary to find all valid words for any combination of seven letters. It follows the same rules as the official game: words must be at least four letters long, must include the center letter, and can only use the given seven letters (with repetition allowed). Pangrams are automatically detected and highlighted.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">One thing to keep in mind: our dictionary is broader than the NYT's official word list. The New York Times excludes words that are obscure, potentially offensive, or not well-known enough for their audience. This means our solver might show words that the NYT wouldn't accept as official answers. If a word seems unusual or archaic, the NYT probably excluded it from the official list.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">The solver processes everything in your browser — no data gets sent to our servers, and results appear instantly. Your letter combinations stay private. This also means the tool works offline once the page has loaded, making it usable anywhere without an internet connection.</p>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="mt-8">
+      <h2 class="text-xl font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
+      <div class="space-y-3">
+        <details class="card-elevated p-5 group" open>
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How does the Spelling Bee solver work?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The solver takes your 7 letters (1 center + 6 outer) and checks them against a comprehensive English dictionary. It returns every valid word that includes the center letter, uses only the given letters (with repetition allowed), and is at least 4 letters long. Pangrams are automatically identified and scored with the 7-point bonus.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Does the solver use the official NYT word list?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">No. The NYT uses a curated word list that excludes certain words they consider obscure, offensive, or not well-known enough. Our solver uses a general English dictionary, so you may see words that the NYT would not accept. Use it as a comprehensive hint tool — if a word seems unusual, the NYT probably excluded it from their official list.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What counts as a pangram?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">A pangram is any word that uses all seven available letters at least once. It doesn't have to use each letter exactly once — a word that uses all seven letters but repeats some is still a pangram. Pangrams earn a 7-point bonus. A perfect pangram uses each letter exactly once (7 letters total), which makes it the shortest possible pangram.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Can I use the Autofill button for today's puzzle?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Yes. Click "Autofill Today's NYT Puzzle" to automatically load today's letter configuration into the hexagon grid. The solver will then find all dictionary-valid words for those letters. This is the fastest way to check your progress against the complete set of possible answers.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Why does the solver find more words than the official answer list?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The NYT carefully curates their word list, removing words they consider too obscure, potentially offensive, or not common enough for a general audience. Our dictionary is broader, so it includes words the NYT would reject. If a word seems rare or archaic to you, it probably won't count in the official game. Use the full list as a brainstorming tool, not as the final answer key.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Is the solver free to use?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Yes, completely free. No sign-up, no paywall, no subscription. The solver runs entirely in your browser, processes your letters locally, and displays results instantly. You can use it as many times as you want for any letter combination.</p>
+        </details>
+      </div>
+    </section>
   </div>
 </BaseLayout>
 
 <script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
-  // Dictionary
   let dictionary = [];
   let dictLoaded = false;
 
@@ -165,7 +362,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       for (const l of letterSet) {
         if (!w.includes(l)) { pangram = false; break; }
       }
-      results.push({ word: w, isPangram: pangram });
+      results.push({ word: w, isPangram: pangram, length: w.length });
     }
 
     return results.sort((a, b) => {
@@ -181,6 +378,20 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     return pts;
   }
 
+  function getProgressLevels(totalPts) {
+    return [
+      { name: 'Beginner', pct: 0, minPts: Math.ceil(totalPts * 0) },
+      { name: 'Starting', pct: 2, minPts: Math.ceil(totalPts * 0.02) },
+      { name: 'Solid', pct: 5, minPts: Math.ceil(totalPts * 0.05) },
+      { name: 'Nice', pct: 8, minPts: Math.ceil(totalPts * 0.08) },
+      { name: 'Good', pct: 15, minPts: Math.ceil(totalPts * 0.15) },
+      { name: 'Great', pct: 25, minPts: Math.ceil(totalPts * 0.25) },
+      { name: 'Amazing', pct: 40, minPts: Math.ceil(totalPts * 0.40) },
+      { name: 'Genius', pct: 70, minPts: Math.ceil(totalPts * 0.70) },
+      { name: 'Queen Bee', pct: 100, minPts: totalPts },
+    ];
+  }
+
   function displayResults(results) {
     const resultsDiv = document.getElementById('solver-results');
     const loadingDiv = document.getElementById('solver-loading');
@@ -190,6 +401,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     const pangramsDiv = document.getElementById('solver-pangrams');
     const pangramList = document.getElementById('pangram-list');
     const wordsDiv = document.getElementById('solver-words');
+    const progressDiv = document.getElementById('solver-progress');
+    const progressLevelsDiv = document.getElementById('progress-levels');
 
     loadingDiv.classList.add('hidden');
     emptyDiv.classList.add('hidden');
@@ -203,8 +416,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     statsDiv.innerHTML = `
       <div class="stat-card"><p class="stat-value">${results.length}</p><p class="stat-label">Words</p></div>
       <div class="stat-card"><p class="stat-value">${pangrams.length}</p><p class="stat-label">Pangrams</p></div>
-      <div class="stat-card"><p class="stat-value">${totalPts}</p><p class="stat-label">Points</p></div>
+      <div class="stat-card"><p class="stat-value">${totalPts}</p><p class="stat-label">Max Points</p></div>
     `;
+
+    // Progress levels
+    if (totalPts > 0) {
+      progressDiv.classList.remove('hidden');
+      const levels = getProgressLevels(totalPts);
+      progressLevelsDiv.innerHTML = levels.map(l => `
+        <div class="flex items-center gap-2">
+          <span class="w-20 text-xs font-bold ${l.pct >= 70 ? 'text-purple-600' : 'text-gray-500'}">${l.name}</span>
+          <div class="flex-1 progress-bar !h-2">
+            <div class="progress-fill ${l.pct >= 70 ? 'bg-purple-400' : 'bg-amber-400'}" style="width: ${l.pct}%"></div>
+          </div>
+          <span class="text-xs text-gray-400 w-14 text-right">${l.minPts} pts</span>
+        </div>
+      `).join('');
+    }
 
     if (pangrams.length > 0) {
       pangramsDiv.classList.remove('hidden');
@@ -243,10 +471,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     });
 
     if (!center || outer.length < 1) {
-      // Highlight center if empty
-      if (!center) {
-        centerInput.focus();
-      }
+      if (!center) centerInput.focus();
       return;
     }
 
@@ -262,20 +487,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     displayResults(results);
   }
 
-  // Hex input behavior: auto-uppercase, auto-advance on type, auto-delete on empty backspace
+  // Hex input behavior
   const allHexInputs = document.querySelectorAll('.solver-hex-input');
   const centerInput = document.getElementById('center-letter');
   const outerInputList = Array.from(document.querySelectorAll('.solver-hex-outer .solver-hex-input'));
 
-  allHexInputs.forEach((input, idx) => {
-    input.addEventListener('input', function(e) {
+  allHexInputs.forEach((input) => {
+    input.addEventListener('input', function() {
       const val = this.value.toUpperCase();
       this.value = val;
-
       if (val.length === 1) {
-        // Auto-advance to next input
         if (this.id === 'center-letter') {
-          // Move to first outer
           const firstEmpty = outerInputList.find(i => !i.value);
           if (firstEmpty) firstEmpty.focus();
           else outerInputList[0]?.focus();
@@ -290,7 +512,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     input.addEventListener('keydown', function(e) {
       if (e.key === 'Backspace' && !this.value) {
-        // Move to previous input
         if (this.id !== 'center-letter') {
           const currentIdx = outerInputList.indexOf(this);
           if (currentIdx > 0) {
@@ -308,25 +529,22 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       }
     });
 
-    // Select all text on focus for easy replacement
     input.addEventListener('focus', function() {
       this.select();
     });
   });
 
-  // Solve button
   document.getElementById('solve-btn').addEventListener('click', solve);
 
-  // Clear button
   document.getElementById('clear-btn').addEventListener('click', function() {
     allHexInputs.forEach(input => { input.value = ''; });
     centerInput.focus();
     document.getElementById('solver-results').classList.add('hidden');
     document.getElementById('solver-loading').classList.add('hidden');
+    document.getElementById('solver-progress').classList.add('hidden');
     document.getElementById('solver-empty').classList.remove('hidden');
   });
 
-  // Autofill button
   document.getElementById('autofill-btn').addEventListener('click', async function() {
     const btn = this;
     btn.disabled = true;
@@ -350,7 +568,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         input.value = outerLetters[i] || '';
       });
 
-      // Auto-solve after filling
       solve();
     } catch (e) {
       console.error('Autofill failed:', e);
@@ -363,11 +580,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </script>
 
 <style>
-  /* ========================================
-     Solver Honeycomb - Interactive hex grid
-     Based on beesolver.com approach
-     ======================================== */
-
   .honeycomb-solver {
     position: relative;
     width: 280px;
@@ -383,7 +595,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     height: 38%;
   }
 
-  /* Position transforms */
   .solver-hex-pos-center {
     transform: translate(-50%, -50%);
     z-index: 2;
@@ -447,10 +658,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .solver-hex-input::placeholder {
-    color: transparent;
+    color: rgba(0,0,0,0.2);
   }
 
-  /* Focus states */
   .solver-hex-outer:focus-within .solver-hex-svg {
     color: #fef3c7;
   }
@@ -467,7 +677,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     color: #fbbf24;
   }
 
-  /* Autofill button */
   .autofill-btn {
     display: inline-flex;
     align-items: center;
@@ -491,7 +700,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     cursor: not-allowed;
   }
 
-  /* Responsive */
   @media (max-width: 640px) {
     .honeycomb-solver {
       width: 240px;
