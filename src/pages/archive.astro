@@ -10,25 +10,29 @@ const pagination = data.pagination || {};
 ---
 
 <BaseLayout title="Puzzle Archive" description="Browse all NYT Spelling Bee puzzles chronologically with answers and word counts.">
-  <div class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
-    <p class="text-gray-500 mb-6">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
+      <p class="text-gray-500">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
+    </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+    <!-- Puzzle List -->
+    <div class="card-elevated divide-y divide-gray-50">
       {puzzles.map(p => {
         const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
         return (
-          <a href={`/answer-for-${slug}`} class="flex items-center justify-between p-4 hover:bg-amber-50 transition-colors group">
-            <div>
-              <p class="font-medium text-gray-800 group-hover:text-amber-700">{p.date}</p>
-              <div class="flex items-center gap-2 mt-1">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-white text-xs font-bold">{p.letters}</span>
-                <span class="text-xs text-gray-400">{p.all_letters}</span>
+          <a href={`/answer-for-${slug}`} class="flex items-center justify-between p-5 hover:bg-amber-50/50 transition-colors group">
+            <div class="flex items-center gap-4">
+              <span class="letter-circle letter-circle-center">{p.letters}</span>
+              <div>
+                <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors">{p.date}</p>
+                <p class="text-xs text-gray-400 font-mono mt-0.5">{p.all_letters}</p>
               </div>
             </div>
             <div class="text-right">
-              <p class="text-sm font-medium text-gray-600">{p.word_count} words</p>
-              <p class="text-xs text-gray-400">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
+              <p class="text-sm font-semibold text-gray-600">{p.word_count} words</p>
+              <p class="text-xs text-amber-500">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
             </div>
           </a>
         );
@@ -37,13 +41,19 @@ const pagination = data.pagination || {};
 
     <!-- Pagination -->
     {pagination.total_pages > 1 && (
-      <div class="flex items-center justify-center gap-2 mt-8">
+      <div class="flex items-center justify-center gap-3 mt-8">
         {pagination.page > 1 && (
-          <a href={`/archive?page=${pagination.page - 1}`} class="px-4 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">← Previous</a>
+          <a href={`/archive?page=${pagination.page - 1}`} class="btn-secondary !py-2.5 !px-5 text-sm">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
+            Previous
+          </a>
         )}
-        <span class="text-sm text-gray-500">Page {pagination.page} of {pagination.total_pages}</span>
+        <span class="text-sm text-gray-500 font-medium">Page {pagination.page} of {pagination.total_pages}</span>
         {pagination.has_next && (
-          <a href={`/archive?page=${pagination.page + 1}`} class="px-4 py-2 rounded-lg bg-amber-400 text-sm font-medium text-white hover:bg-amber-500">Next →</a>
+          <a href={`/archive?page=${pagination.page + 1}`} class="btn-primary !py-2.5 !px-5 text-sm">
+            Next
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
+          </a>
         )}
       </div>
     )}

@@ -1,68 +1,141 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-
-// This page uses the Svelte Solver island for interactivity
 ---
 
 <BaseLayout title="Spelling Bee Solver" description="Solve any NYT Spelling Bee puzzle. Enter your 7 letters and find all possible words instantly.">
-  <div class="max-w-3xl mx-auto px-4 py-8">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
     <div class="text-center mb-8">
-      <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">🐝 Spelling Bee Solver</h1>
+      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver</h1>
       <p class="text-gray-500 text-lg">Enter your 7 letters and find all possible words</p>
     </div>
 
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8">
-      <!-- Instructions -->
-      <div class="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
-        <p class="text-sm text-amber-800"><strong>How to use:</strong> Type the center letter first (uppercase), then the 6 outer letters (lowercase). Example: <code class="bg-amber-100 px-1 rounded">Nblemod</code> where N is center.</p>
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+      <!-- Left: Input & Honeycomb -->
+      <div class="w-full lg:w-auto flex-shrink-0">
+        <div class="card-elevated p-6 sm:p-8">
+          <!-- Tab Switcher -->
+          <div class="flex items-center gap-2 mb-6">
+            <button id="tab-hex" class="tab-btn active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all" onclick="switchTab('hex')">
+              <svg width="16" height="18" viewBox="0 0 100 110"><polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="currentColor"/></svg>
+              Hexagon Input
+            </button>
+            <button id="tab-text" class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all" onclick="switchTab('text')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              Text Input
+            </button>
+          </div>
+
+          <!-- Hexagon Input Mode -->
+          <div id="input-hex" class="mb-6">
+            <p class="text-sm text-gray-500 mb-4">Click a hexagon then type a letter. The center hex is the required letter.</p>
+            <div id="solver-hex-container" class="flex justify-center">
+              <svg id="solver-hex-svg" width="320" height="290" viewBox="0 0 320 290" style="overflow:visible">
+                <defs>
+                  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.08"/>
+                  </filter>
+                  <filter id="shc" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#F7C948" flood-opacity="0.3"/>
+                  </filter>
+                  <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#F7C948"/>
+                    <stop offset="100%" style="stop-color:#F59E0B"/>
+                  </linearGradient>
+                  <linearGradient id="og" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#FFFFFF"/>
+                    <stop offset="100%" style="stop-color:#F8FAFC"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="flex justify-center gap-3 mt-4">
+              <button onclick="clearHexInput()" class="btn-secondary !py-2 !px-4 text-sm">Clear</button>
+              <button onclick="solveFromHex()" class="btn-primary !py-2 !px-6 text-sm">Solve</button>
+            </div>
+          </div>
+
+          <!-- Text Input Mode -->
+          <div id="input-text" class="mb-6 hidden">
+            <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 mb-4">
+              <p class="text-sm text-amber-800"><strong>How to use:</strong> Type the center letter first (uppercase), then the 6 outer letters (lowercase). Example: <code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs">Nblemod</code> where N is center.</p>
+            </div>
+            <div class="space-y-4">
+              <div>
+                <label for="center-input" class="block text-sm font-semibold text-gray-700 mb-1.5">Center Letter (Required)</label>
+                <input
+                  id="center-input"
+                  type="text"
+                  maxlength="1"
+                  placeholder="e.g. N"
+                  class="solver-input !text-center !text-2xl !tracking-normal !w-20"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+              <div>
+                <label for="outer-input" class="block text-sm font-semibold text-gray-700 mb-1.5">6 Outer Letters</label>
+                <input
+                  id="outer-input"
+                  type="text"
+                  maxlength="6"
+                  placeholder="e.g. blemod"
+                  class="solver-input !text-center !text-xl !tracking-widest"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Input -->
-      <div class="mb-6">
-        <label for="letters-input" class="block text-sm font-medium text-gray-700 mb-2">Your Letters</label>
-        <input
-          id="letters-input"
-          type="text"
-          maxlength="7"
-          placeholder="e.g. Nblemod"
-          class="w-full px-4 py-3 text-lg font-mono tracking-widest rounded-xl border border-gray-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-200 outline-none transition-all"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </div>
-
-      <!-- Results container -->
-      <div id="solver-results" class="hidden">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-800">Results</h2>
-          <span id="result-count" class="text-sm text-gray-500"></span>
+      <!-- Right: Results -->
+      <div class="flex-1 min-w-0 w-full">
+        <!-- Loading -->
+        <div id="solver-loading" class="hidden text-center py-12">
+          <div class="inline-block w-10 h-10 border-[3px] border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-gray-500 mt-3 font-medium">Solving...</p>
         </div>
 
-        <!-- Stats -->
-        <div id="solver-stats" class="grid grid-cols-3 gap-3 mb-4"></div>
+        <!-- Results -->
+        <div id="solver-results" class="hidden">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold text-gray-900">Results</h2>
+            <span id="result-count" class="text-sm text-gray-500 font-medium"></span>
+          </div>
 
-        <!-- Pangrams -->
-        <div id="solver-pangrams" class="mb-4 hidden">
-          <h3 class="text-sm font-bold text-amber-700 mb-2 flex items-center gap-1"><span>★</span> Pangrams</h3>
-          <div id="pangram-list" class="flex flex-wrap gap-2"></div>
+          <!-- Stats -->
+          <div id="solver-stats" class="grid grid-cols-3 gap-3 mb-6"></div>
+
+          <!-- Pangrams -->
+          <div id="solver-pangrams" class="mb-6 hidden">
+            <h3 class="text-sm font-bold text-amber-700 mb-3 flex items-center gap-1.5">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
+              Pangrams
+            </h3>
+            <div id="pangram-list" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <!-- Words by length -->
+          <div id="solver-words" class="card-elevated max-h-[500px] overflow-y-auto custom-scroll divide-y divide-gray-50"></div>
         </div>
 
-        <!-- Words by length -->
-        <div id="solver-words" class="max-h-96 overflow-y-auto custom-scroll divide-y divide-gray-100"></div>
-      </div>
-
-      <!-- Loading state -->
-      <div id="solver-loading" class="hidden text-center py-8">
-        <div class="inline-block w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-gray-500 mt-2">Solving...</p>
+        <!-- Empty State -->
+        <div id="solver-empty" class="text-center py-12">
+          <svg width="48" height="53" viewBox="0 0 100 110" class="mx-auto mb-4 opacity-20">
+            <polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="#F7C948"/>
+          </svg>
+          <p class="text-gray-400 font-medium">Enter your letters to start solving</p>
+        </div>
       </div>
     </div>
   </div>
 </BaseLayout>
 
-<script>
-  const API_BASE = 'https://spelling-bee-api.sbsolver.workers.dev';
-  let dictionary: string[] = [];
+<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+  // Dictionary
+  let dictionary = [];
   let dictLoaded = false;
 
   async function loadDictionary() {
@@ -76,10 +149,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
   }
 
-  function solveSpellingBee(centerLetter: string, outerLetters: string[], dict: string[]) {
+  function solveSpellingBee(centerLetter, outerLetters, dict) {
     const allLetters = [centerLetter, ...outerLetters];
     const letterSet = new Set(allLetters.map(l => l.toLowerCase()));
-    const results: { word: string; isPangram: boolean }[] = [];
+    const results = [];
 
     for (const word of dict) {
       const w = word.toLowerCase();
@@ -104,92 +177,289 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     });
   }
 
-  function calculateWordPoints(word: string, isPangram: boolean) {
+  function calculateWordPoints(word, isPangram) {
     let pts = word.length === 4 ? 1 : word.length;
     if (isPangram) pts += 7;
     return pts;
   }
 
-  const input = document.getElementById('letters-input') as HTMLInputElement;
-  const resultsDiv = document.getElementById('solver-results')!;
-  const loadingDiv = document.getElementById('solver-loading')!;
-  const countSpan = document.getElementById('result-count')!;
-  const statsDiv = document.getElementById('solver-stats')!;
-  const pangramsDiv = document.getElementById('solver-pangrams')!;
-  const pangramList = document.getElementById('pangram-list')!;
-  const wordsDiv = document.getElementById('solver-words')!;
+  function displayResults(results) {
+    const resultsDiv = document.getElementById('solver-results');
+    const loadingDiv = document.getElementById('solver-loading');
+    const emptyDiv = document.getElementById('solver-empty');
+    const countSpan = document.getElementById('result-count');
+    const statsDiv = document.getElementById('solver-stats');
+    const pangramsDiv = document.getElementById('solver-pangrams');
+    const pangramList = document.getElementById('pangram-list');
+    const wordsDiv = document.getElementById('solver-words');
 
-  let debounceTimer: ReturnType<typeof setTimeout>;
+    loadingDiv.classList.add('hidden');
+    emptyDiv.classList.add('hidden');
+    resultsDiv.classList.remove('hidden');
 
-  input.addEventListener('input', async () => {
+    const pangrams = results.filter(r => r.isPangram);
+    const regular = results.filter(r => !r.isPangram);
+    const totalPts = results.reduce((s, r) => s + calculateWordPoints(r.word, r.isPangram), 0);
+
+    countSpan.textContent = results.length + ' words found';
+    statsDiv.innerHTML = `
+      <div class="stat-card"><p class="stat-value">${results.length}</p><p class="stat-label">Words</p></div>
+      <div class="stat-card"><p class="stat-value">${pangrams.length}</p><p class="stat-label">Pangrams</p></div>
+      <div class="stat-card"><p class="stat-value">${totalPts}</p><p class="stat-label">Points</p></div>
+    `;
+
+    if (pangrams.length > 0) {
+      pangramsDiv.classList.remove('hidden');
+      pangramList.innerHTML = pangrams.map(r =>
+        '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
+      ).join('');
+    } else {
+      pangramsDiv.classList.add('hidden');
+    }
+
+    const byLen = {};
+    for (const w of regular) {
+      const l = w.word.length;
+      if (!byLen[l]) byLen[l] = [];
+      byLen[l].push(w);
+    }
+
+    wordsDiv.innerHTML = Object.keys(byLen).sort((a,b) => +b - +a).map(len => `
+      <div class="px-5 py-4">
+        <p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">${len}-Letter Words (${byLen[+len].length})</p>
+        <div class="flex flex-wrap gap-2">
+          ${byLen[+len].map(w => '<span class="word-chip">' + w.word + '</span>').join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function solve(center, outer) {
+    if (!center || outer.length < 1) return;
+    const loadingDiv = document.getElementById('solver-loading');
+    const resultsDiv = document.getElementById('solver-results');
+    const emptyDiv = document.getElementById('solver-empty');
+    resultsDiv.classList.add('hidden');
+    emptyDiv.classList.add('hidden');
+    loadingDiv.classList.remove('hidden');
+    await loadDictionary();
+    const results = solveSpellingBee(center, outer, dictionary);
+    displayResults(results);
+  }
+
+  // Tab Switching
+  window.switchTab = function(tab) {
+    const hexBtn = document.getElementById('tab-hex');
+    const textBtn = document.getElementById('tab-text');
+    const hexPanel = document.getElementById('input-hex');
+    const textPanel = document.getElementById('input-text');
+    if (tab === 'hex') {
+      hexBtn.classList.add('active');
+      textBtn.classList.remove('active');
+      hexPanel.classList.remove('hidden');
+      textPanel.classList.add('hidden');
+    } else {
+      textBtn.classList.add('active');
+      hexBtn.classList.remove('active');
+      textPanel.classList.remove('hidden');
+      hexPanel.classList.add('hidden');
+    }
+  };
+
+  // Hexagon SVG builder
+  const hexW = 104, hexH = 116;
+  const svgW = 320, svgH = 290;
+  const cx = svgW / 2, cy = svgH / 2;
+
+  function hexPath(w, h) {
+    const hw = w / 2, hh = h / 2, qh = h / 4;
+    return 'M0,' + qh + ' L' + hw + ',0 L' + w + ',' + qh + ' L' + w + ',' + (h - qh) + ' L' + hw + ',' + h + ' L0,' + (h - qh) + ' Z';
+  }
+
+  const hexPoints = hexPath(hexW, hexH);
+  const positions = [
+    { x: cx - hexW/2, y: cy - hexH/2 - hexH/2 - 3 - hexH/4 + 4 },
+    { x: cx + hexW/2 + 6, y: cy - hexH/2 - 3/2 + 2 },
+    { x: cx + hexW/2 + 6, y: cy + 3/2 + hexH/4 - 2 },
+    { x: cx - hexW/2, y: cy + hexH/2 + 3/2 + hexH/4 + 4 },
+    { x: cx - hexW - 6, y: cy + 3/2 + hexH/4 - 2 },
+    { x: cx - hexW - 6, y: cy - hexH/2 - 3/2 + 2 },
+  ];
+  const centerPos = { x: cx - hexW / 2, y: cy - hexH / 2 };
+
+  // Build the hex SVG
+  const svg = document.getElementById('solver-hex-svg');
+  const hexData = { center: '', outer: ['','','','','',''] };
+  let selectedHex = null; // 'center' or 0-5
+
+  function buildHexSVG() {
+    // Remove old hexes
+    svg.querySelectorAll('.hex-group').forEach(g => g.remove());
+
+    // Outer hexagons
+    positions.forEach((pos, i) => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.classList.add('hex-group');
+      g.setAttribute('transform', 'translate(' + pos.x + ',' + pos.y + ')');
+      g.style.cursor = 'pointer';
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', hexPoints);
+      path.setAttribute('fill', selectedHex === i ? '#FFFBEB' : 'url(#og)');
+      path.setAttribute('stroke', selectedHex === i ? '#F7C948' : '#E2E8F0');
+      path.setAttribute('stroke-width', selectedHex === i ? '2.5' : '1.5');
+      path.setAttribute('filter', 'url(#sh)');
+      g.appendChild(path);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', hexW / 2);
+      text.setAttribute('y', hexH / 2 + 10);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', hexData.outer[i] ? '34' : '16');
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('fill', hexData.outer[i] ? '#475569' : '#CBD5E1');
+      text.setAttribute('font-family', 'Inter, system-ui, sans-serif');
+      text.textContent = hexData.outer[i] || (i + 1);
+      g.appendChild(text);
+
+      g.addEventListener('click', () => { selectedHex = i; buildHexSVG(); });
+      svg.appendChild(g);
+    });
+
+    // Center hexagon
+    const cg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    cg.classList.add('hex-group');
+    cg.setAttribute('transform', 'translate(' + centerPos.x + ',' + centerPos.y + ')');
+    cg.style.cursor = 'pointer';
+
+    const cpath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    cpath.setAttribute('d', hexPoints);
+    cpath.setAttribute('fill', selectedHex === 'center' ? '#FDE68A' : 'url(#gg)');
+    cpath.setAttribute('stroke', selectedHex === 'center' ? '#F59E0B' : '#E8A317');
+    cpath.setAttribute('stroke-width', selectedHex === 'center' ? '3' : '1.5');
+    cpath.setAttribute('filter', 'url(#shc)');
+    cg.appendChild(cpath);
+
+    const ctext = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    ctext.setAttribute('x', hexW / 2);
+    ctext.setAttribute('y', hexH / 2 + 10);
+    ctext.setAttribute('text-anchor', 'middle');
+    ctext.setAttribute('font-size', hexData.center ? '34' : '16');
+    ctext.setAttribute('font-weight', '900');
+    ctext.setAttribute('fill', hexData.center ? 'white' : 'rgba(255,255,255,0.5)');
+    ctext.setAttribute('font-family', 'Inter, system-ui, sans-serif');
+    ctext.textContent = hexData.center || 'C';
+    cg.appendChild(ctext);
+
+    cg.addEventListener('click', () => { selectedHex = 'center'; buildHexSVG(); });
+    svg.appendChild(cg);
+  }
+
+  buildHexSVG();
+
+  // Keyboard handler for hex input
+  document.addEventListener('keydown', (e) => {
+    if (selectedHex === null) return;
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+
+    const key = e.key.toUpperCase();
+    if (/^[A-Z]$/.test(key)) {
+      if (selectedHex === 'center') {
+        hexData.center = key;
+      } else {
+        hexData.outer[selectedHex] = key;
+      }
+      // Move to next empty
+      if (selectedHex === 'center') {
+        const nextEmpty = hexData.outer.findIndex(l => !l);
+        selectedHex = nextEmpty >= 0 ? nextEmpty : null;
+      } else if (selectedHex < 5) {
+        selectedHex = selectedHex + 1;
+      } else {
+        selectedHex = null;
+      }
+      buildHexSVG();
+    } else if (e.key === 'Backspace') {
+      if (selectedHex === 'center') {
+        if (hexData.center) hexData.center = '';
+      } else if (typeof selectedHex === 'number') {
+        if (hexData.outer[selectedHex]) {
+          hexData.outer[selectedHex] = '';
+        } else if (selectedHex > 0) {
+          selectedHex = selectedHex - 1;
+          hexData.outer[selectedHex] = '';
+        } else {
+          selectedHex = 'center';
+          hexData.center = '';
+        }
+      }
+      buildHexSVG();
+    } else if (e.key === 'Enter') {
+      solveFromHex();
+    }
+  });
+
+  window.clearHexInput = function() {
+    hexData.center = '';
+    hexData.outer = ['','','','','',''];
+    selectedHex = 'center';
+    buildHexSVG();
+  };
+
+  window.solveFromHex = async function() {
+    const center = hexData.center;
+    const outer = hexData.outer.filter(l => l);
+    if (!center) {
+      selectedHex = 'center';
+      buildHexSVG();
+      return;
+    }
+    if (outer.length < 1) return;
+    await solve(center, outer);
+  };
+
+  // Text input mode
+  const centerInput = document.getElementById('center-input');
+  const outerInput = document.getElementById('outer-input');
+  let debounceTimer;
+
+  function handleTextInput() {
     clearTimeout(debounceTimer);
-    const val = input.value.trim();
+    const center = centerInput.value.trim().toUpperCase();
+    const outer = outerInput.value.trim().toUpperCase().split('').filter(l => /[A-Z]/.test(l));
 
-    if (val.length < 7) {
-      resultsDiv.classList.add('hidden');
+    if (!center || outer.length < 1) {
+      document.getElementById('solver-results').classList.add('hidden');
+      document.getElementById('solver-empty').classList.remove('hidden');
       return;
     }
 
     debounceTimer = setTimeout(async () => {
-      loadingDiv.classList.remove('hidden');
-      resultsDiv.classList.add('hidden');
-
-      await loadDictionary();
-
-      const center = val[0].toUpperCase();
-      const outer = val.slice(1).toUpperCase().split('');
-      const results = solveSpellingBee(center, outer, dictionary);
-
-      loadingDiv.classList.add('hidden');
-      resultsDiv.classList.remove('hidden');
-
-      const pangrams = results.filter(r => r.isPangram);
-      const regular = results.filter(r => !r.isPangram);
-      const totalPts = results.reduce((s, r) => s + calculateWordPoints(r.word, r.isPangram), 0);
-
-      countSpan.textContent = `${results.length} words found`;
-      statsDiv.innerHTML = `
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
-          <p class="text-xl font-bold text-amber-600">${results.length}</p>
-          <p class="text-xs text-gray-500">Words</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
-          <p class="text-xl font-bold text-amber-600">${pangrams.length}</p>
-          <p class="text-xs text-gray-500">Pangrams</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-3 text-center">
-          <p class="text-xl font-bold text-amber-600">${totalPts}</p>
-          <p class="text-xs text-gray-500">Points</p>
-        </div>
-      `;
-
-      if (pangrams.length > 0) {
-        pangramsDiv.classList.remove('hidden');
-        pangramList.innerHTML = pangrams.map(r =>
-          `<span class="pangram-word px-3 py-1.5 rounded-md text-sm border border-amber-200">${r.word} <span class="text-xs text-amber-400">${r.word.length}</span></span>`
-        ).join('');
-      } else {
-        pangramsDiv.classList.add('hidden');
-      }
-
-      const byLen: Record<number, typeof regular> = {};
-      for (const w of regular) {
-        const l = w.word.length;
-        if (!byLen[l]) byLen[l] = [];
-        byLen[l].push(w);
-      }
-
-      wordsDiv.innerHTML = Object.keys(byLen).sort((a,b) => +b - +a).map(len => `
-        <div class="px-4 py-3">
-          <p class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">${len}-Letter Words (${byLen[+len].length})</p>
-          <div class="flex flex-wrap gap-1.5">
-            ${byLen[+len].map(w => `<span class="word-item bg-gray-50 text-gray-700 border border-gray-100">${w.word}</span>`).join('')}
-          </div>
-        </div>
-      `).join('');
+      await solve(center, outer);
     }, 300);
-  });
+  }
 
-  // Focus input on load
-  input.focus();
+  centerInput.addEventListener('input', function() {
+    if (this.value.length === 1) outerInput.focus();
+    handleTextInput();
+  });
+  outerInput.addEventListener('input', handleTextInput);
 </script>
+
+<style>
+  .tab-btn {
+    color: #94A3B8;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+  }
+  .tab-btn:hover {
+    color: #64748B;
+    background: #F1F5F9;
+  }
+  .tab-btn.active {
+    color: #92400E;
+    background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+    border-color: #F59E0B;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+  }
+</style>

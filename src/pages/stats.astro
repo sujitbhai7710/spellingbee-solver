@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Honeycomb from '../components/Honeycomb.astro';
 import { API_BASE } from '../lib/utils';
 
 // Get statistics
@@ -31,149 +32,162 @@ const maxDistCount = Math.max(...wordDist.map(d => d.count), 1);
 ---
 
 <BaseLayout title="Spelling Bee Statistics" description="Comprehensive statistics and data about NYT Spelling Bee puzzles including letter frequencies, word distributions, and more.">
-  <div class="max-w-6xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-2">Spelling Bee Statistics</h1>
-    <p class="text-gray-500 mb-8">Comprehensive data analysis across {overview.totalPuzzles?.toLocaleString() || 0} puzzles</p>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Spelling Bee Statistics</h1>
+      <p class="text-gray-500">Comprehensive data analysis across {overview.totalPuzzles?.toLocaleString() || 0} puzzles</p>
+    </div>
 
     <!-- Overview Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-      <div class="bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl p-5 text-white">
-        <p class="text-3xl font-bold">{overview.totalPuzzles?.toLocaleString()}</p>
-        <p class="text-amber-100 text-sm mt-1">Total Puzzles</p>
+      <div class="bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl p-5 text-white shadow-lg shadow-amber-200/50">
+        <p class="text-3xl font-black">{overview.totalPuzzles?.toLocaleString()}</p>
+        <p class="text-amber-100 text-sm font-medium mt-1">Total Puzzles</p>
       </div>
-      <div class="bg-white rounded-2xl border border-gray-200 p-5">
-        <p class="text-3xl font-bold text-gray-800">{overview.totalWords?.toLocaleString()}</p>
-        <p class="text-gray-500 text-sm mt-1">Total Words</p>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{overview.totalWords?.toLocaleString()}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Total Words</p>
       </div>
-      <div class="bg-white rounded-2xl border border-gray-200 p-5">
-        <p class="text-3xl font-bold text-gray-800">{overview.totalPangrams?.toLocaleString()}</p>
-        <p class="text-gray-500 text-sm mt-1">Total Pangrams</p>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{overview.totalPangrams?.toLocaleString()}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Total Pangrams</p>
       </div>
-      <div class="bg-white rounded-2xl border border-gray-200 p-5">
-        <p class="text-3xl font-bold text-gray-800">{overview.totalPerfectPangrams?.toLocaleString()}</p>
-        <p class="text-gray-500 text-sm mt-1">Perfect Pangrams</p>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{overview.totalPerfectPangrams?.toLocaleString()}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Perfect Pangrams</p>
       </div>
     </div>
 
     <!-- Averages & Extremes -->
     <div class="grid md:grid-cols-2 gap-6 mb-10">
-      <div class="bg-white rounded-2xl border border-gray-200 p-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Averages</h2>
-        <div class="space-y-4">
+      <div class="card-elevated p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5">Averages</h2>
+        <div class="space-y-5">
           <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="text-gray-600">Words per puzzle</span>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Words per puzzle</span>
               <span class="font-bold text-gray-800">{averages.wordsPerPuzzle}</span>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-              <div class="bg-amber-400 h-2 rounded-full" style={`width: ${(averages.wordsPerPuzzle / 81) * 100}%`}></div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((averages.wordsPerPuzzle / 81) * 100, 100)}%`}></div>
             </div>
           </div>
           <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="text-gray-600">Pangrams per puzzle</span>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Pangrams per puzzle</span>
               <span class="font-bold text-gray-800">{averages.pangramsPerPuzzle}</span>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-              <div class="bg-amber-400 h-2 rounded-full" style={`width: ${(averages.pangramsPerPuzzle / 8) * 100}%`}></div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((averages.pangramsPerPuzzle / 8) * 100, 100)}%`}></div>
             </div>
           </div>
           <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="text-gray-600">Average word length</span>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Average word length</span>
               <span class="font-bold text-gray-800">{averages.averageWordLength}</span>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2">
-              <div class="bg-amber-400 h-2 rounded-full" style={`width: ${(averages.averageWordLength / 10) * 100}%`}></div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((averages.averageWordLength / 10) * 100, 100)}%`}></div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-gray-200 p-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">Extremes</h2>
-        <div class="space-y-3 text-sm">
+      <div class="card-elevated p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5">Extremes</h2>
+        <div class="space-y-3">
           {extremes.puzzleWithMostWords && (
-            <div class="flex justify-between items-center p-2 bg-green-50 rounded-lg">
-              <span class="text-gray-600">Most words</span>
-              <span class="font-bold text-green-700">{extremes.puzzleWithMostWords.word_count} words</span>
+            <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Most words</span>
+              <span class="font-bold text-emerald-700 text-sm">{extremes.puzzleWithMostWords.word_count} words</span>
             </div>
           )}
           {extremes.puzzleWithFewestWords && (
-            <div class="flex justify-between items-center p-2 bg-red-50 rounded-lg">
-              <span class="text-gray-600">Fewest words</span>
-              <span class="font-bold text-red-700">{extremes.puzzleWithFewestWords.word_count} words</span>
+            <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Fewest words</span>
+              <span class="font-bold text-red-700 text-sm">{extremes.puzzleWithFewestWords.word_count} words</span>
             </div>
           )}
           {extremes.puzzleWithMostPangrams && (
-            <div class="flex justify-between items-center p-2 bg-amber-50 rounded-lg">
-              <span class="text-gray-600">Most pangrams</span>
-              <span class="font-bold text-amber-700">{extremes.puzzleWithMostPangrams.pangrams_count} pangrams</span>
+            <div class="flex justify-between items-center p-3 bg-amber-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Most pangrams</span>
+              <span class="font-bold text-amber-700 text-sm">{extremes.puzzleWithMostPangrams.pangrams_count} pangrams</span>
             </div>
           )}
           {extremes.longestWordLength && (
-            <div class="flex justify-between items-center p-2 bg-blue-50 rounded-lg">
-              <span class="text-gray-600">Longest word</span>
-              <span class="font-bold text-blue-700">{extremes.longestWordLength} letters</span>
+            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Longest word</span>
+              <span class="font-bold text-blue-700 text-sm">{extremes.longestWordLength} letters</span>
             </div>
           )}
         </div>
       </div>
     </div>
 
-    <!-- Center Letter Frequency Chart -->
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-10">
-      <h2 class="text-lg font-bold text-gray-800 mb-4">Most Common Center Letters</h2>
+    <!-- Center Letter Frequency -->
+    <div class="card-elevated p-6 mb-10">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">Most Common Center Letters</h2>
       <div class="space-y-3">
         {centerFreq.map(item => (
           <div class="flex items-center gap-3">
-            <span class="w-8 h-8 rounded-full bg-amber-400 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">{item.letter}</span>
+            <span class="letter-circle letter-circle-center !w-9 !h-9 !text-sm flex-shrink-0">{item.letter}</span>
             <div class="flex-1">
-              <div class="w-full bg-gray-100 rounded-full h-5">
-                <div class="bg-amber-400 h-5 rounded-full flex items-center pl-2 text-xs text-white font-medium" style={`width: ${(item.count / maxCenterCount) * 100}%`}>
+              <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-300 to-amber-500 h-7 rounded-full flex items-center pl-3 text-xs text-white font-bold" style={`width: ${Math.max((item.count / maxCenterCount) * 100, 3)}%`}>
                   {item.count}
                 </div>
               </div>
             </div>
-            <span class="text-xs text-gray-400 w-12 text-right">{item.percentage}%</span>
+            <span class="text-xs text-gray-400 font-medium w-12 text-right">{item.percentage}%</span>
           </div>
         ))}
       </div>
     </div>
 
-    <!-- Letter Frequency Chart -->
-    <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-10">
-      <h2 class="text-lg font-bold text-gray-800 mb-4">All Letters Frequency</h2>
-      <div class="grid sm:grid-cols-2 gap-x-8 gap-y-2">
+    <!-- Letter Frequency -->
+    <div class="card-elevated p-6 mb-10">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">All Letters Frequency</h2>
+      <div class="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
         {letterFreq.map(item => (
           <div class="flex items-center gap-3 py-1">
-            <span class="w-7 h-7 rounded bg-gray-100 text-gray-700 font-bold text-xs flex items-center justify-center flex-shrink-0">{item.letter}</span>
+            <span class="letter-circle letter-circle-outer !w-8 !h-8 !text-xs flex-shrink-0">{item.letter}</span>
             <div class="flex-1">
-              <div class="w-full bg-gray-100 rounded-full h-3">
-                <div class="bg-amber-400 h-3 rounded-full" style={`width: ${(item.totalAppearances / maxLetterCount) * 100}%`}></div>
+              <div class="progress-bar !h-3">
+                <div class="progress-fill bg-amber-400" style={`width: ${(item.totalAppearances / maxLetterCount) * 100}%`}></div>
               </div>
             </div>
-            <span class="text-xs text-gray-500 w-16 text-right">{item.totalAppearances} ({item.asCenter}c)</span>
+            <span class="text-xs text-gray-500 font-medium w-16 text-right">{item.totalAppearances} <span class="text-gray-300">({item.asCenter}c)</span></span>
           </div>
         ))}
       </div>
     </div>
 
     <!-- Word Length Distribution -->
-    <div class="bg-white rounded-2xl border border-gray-200 p-6">
-      <h2 class="text-lg font-bold text-gray-800 mb-4">Word Length Distribution</h2>
-      <div class="space-y-2">
+    <div class="card-elevated p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">Word Length Distribution</h2>
+      <div class="space-y-2.5">
         {wordDist.map(item => (
           <div class="flex items-center gap-3">
-            <span class="w-8 text-sm font-medium text-gray-600 text-right">{item.length}-L</span>
+            <span class="w-10 text-sm font-bold text-gray-600 text-right">{item.length}-L</span>
             <div class="flex-1">
-              <div class="w-full bg-gray-100 rounded-full h-6">
-                <div class={`h-6 rounded-full flex items-center pl-2 text-xs font-medium ${item.pangram_count > 0 ? 'bg-amber-400 text-white' : 'bg-gray-300 text-gray-700'}`} style={`width: ${Math.max((item.count / maxDistCount) * 100, 2)}%`}>
+              <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
+                <div class:list={[
+                  'h-7 rounded-full flex items-center pl-3 text-xs font-bold',
+                  item.pangram_count > 0
+                    ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                ]} style={`width: ${Math.max((item.count / maxDistCount) * 100, 2)}%`}>
                   {item.count.toLocaleString()}
                 </div>
               </div>
             </div>
-            {item.pangram_count > 0 && <span class="text-xs text-amber-600">★{item.pangram_count}</span>}
+            {item.pangram_count > 0 && (
+              <span class="text-xs text-amber-600 font-bold flex items-center gap-0.5">
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
+                {item.pangram_count}
+              </span>
+            )}
           </div>
         ))}
       </div>

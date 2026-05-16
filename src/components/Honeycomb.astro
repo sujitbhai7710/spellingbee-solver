@@ -1,0 +1,152 @@
+---
+/**
+ * Honeycomb - NYT-style SVG hexagon grid
+ * Props:
+ *   center: string - center letter
+ *   outer: string[] - 6 outer letters
+ *   size: 'sm' | 'md' | 'lg' - size variant
+ *   interactive: boolean - whether hexagons are clickable
+ */
+export interface Props {
+  center: string;
+  outer: string[];
+  size?: 'sm' | 'md' | 'lg';
+  interactive?: boolean;
+}
+
+const { center, outer = [], size = 'md', interactive = false } = Astro.props;
+
+const sizes = {
+  sm: { hexW: 70, hexH: 78, gap: 6, fontSize: 22, svgW: 220, svgH: 200 },
+  md: { hexW: 90, hexH: 100, gap: 6, fontSize: 28, svgW: 280, svgH: 250 },
+  lg: { hexW: 104, hexH: 116, gap: 6, fontSize: 34, svgW: 320, svgH: 290 },
+};
+
+const s = sizes[size];
+const cx = s.svgW / 2;
+const cy = s.svgH / 2;
+
+// Hexagon path (flat-top hexagon)
+function hexPath(w, h) {
+  const hw = w / 2;
+  const hh = h / 2;
+  const qtrH = h / 4;
+  return `M0,${qtrH} L${hw},0 L${w},${qtrH} L${w},${h - qtrH} L${hw},${h} L0,${h - qtrH} Z`;
+}
+
+const hexPoints = hexPath(s.hexW, s.hexH);
+
+// Position 6 outer hexagons around center
+// Angles: top, top-right, bottom-right, bottom, bottom-left, top-left
+const positions = [
+  { x: cx - s.hexW / 2, y: cy - s.hexH / 2 - s.hexH / 2 - s.gap / 2 - s.hexH / 4 + 4 }, // top
+  { x: cx + s.hexW / 2 + s.gap, y: cy - s.hexH / 2 - s.gap / 2 + 2 },                    // top-right
+  { x: cx + s.hexW / 2 + s.gap, y: cy + s.gap / 2 + s.hexH / 4 - 2 },                    // bottom-right
+  { x: cx - s.hexW / 2, y: cy + s.hexH / 2 + s.gap / 2 + s.hexH / 4 + 4 },               // bottom
+  { x: cx - s.hexW - s.gap, y: cy + s.gap / 2 + s.hexH / 4 - 2 },                         // bottom-left
+  { x: cx - s.hexW - s.gap, y: cy - s.hexH / 2 - s.gap / 2 + 2 },                         // top-left
+];
+
+const centerPos = { x: cx - s.hexW / 2, y: cy - s.hexH / 2 };
+---
+
+<svg
+  width={s.svgW}
+  height={s.svgH}
+  viewBox={`0 0 ${s.svgW} ${s.svgH}`}
+  class="honeycomb-svg"
+  style="overflow: visible;"
+>
+  <defs>
+    <filter id="hex-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.1"/>
+    </filter>
+    <filter id="hex-shadow-center" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#F7C948" flood-opacity="0.35"/>
+    </filter>
+    <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F7C948"/>
+      <stop offset="100%" style="stop-color:#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="outer-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF"/>
+      <stop offset="100%" style="stop-color:#F8FAFC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer hexagons -->
+  {outer.map((letter, i) => (
+    <g
+      transform={`translate(${positions[i].x}, ${positions[i].y})`}
+      class:list={[interactive && 'hex-interactive']}
+      data-letter={letter}
+      data-index={i}
+    >
+      <path
+        d={hexPoints}
+        fill="url(#outer-gradient)"
+        stroke="#E2E8F0"
+        stroke-width="1.5"
+        filter="url(#hex-shadow)"
+      />
+      <text
+        x={s.hexW / 2}
+        y={s.hexH / 2 + s.fontSize * 0.35}
+        text-anchor="middle"
+        font-size={s.fontSize}
+        font-weight="700"
+        fill="#475569"
+        font-family="Inter, system-ui, sans-serif"
+        style="pointer-events: none;"
+      >
+        {letter}
+      </text>
+    </g>
+  ))}
+
+  <!-- Center hexagon -->
+  <g
+    transform={`translate(${centerPos.x}, ${centerPos.y})`}
+    class:list={[interactive && 'hex-interactive-center']}
+    data-letter={center}
+    data-center="true"
+  >
+    <path
+      d={hexPoints}
+      fill="url(#gold-gradient)"
+      stroke="#E8A317"
+      stroke-width="1.5"
+      filter="url(#hex-shadow-center)"
+    />
+    <text
+      x={s.hexW / 2}
+      y={s.hexH / 2 + s.fontSize * 0.35}
+      text-anchor="middle"
+      font-size={s.fontSize}
+      font-weight="900"
+      fill="white"
+      font-family="Inter, system-ui, sans-serif"
+      style="pointer-events: none;"
+    >
+      {center}
+    </text>
+  </g>
+</svg>
+
+<style>
+  .hex-interactive {
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .hex-interactive:hover path {
+    fill: #FFFBEB;
+    stroke: #F7C948;
+  }
+  .hex-interactive:hover text {
+    fill: #B45309;
+  }
+  .hex-interactive-center:hover path {
+    fill: url(#gold-gradient);
+    filter: url(#hex-shadow-center) brightness(1.1);
+  }
+</style>
