@@ -55,48 +55,29 @@ export function getStaticPaths() {
     return null;
   }
 
-  function buildHoneycombSVG(center, outer) {
-    var hexW = 90, hexH = 100;
-    var svgW = 280, svgH = 250;
-    var cx = svgW/2, cy = svgH/2;
-    function hexPath(w, h) {
-      var hw = w/2, hh = h/2, qh = h/4;
-      return 'M0,'+qh+' L'+hw+',0 L'+w+','+qh+' L'+w+','+(h-qh)+' L'+hw+','+h+' L0,'+(h-qh)+' Z';
-    }
-    var hp = hexPath(hexW, hexH);
-    var positions = [
-      { x: cx-hexW/2, y: cy-hexH/2-hexH/2-3-hexH/4+4 },
-      { x: cx+hexW/2+6, y: cy-hexH/2-1+2 },
-      { x: cx+hexW/2+6, y: cy+1+hexH/4-2 },
-      { x: cx-hexW/2, y: cy+hexH/2+1+hexH/4+4 },
-      { x: cx-hexW-6, y: cy+1+hexH/4-2 },
-      { x: cx-hexW-6, y: cy-hexH/2-1+2 },
-    ];
-    var centerPos = { x: cx-hexW/2, y: cy-hexH/2 };
+  function buildHoneycombHTML(center, outer) {
+    var html = '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:1.5rem;">';
 
-    var svg = '<svg width="'+svgW+'" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" style="overflow:visible">';
-    svg += '<defs>';
-    svg += '<filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.08"/></filter>';
-    svg += '<filter id="shc" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#F7C948" flood-opacity="0.3"/></filter>';
-    svg += '<linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#F7C948"/><stop offset="100%" style="stop-color:#F59E0B"/></linearGradient>';
-    svg += '<linearGradient id="og" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#FFFFFF"/><stop offset="100%" style="stop-color:#F8FAFC"/></linearGradient>';
-    svg += '</defs>';
-
+    // Outer hexagons
     outer.forEach(function(letter, i) {
-      if (!positions[i]) return;
-      svg += '<g transform="translate('+positions[i].x+','+positions[i].y+')">';
-      svg += '<path d="'+hp+'" fill="url(#og)" stroke="#E2E8F0" stroke-width="1.5" filter="url(#sh)"/>';
-      svg += '<text x="'+hexW/2+'" y="'+(hexH/2+10)+'" text-anchor="middle" font-size="28" font-weight="700" fill="#475569" font-family="Inter,system-ui,sans-serif">'+letter+'</text>';
-      svg += '</g>';
+      html += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
+      html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+      html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+      html += '</svg>';
+      html += '<span class="hex-letter">' + letter + '</span>';
+      html += '</div>';
     });
 
-    svg += '<g transform="translate('+centerPos.x+','+centerPos.y+')">';
-    svg += '<path d="'+hp+'" fill="url(#gg)" stroke="#E8A317" stroke-width="1.5" filter="url(#shc)"/>';
-    svg += '<text x="'+hexW/2+'" y="'+(hexH/2+10)+'" text-anchor="middle" font-size="28" font-weight="900" fill="white" font-family="Inter,system-ui,sans-serif">'+center+'</text>';
-    svg += '</g>';
+    // Center hexagon
+    html += '<div class="hex-cell hex-center hex-pos-center">';
+    html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+    html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+    html += '</svg>';
+    html += '<span class="hex-letter hex-letter-center">' + center + '</span>';
+    html += '</div>';
 
-    svg += '</svg>';
-    return svg;
+    html += '</div>';
+    return html;
   }
 
   async function loadPuzzle() {
@@ -125,7 +106,6 @@ export function getStaticPaths() {
       }
 
       var p = results[0];
-      // Need to fetch words for this puzzle
       var puzzleRes = await fetch(API_BASE + '/api/puzzle/' + p.puzzle_id);
       var puzzleData = await puzzleRes.json();
       var puzzle = puzzleData.puzzle || p;
@@ -140,7 +120,7 @@ export function getStaticPaths() {
 
       document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SB Solver';
 
-      var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombSVG(center, outerLetters) + '</div>';
+      var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombHTML(center, outerLetters) + '</div>';
 
       var statsHtml = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +

@@ -39,18 +39,140 @@ body {
 }
 
 /* ========================================
-   Hexagon (SVG-based, NYT-style)
+   Honeycomb (CSS-based, beesolver-style)
    ======================================== */
 .honeycomb {
   position: relative;
-  width: 280px;
-  height: 310px;
   margin: 0 auto;
 }
 
+.honeycomb-md {
+  width: 260px;
+  height: 260px;
+}
+
 .honeycomb-sm {
-  width: 180px;
+  width: 200px;
   height: 200px;
+}
+
+.honeycomb-lg {
+  width: 300px;
+  height: 300px;
+}
+
+.hex-cell {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+.honeycomb-md .hex-cell {
+  width: 38%;
+  height: 38%;
+}
+
+.honeycomb-sm .hex-cell {
+  width: 36%;
+  height: 36%;
+}
+
+.honeycomb-lg .hex-cell {
+  width: 38%;
+  height: 38%;
+}
+
+/* Position each hexagon using transforms from center */
+.hex-pos-center {
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.hex-pos-0 {
+  transform: translate(-50%, -50%) translate(0, -92%);
+}
+.hex-pos-1 {
+  transform: translate(-50%, -50%) translate(80%, -46%);
+}
+.hex-pos-2 {
+  transform: translate(-50%, -50%) translate(80%, 46%);
+}
+.hex-pos-3 {
+  transform: translate(-50%, -50%) translate(0, 92%);
+}
+.hex-pos-4 {
+  transform: translate(-50%, -50%) translate(-80%, 46%);
+}
+.hex-pos-5 {
+  transform: translate(-50%, -50%) translate(-80%, -46%);
+}
+
+.hex-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hex-outer .hex-svg {
+  color: #e5e7eb;
+}
+
+.hex-center .hex-svg {
+  color: #f7c948;
+}
+
+.hex-letter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  color: #475569;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+.honeycomb-md .hex-letter {
+  font-size: 1.75rem;
+}
+
+.honeycomb-sm .hex-letter {
+  font-size: 1.35rem;
+}
+
+.honeycomb-lg .hex-letter {
+  font-size: 2.1rem;
+}
+
+.hex-letter-center {
+  font-weight: 900;
+  color: white;
+}
+
+.hex-outer:hover .hex-svg {
+  color: #fef3c7;
+}
+
+.hex-outer:hover .hex-letter {
+  color: #92400e;
+}
+
+.hex-center:hover .hex-svg {
+  color: #fbbf24;
+}
+
+/* Responsive honeycomb */
+@media (max-width: 640px) {
+  .honeycomb-lg {
+    width: 250px;
+    height: 250px;
+  }
+  .honeycomb-lg .hex-letter {
+    font-size: 1.75rem;
+  }
 }
 
 /* ========================================
@@ -355,14 +477,4 @@ body {
 .badge-slate {
   background: #F1F5F9;
   color: #475569;
-}
-
-/* ========================================
-   Responsive
-   ======================================== */
-@media (max-width: 640px) {
-  .honeycomb {
-    width: 220px;
-    height: 245px;
-  }
 }

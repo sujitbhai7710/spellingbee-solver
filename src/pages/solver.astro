@@ -7,85 +7,80 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <!-- Header -->
     <div class="text-center mb-8">
       <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver</h1>
-      <p class="text-gray-500 text-lg">Enter your 7 letters and find all possible words</p>
+      <p class="text-gray-500 text-lg">Enter letters and click a button below to get answers</p>
     </div>
 
     <div class="flex flex-col lg:flex-row gap-8 items-start">
       <!-- Left: Input & Honeycomb -->
       <div class="w-full lg:w-auto flex-shrink-0">
         <div class="card-elevated p-6 sm:p-8">
-          <!-- Tab Switcher -->
-          <div class="flex items-center gap-2 mb-6">
-            <button id="tab-hex" class="tab-btn active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all" onclick="switchTab('hex')">
-              <svg width="16" height="18" viewBox="0 0 100 110"><polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="currentColor"/></svg>
-              Hexagon Input
-            </button>
-            <button id="tab-text" class="tab-btn flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all" onclick="switchTab('text')">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-              Text Input
-            </button>
-          </div>
-
-          <!-- Hexagon Input Mode -->
-          <div id="input-hex" class="mb-6">
-            <p class="text-sm text-gray-500 mb-4">Click a hexagon then type a letter. The center hex is the required letter.</p>
-            <div id="solver-hex-container" class="flex justify-center">
-              <svg id="solver-hex-svg" width="320" height="290" viewBox="0 0 320 290" style="overflow:visible">
-                <defs>
-                  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.08"/>
-                  </filter>
-                  <filter id="shc" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#F7C948" flood-opacity="0.3"/>
-                  </filter>
-                  <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#F7C948"/>
-                    <stop offset="100%" style="stop-color:#F59E0B"/>
-                  </linearGradient>
-                  <linearGradient id="og" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:#FFFFFF"/>
-                    <stop offset="100%" style="stop-color:#F8FAFC"/>
-                  </linearGradient>
-                </defs>
+          <!-- Interactive Honeycomb Input -->
+          <div id="solver-hex-container" class="honeycomb-solver mx-auto">
+            <!-- Center hex -->
+            <div class="solver-hex solver-hex-center solver-hex-pos-center">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" id="center-letter" name="centerLetter" required autocomplete="off" aria-label="Center Letter" />
             </div>
-            <div class="flex justify-center gap-3 mt-4">
-              <button onclick="clearHexInput()" class="btn-secondary !py-2 !px-4 text-sm">Clear</button>
-              <button onclick="solveFromHex()" class="btn-primary !py-2 !px-6 text-sm">Solve</button>
+
+            <!-- Outer hexes -->
+            <div class="solver-hex solver-hex-outer solver-hex-pos-0">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 1" />
+            </div>
+
+            <div class="solver-hex solver-hex-outer solver-hex-pos-1">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 2" />
+            </div>
+
+            <div class="solver-hex solver-hex-outer solver-hex-pos-2">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 3" />
+            </div>
+
+            <div class="solver-hex solver-hex-outer solver-hex-pos-3">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 4" />
+            </div>
+
+            <div class="solver-hex solver-hex-outer solver-hex-pos-4">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 5" />
+            </div>
+
+            <div class="solver-hex solver-hex-outer solver-hex-pos-5">
+              <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
+                <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+              </svg>
+              <input type="text" class="solver-hex-input" maxlength="1" name="outerLetters" required autocomplete="off" aria-label="Outer Letter 6" />
             </div>
           </div>
 
-          <!-- Text Input Mode -->
-          <div id="input-text" class="mb-6 hidden">
-            <div class="p-4 bg-amber-50 rounded-xl border border-amber-200 mb-4">
-              <p class="text-sm text-amber-800"><strong>How to use:</strong> Type the center letter first (uppercase), then the 6 outer letters (lowercase). Example: <code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs">Nblemod</code> where N is center.</p>
+          <!-- Action Buttons -->
+          <div class="mt-6 flex flex-col items-center gap-3">
+            <div class="flex items-center justify-center gap-3">
+              <button id="solve-btn" class="btn-primary !py-2.5 !px-6 text-sm font-bold">
+                Solve Puzzle
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
+              </button>
+              <button id="clear-btn" class="btn-secondary !py-2.5 !px-5 text-sm">Clear</button>
             </div>
-            <div class="space-y-4">
-              <div>
-                <label for="center-input" class="block text-sm font-semibold text-gray-700 mb-1.5">Center Letter (Required)</label>
-                <input
-                  id="center-input"
-                  type="text"
-                  maxlength="1"
-                  placeholder="e.g. N"
-                  class="solver-input !text-center !text-2xl !tracking-normal !w-20"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-              </div>
-              <div>
-                <label for="outer-input" class="block text-sm font-semibold text-gray-700 mb-1.5">6 Outer Letters</label>
-                <input
-                  id="outer-input"
-                  type="text"
-                  maxlength="6"
-                  placeholder="e.g. blemod"
-                  class="solver-input !text-center !text-xl !tracking-widest"
-                  autocomplete="off"
-                  spellcheck="false"
-                />
-              </div>
-            </div>
+            <button id="autofill-btn" class="autofill-btn text-sm font-semibold">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Autofill Today's NYT Puzzle
+            </button>
           </div>
         </div>
       </div>
@@ -123,10 +118,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
         <!-- Empty State -->
         <div id="solver-empty" class="text-center py-12">
-          <svg width="48" height="53" viewBox="0 0 100 110" class="mx-auto mb-4 opacity-20">
-            <polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="#F7C948"/>
-          </svg>
-          <p class="text-gray-400 font-medium">Enter your letters to start solving</p>
+          <div class="hex-empty-icon mx-auto mb-4">
+            <svg viewBox="0 -17 256 256" fill="none" width="64" height="64">
+              <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="#FEF3C7" stroke="#F7C948" stroke-width="2"/>
+            </svg>
+          </div>
+          <p class="text-gray-400 font-medium">Click the hexagons above and type your letters</p>
+          <p class="text-gray-300 text-sm mt-1">Or use Autofill to load today's puzzle</p>
         </div>
       </div>
     </div>
@@ -234,232 +232,273 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     `).join('');
   }
 
-  async function solve(center, outer) {
-    if (!center || outer.length < 1) return;
+  async function solve() {
+    const centerInput = document.getElementById('center-letter');
+    const outerInputs = document.querySelectorAll('.solver-hex-outer .solver-hex-input');
+    const center = centerInput.value.trim().toUpperCase();
+    const outer = [];
+    outerInputs.forEach(input => {
+      const v = input.value.trim().toUpperCase();
+      if (v) outer.push(v);
+    });
+
+    if (!center || outer.length < 1) {
+      // Highlight center if empty
+      if (!center) {
+        centerInput.focus();
+      }
+      return;
+    }
+
     const loadingDiv = document.getElementById('solver-loading');
     const resultsDiv = document.getElementById('solver-results');
     const emptyDiv = document.getElementById('solver-empty');
     resultsDiv.classList.add('hidden');
     emptyDiv.classList.add('hidden');
     loadingDiv.classList.remove('hidden');
+
     await loadDictionary();
     const results = solveSpellingBee(center, outer, dictionary);
     displayResults(results);
   }
 
-  // Tab Switching
-  window.switchTab = function(tab) {
-    const hexBtn = document.getElementById('tab-hex');
-    const textBtn = document.getElementById('tab-text');
-    const hexPanel = document.getElementById('input-hex');
-    const textPanel = document.getElementById('input-text');
-    if (tab === 'hex') {
-      hexBtn.classList.add('active');
-      textBtn.classList.remove('active');
-      hexPanel.classList.remove('hidden');
-      textPanel.classList.add('hidden');
-    } else {
-      textBtn.classList.add('active');
-      hexBtn.classList.remove('active');
-      textPanel.classList.remove('hidden');
-      hexPanel.classList.add('hidden');
-    }
-  };
+  // Hex input behavior: auto-uppercase, auto-advance on type, auto-delete on empty backspace
+  const allHexInputs = document.querySelectorAll('.solver-hex-input');
+  const centerInput = document.getElementById('center-letter');
+  const outerInputList = Array.from(document.querySelectorAll('.solver-hex-outer .solver-hex-input'));
 
-  // Hexagon SVG builder
-  const hexW = 104, hexH = 116;
-  const svgW = 320, svgH = 290;
-  const cx = svgW / 2, cy = svgH / 2;
+  allHexInputs.forEach((input, idx) => {
+    input.addEventListener('input', function(e) {
+      const val = this.value.toUpperCase();
+      this.value = val;
 
-  function hexPath(w, h) {
-    const hw = w / 2, hh = h / 2, qh = h / 4;
-    return 'M0,' + qh + ' L' + hw + ',0 L' + w + ',' + qh + ' L' + w + ',' + (h - qh) + ' L' + hw + ',' + h + ' L0,' + (h - qh) + ' Z';
-  }
-
-  const hexPoints = hexPath(hexW, hexH);
-  const positions = [
-    { x: cx - hexW/2, y: cy - hexH/2 - hexH/2 - 3 - hexH/4 + 4 },
-    { x: cx + hexW/2 + 6, y: cy - hexH/2 - 3/2 + 2 },
-    { x: cx + hexW/2 + 6, y: cy + 3/2 + hexH/4 - 2 },
-    { x: cx - hexW/2, y: cy + hexH/2 + 3/2 + hexH/4 + 4 },
-    { x: cx - hexW - 6, y: cy + 3/2 + hexH/4 - 2 },
-    { x: cx - hexW - 6, y: cy - hexH/2 - 3/2 + 2 },
-  ];
-  const centerPos = { x: cx - hexW / 2, y: cy - hexH / 2 };
-
-  // Build the hex SVG
-  const svg = document.getElementById('solver-hex-svg');
-  const hexData = { center: '', outer: ['','','','','',''] };
-  let selectedHex = null; // 'center' or 0-5
-
-  function buildHexSVG() {
-    // Remove old hexes
-    svg.querySelectorAll('.hex-group').forEach(g => g.remove());
-
-    // Outer hexagons
-    positions.forEach((pos, i) => {
-      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.classList.add('hex-group');
-      g.setAttribute('transform', 'translate(' + pos.x + ',' + pos.y + ')');
-      g.style.cursor = 'pointer';
-
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', hexPoints);
-      path.setAttribute('fill', selectedHex === i ? '#FFFBEB' : 'url(#og)');
-      path.setAttribute('stroke', selectedHex === i ? '#F7C948' : '#E2E8F0');
-      path.setAttribute('stroke-width', selectedHex === i ? '2.5' : '1.5');
-      path.setAttribute('filter', 'url(#sh)');
-      g.appendChild(path);
-
-      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      text.setAttribute('x', hexW / 2);
-      text.setAttribute('y', hexH / 2 + 10);
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('font-size', hexData.outer[i] ? '34' : '16');
-      text.setAttribute('font-weight', '700');
-      text.setAttribute('fill', hexData.outer[i] ? '#475569' : '#CBD5E1');
-      text.setAttribute('font-family', 'Inter, system-ui, sans-serif');
-      text.textContent = hexData.outer[i] || (i + 1);
-      g.appendChild(text);
-
-      g.addEventListener('click', () => { selectedHex = i; buildHexSVG(); });
-      svg.appendChild(g);
-    });
-
-    // Center hexagon
-    const cg = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    cg.classList.add('hex-group');
-    cg.setAttribute('transform', 'translate(' + centerPos.x + ',' + centerPos.y + ')');
-    cg.style.cursor = 'pointer';
-
-    const cpath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    cpath.setAttribute('d', hexPoints);
-    cpath.setAttribute('fill', selectedHex === 'center' ? '#FDE68A' : 'url(#gg)');
-    cpath.setAttribute('stroke', selectedHex === 'center' ? '#F59E0B' : '#E8A317');
-    cpath.setAttribute('stroke-width', selectedHex === 'center' ? '3' : '1.5');
-    cpath.setAttribute('filter', 'url(#shc)');
-    cg.appendChild(cpath);
-
-    const ctext = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    ctext.setAttribute('x', hexW / 2);
-    ctext.setAttribute('y', hexH / 2 + 10);
-    ctext.setAttribute('text-anchor', 'middle');
-    ctext.setAttribute('font-size', hexData.center ? '34' : '16');
-    ctext.setAttribute('font-weight', '900');
-    ctext.setAttribute('fill', hexData.center ? 'white' : 'rgba(255,255,255,0.5)');
-    ctext.setAttribute('font-family', 'Inter, system-ui, sans-serif');
-    ctext.textContent = hexData.center || 'C';
-    cg.appendChild(ctext);
-
-    cg.addEventListener('click', () => { selectedHex = 'center'; buildHexSVG(); });
-    svg.appendChild(cg);
-  }
-
-  buildHexSVG();
-
-  // Keyboard handler for hex input
-  document.addEventListener('keydown', (e) => {
-    if (selectedHex === null) return;
-    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-
-    const key = e.key.toUpperCase();
-    if (/^[A-Z]$/.test(key)) {
-      if (selectedHex === 'center') {
-        hexData.center = key;
-      } else {
-        hexData.outer[selectedHex] = key;
-      }
-      // Move to next empty
-      if (selectedHex === 'center') {
-        const nextEmpty = hexData.outer.findIndex(l => !l);
-        selectedHex = nextEmpty >= 0 ? nextEmpty : null;
-      } else if (selectedHex < 5) {
-        selectedHex = selectedHex + 1;
-      } else {
-        selectedHex = null;
-      }
-      buildHexSVG();
-    } else if (e.key === 'Backspace') {
-      if (selectedHex === 'center') {
-        if (hexData.center) hexData.center = '';
-      } else if (typeof selectedHex === 'number') {
-        if (hexData.outer[selectedHex]) {
-          hexData.outer[selectedHex] = '';
-        } else if (selectedHex > 0) {
-          selectedHex = selectedHex - 1;
-          hexData.outer[selectedHex] = '';
+      if (val.length === 1) {
+        // Auto-advance to next input
+        if (this.id === 'center-letter') {
+          // Move to first outer
+          const firstEmpty = outerInputList.find(i => !i.value);
+          if (firstEmpty) firstEmpty.focus();
+          else outerInputList[0]?.focus();
         } else {
-          selectedHex = 'center';
-          hexData.center = '';
+          const currentIdx = outerInputList.indexOf(this);
+          const nextEmpty = outerInputList.slice(currentIdx + 1).find(i => !i.value);
+          if (nextEmpty) nextEmpty.focus();
+          else if (currentIdx < outerInputList.length - 1) outerInputList[currentIdx + 1]?.focus();
         }
       }
-      buildHexSVG();
-    } else if (e.key === 'Enter') {
-      solveFromHex();
-    }
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value) {
+        // Move to previous input
+        if (this.id !== 'center-letter') {
+          const currentIdx = outerInputList.indexOf(this);
+          if (currentIdx > 0) {
+            outerInputList[currentIdx - 1].focus();
+            outerInputList[currentIdx - 1].value = '';
+          } else {
+            centerInput.focus();
+            centerInput.value = '';
+          }
+        }
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        solve();
+      }
+    });
+
+    // Select all text on focus for easy replacement
+    input.addEventListener('focus', function() {
+      this.select();
+    });
   });
 
-  window.clearHexInput = function() {
-    hexData.center = '';
-    hexData.outer = ['','','','','',''];
-    selectedHex = 'center';
-    buildHexSVG();
-  };
+  // Solve button
+  document.getElementById('solve-btn').addEventListener('click', solve);
 
-  window.solveFromHex = async function() {
-    const center = hexData.center;
-    const outer = hexData.outer.filter(l => l);
-    if (!center) {
-      selectedHex = 'center';
-      buildHexSVG();
-      return;
-    }
-    if (outer.length < 1) return;
-    await solve(center, outer);
-  };
-
-  // Text input mode
-  const centerInput = document.getElementById('center-input');
-  const outerInput = document.getElementById('outer-input');
-  let debounceTimer;
-
-  function handleTextInput() {
-    clearTimeout(debounceTimer);
-    const center = centerInput.value.trim().toUpperCase();
-    const outer = outerInput.value.trim().toUpperCase().split('').filter(l => /[A-Z]/.test(l));
-
-    if (!center || outer.length < 1) {
-      document.getElementById('solver-results').classList.add('hidden');
-      document.getElementById('solver-empty').classList.remove('hidden');
-      return;
-    }
-
-    debounceTimer = setTimeout(async () => {
-      await solve(center, outer);
-    }, 300);
-  }
-
-  centerInput.addEventListener('input', function() {
-    if (this.value.length === 1) outerInput.focus();
-    handleTextInput();
+  // Clear button
+  document.getElementById('clear-btn').addEventListener('click', function() {
+    allHexInputs.forEach(input => { input.value = ''; });
+    centerInput.focus();
+    document.getElementById('solver-results').classList.add('hidden');
+    document.getElementById('solver-loading').classList.add('hidden');
+    document.getElementById('solver-empty').classList.remove('hidden');
   });
-  outerInput.addEventListener('input', handleTextInput);
+
+  // Autofill button
+  document.getElementById('autofill-btn').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="inline-block w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div> Loading...';
+
+    try {
+      const res = await fetch(API_BASE + '/today');
+      const data = await res.json();
+      const puzzle = data.puzzle || {};
+
+      if (!puzzle.letters) {
+        throw new Error('No puzzle data');
+      }
+
+      const center = puzzle.letters.toUpperCase();
+      const allLetters = (puzzle.all_letters || '').toUpperCase();
+      const outerLetters = allLetters.split('').filter(l => l !== center);
+
+      centerInput.value = center;
+      outerInputList.forEach((input, i) => {
+        input.value = outerLetters[i] || '';
+      });
+
+      // Auto-solve after filling
+      solve();
+    } catch (e) {
+      console.error('Autofill failed:', e);
+      alert('Could not load today\'s puzzle. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Autofill Today\'s NYT Puzzle';
+    }
+  });
 </script>
 
 <style>
-  .tab-btn {
-    color: #94A3B8;
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
+  /* ========================================
+     Solver Honeycomb - Interactive hex grid
+     Based on beesolver.com approach
+     ======================================== */
+
+  .honeycomb-solver {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    margin: 0 auto;
   }
-  .tab-btn:hover {
-    color: #64748B;
-    background: #F1F5F9;
+
+  .solver-hex {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 38%;
+    height: 38%;
   }
-  .tab-btn.active {
-    color: #92400E;
-    background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-    border-color: #F59E0B;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+
+  /* Position transforms */
+  .solver-hex-pos-center {
+    transform: translate(-50%, -50%);
+    z-index: 2;
+  }
+  .solver-hex-pos-0 {
+    transform: translate(-50%, -50%) translate(0, -92%);
+  }
+  .solver-hex-pos-1 {
+    transform: translate(-50%, -50%) translate(80%, -46%);
+  }
+  .solver-hex-pos-2 {
+    transform: translate(-50%, -50%) translate(80%, 46%);
+  }
+  .solver-hex-pos-3 {
+    transform: translate(-50%, -50%) translate(0, 92%);
+  }
+  .solver-hex-pos-4 {
+    transform: translate(-50%, -50%) translate(-80%, 46%);
+  }
+  .solver-hex-pos-5 {
+    transform: translate(-50%, -50%) translate(-80%, -46%);
+  }
+
+  .solver-hex-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .solver-hex-outer .solver-hex-svg {
+    color: #e5e7eb;
+  }
+
+  .solver-hex-center .solver-hex-svg {
+    color: #f7c948;
+  }
+
+  .solver-hex-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #475569;
+    outline: none;
+    cursor: pointer;
+    z-index: 1;
+    caret-color: transparent;
+  }
+
+  .solver-hex-center .solver-hex-input {
+    font-weight: 900;
+    color: white;
+  }
+
+  .solver-hex-input::placeholder {
+    color: transparent;
+  }
+
+  /* Focus states */
+  .solver-hex-outer:focus-within .solver-hex-svg {
+    color: #fef3c7;
+  }
+
+  .solver-hex-center:focus-within .solver-hex-svg {
+    color: #fbbf24;
+  }
+
+  .solver-hex-outer:hover .solver-hex-svg {
+    color: #f3f4f6;
+  }
+
+  .solver-hex-center:hover .solver-hex-svg {
+    color: #fbbf24;
+  }
+
+  /* Autofill button */
+  .autofill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .autofill-btn:hover {
+    background: #fef3c7;
+    border-color: #f59e0b;
+  }
+
+  .autofill-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .honeycomb-solver {
+      width: 240px;
+      height: 240px;
+    }
+    .solver-hex-input {
+      font-size: 1.4rem;
+    }
   }
 </style>
