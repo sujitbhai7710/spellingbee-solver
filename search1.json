@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://dev.to/pockit_tools/nextjs-vs-remix-vs-astro-vs-sveltekit-in-2026-the-definitive-framework-decision-guide-lp5",
+    "name": "Next.js vs Remix vs Astro vs SvelteKit in 2026 - DEV Community",
+    "snippet": "Astro could evolve from \"the best static site framework\" to \"the best Cloudflare framework\" — which is a massive market. SvelteKit will ...",
+    "host_name": "dev.to",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/astrojs/comments/1jyt7d9/i_love_working_with_astro_its_by_far_better_than",
+    "name": "I love working with Astro — it's by far better than React or Next.js",
+    "snippet": "If you're looking for an extremely lightweight site — and therefore blazing fast, even on a 3G connection — Astro is the way to go. It crushes ...",
+    "host_name": "www.reddit.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://talentblocks.com/blog/which-javascript-framework-should-you-use-a-comparison-of-remix-nextjs-astro-and-sveltekit",
+    "name": "Next.js vs Remix vs SvelteKit vs Astro: Best Framework Compared",
+    "snippet": "Explore the strengths and weaknesses of popular JavaScript frameworks, including Next.js, SvelteKit, Astro, and Remix, to find the right fit for your ...",
+    "host_name": "talentblocks.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://vaza.ai/blog/best-web-framework-for-seo",
+    "name": "Best Web Frameworks for SEO in 2026: Top 12 Ranked | vaza.ai",
+    "snippet": "The short answer: Astro is the best web framework for SEO in 2026, shipping zero JavaScript by default. Next.js, Nuxt, SvelteKit, and Remix ...\nCloudflare Pages, Vercel, Netlify, and GitHub Pages all work out of the box. For SSR, Astro has official adapters for most major hosts. 0 KB.",
+    "host_name": "vaza.ai",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@2nick2patel2/the-great-framework-fatigue-23f03145447d",
+    "name": "The Great Framework Fatigue - Medium",
+    "snippet": "Speed to first byte: SSR/SSG-heavy frameworks (Next, Nuxt, Astro). Interactivity at scale: Client frameworks (React, Vue, Solid). Performance ...",
+    "host_name": "medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://naturaily.com/blog/best-frontend-for-headless-cms",
+    "name": "Best frontend for headless CMS: Next.js, Nuxt, Astro - Naturaily",
+    "snippet": "Best overall for most teams: Next.js. Best choice in the Vue ecosystem: Nuxt. Best for content-first performance: Astro. Best for app- ...",
+    "host_name": "naturaily.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.gigson.co/blog/sveltekit-vs-next-js-vs-astro-which-framework-wins-in-2026",
+    "name": "SvelteKit vs. Next.js vs. Astro: Which Framework Wins in 2026?",
+    "snippet": "Compare SvelteKit, Next.js, and Astro in 2026. Learn strengths, trade-offs, performance, and which framework fits your project best.",
+    "host_name": "www.gigson.co",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://criztec.com/next-js-16-vs-astro-5-16-vs",
+    "name": "Next.js 16 vs Astro 5.16 vs SvelteKit (2026): Which to Choose for AI",
+    "snippet": "Side-by-side 2026 comparison of Next.js 16, Astro 5.16, and SvelteKit 2.49 — rendering models, AI/MCP support, edge runtimes, and decision ...",
+    "host_name": "criztec.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://teta.so/learn/sveltekit-vs-nextjs",
+    "name": "SvelteKit vs Next.js in 2026: A Developer's Honest Comparison",
+    "snippet": "SvelteKit produces smaller bundles, has simpler syntax, and offers better runtime performance. Next.js has a larger ecosystem, more third-party integrations, ...",
+    "host_name": "teta.so",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://midrocket.com/en/guides/best-frontend-frameworks",
+    "name": "Best frontend frameworks in 2026 - Midrocket",
+    "snippet": "Comparison of the best frontend frameworks in 2026: React, Vue, Astro, Next.js and Svelte. Performance, ecosystem, learning curve and use ...",
+    "host_name": "midrocket.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

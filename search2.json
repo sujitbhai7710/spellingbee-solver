@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://dev.to/polliog/astro-in-2026-why-its-beating-nextjs-for-content-sites-and-what-cloudflares-acquisition-means-6kl",
+    "name": "Astro in 2026: Why It's Beating Next.js for Content Sites (And What",
+    "snippet": "Astro is a web framework for content-driven websites. Core philosophy: Zero JS by default - Ship HTML + CSS, add JS only when needed; Islands ...",
+    "host_name": "dev.to",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.cloudflare.com/it-it/press/press-releases/2026/cloudflare-acquires-astro-to-accelerate-the-future-of-high-performance-web-development",
+    "name": "Cloudflare Acquires Astro to Accelerate the Future of High",
+    "snippet": "Cloudflare elevates its commitment to Astro as an open source framework to ensure Astro remains the fastest, most reliable framework to ...",
+    "host_name": "www.cloudflare.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sadiqueali.medium.com/astro-5-build-faster-websites-by-shipping-less-javascript-b34e378ee85d",
+    "name": "Astro 5: Build Faster Websites by Shipping Less JavaScript",
+    "snippet": "Astro 5: Build Faster Websites by Shipping Less JavaScript Content Layer API, Server Islands, View Transitions, and zero JS by default.",
+    "host_name": "sadiqueali.medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://sitepins.com/blog/astro-sitepins-2026",
+    "name": "Astro in 2026: Performance, Features and the Cloudflare Acquisition",
+    "snippet": "Performance stats: According to our analysis, 60% of Astro sites score “Good” on Core Web Vitals versus 38% for WordPress/Gatsby sites. The zero ...",
+    "host_name": "sitepins.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.cosmicjs.com/changelog/nextjs-vs-astro-choosing-the-right-framework-for-your-project",
+    "name": "Next.js vs Astro: Choosing the Right Framework for Your Project",
+    "snippet": "Astro SEO Profile: Exceptional Core Web Vitals out of the box with minimal effort; Zero JavaScript means faster Time to Interactive by default; Built-in sitemap ...",
+    "host_name": "www.cosmicjs.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.stackone.com/blog/rebuilding-marketing-site-claude-code-cloudflare",
+    "name": "We Rebuilt Our Marketing Site with Astro, Claude Code  - StackOne",
+    "snippet": "We replaced Webflow with Astro 5 + Cloudflare Pages in two weeks using Claude Code as the primary builder. 42 pages, 50 PRs — non-engineers ...",
+    "host_name": "www.stackone.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cipherprojects.com/blog/posts/nextjs-vs-astro-which-one-fits-your-project",
+    "name": "Next.js vs Astro: Which Framework Should You Choose in 2026?",
+    "snippet": "Next.js vs Astro 2026: an in-depth comparison of performance, architecture, developer experience, deployment costs, and when to use each.",
+    "host_name": "cipherprojects.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://eastondev.com/blog/en/posts/dev/20251203-astro-image-optimization-guide",
+    "name": "Astro Image Optimization Complete Guide: 5 Proven Techniques to",
+    "snippet": "Hands-on guide to optimizing images in Astro: Image component configuration, WebP/AVIF format selection, lazy loading strategies, ...\nGoogle's Core Web Vitals includes LCP (Largest Contentful Paint), which essentially measures how long it takes for the main content of a ...",
+    "host_name": "eastondev.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://outsourcify.net/astro-joins-cloudflare-the-new-standard-for-high-performance-web-architecture",
+    "name": "Astro x Cloudflare: The New Standard for Web Architecture",
+    "snippet": "Astro joinging Cloudflare redefines high-performance web development. Discover how \"Islands Architecture\" delivers dynamic speed and better SEO.",
+    "host_name": "outsourcify.net",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.oscargallegoruiz.com/en/blog/introduction-astro-5",
+    "name": "Astro 5: Get 100 Core Web Vitals & 90% Less JS - Blog",
+    "snippet": "Astro 5: Get 100 Core Web Vitals & 90% Less JS. Tired of slow sites? Astro 5 delivers perfect Lighthouse scores with its zero JS architecture.",
+    "host_name": "www.oscargallegoruiz.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

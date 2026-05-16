@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://blog.cloudflare.com/astro-joins-cloudflare",
+    "name": "Astro is joining Cloudflare",
+    "snippet": "All full-time employees of The Astro Technology Company are now employees of Cloudflare, and will continue to work on Astro. We're committed to ...\nWhat this means for Astro ... Astro will remain open source, MIT-licensed, and open to contributions, with a public roadmap and open governance.",
+    "host_name": "blog.cloudflare.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=vpbNP4loCiE",
+    "name": "Astro is Joining Cloudflare (Here's Why) - YouTube",
+    "snippet": "Astro is officially joining Cloudflare. What does this actually mean ... Announcement Blogs: https://blog.cloudflare.com/astro-joins ...",
+    "host_name": "www.youtube.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://techafricanews.com/2026/01/20/cloudflare-acquires-astro-team-to-strengthen-high-performance-web-framework",
+    "name": "Cloudflare Acquires Astro Team to Strengthen High-Performance",
+    "snippet": "The acquisition aims to reinforce Astro as the go-to framework for high-performance websites, particularly those focused on content delivery ...",
+    "host_name": "techafricanews.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/programming/comments/1qeilrk/the_astro_technology_company_joins_cloudflare",
+    "name": "The Astro Technology Company joins Cloudflare | Astro - Reddit",
+    "snippet": "We remain fully committed to maintaining Astro as a platform-agnostic framework, meaning we will continue to support and improve deployments for ...",
+    "host_name": "www.reddit.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://finance.yahoo.com/news/cloudflare-acquires-astro-accelerate-future-140000528.html",
+    "name": "Cloudflare Acquires Astro to Accelerate the Future of High",
+    "snippet": "Astro will remain open source to ensure the long-term growth and development of the project under Cloudflare's stewardship. With the Astro team ...",
+    "host_name": "finance.yahoo.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://astro.build/blog/joining-cloudflare",
+    "name": "The Astro Technology Company joins Cloudflare",
+    "snippet": "The Astro Technology Company is joining Cloudflare! Astro remains open-source, MIT-licensed, and platform-agnostic.",
+    "host_name": "astro.build",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://devstyler.io/blog/2026/01/19/cloudflare-acquires-astro-signaling-deeper-ties-between-frameworks-and-the-edge",
+    "name": "Cloudflare Acquires Astro, Signaling Deeper Ties Between",
+    "snippet": "By bringing Astro in-house, Cloudflare is expected to deepen integrations between the framework and its global edge network, potentially ...",
+    "host_name": "devstyler.io",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pulse2.com/cloudflare-acquires-astro",
+    "name": "Cloudflare Acquires Astro To Expand High-Performance Web",
+    "snippet": "The announcement comes as Astro introduced the beta release of Astro 6, which Cloudflare said adds support for additional JavaScript runtimes, ...\nCloudflare announced it has acquired The Astro Technology Company team, bringing the creators of the Astro JavaScript web framework into the ...",
+    "host_name": "pulse2.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://thenewstack.io/cloudflare-acquires-team-behind-open-source-framework-astro",
+    "name": "Cloudflare Acquires Team Behind Open Source Framework Astro",
+    "snippet": "The Astro team will join Cloudflare as employees. Astro itself will remain open source, to ensure its long-term growth and development, ...\nCloudflare announced Friday it will acquire the Astro Technology Company team, which is responsible for the open source JavaScript web ...",
+    "host_name": "thenewstack.io",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/javascript/comments/1qf2e7a/cloudflare_acquires_astro",
+    "name": "Cloudflare acquires Astro! : r/javascript - Reddit",
+    "snippet": "The article explains how Astro tried to monetize their services but competition was impossible to catch up.",
+    "host_name": "www.reddit.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

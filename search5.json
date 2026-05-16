@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://lalatenduswain.medium.com/deploying-modern-javascript-frameworks-to-cloudflare-workers-in-2026-a-complete-developer-guide-25d33e5b6d4c",
+    "name": "Deploying Modern JavaScript Frameworks to Cloudflare Workers in",
+    "snippet": "Astro is uniquely flexible — it supports static, SSR, and hybrid rendering. ... How do I deploy Astro to Cloudflare with SSR enabled? What ...",
+    "host_name": "lalatenduswain.medium.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://tech-insider.org/astro-tutorial-content-site-13-steps-2026",
+    "name": "Astro Tutorial: Build a Content Site in 13 Steps [2026] - Tech Insider",
+    "snippet": "Astro tutorial for 2026: build a production content site in 13 steps with Astro 6, content collections, Server Islands, and Cloudflare Pages ...",
+    "host_name": "tech-insider.org",
+    "rank": 1,
+    "date": "May 13, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://docs.astro.build/en/guides/deploy/cloudflare",
+    "name": "Deploy your Astro Site to Cloudflare | Docs",
+    "snippet": "If your site uses on-demand rendering, install the @astrojs/cloudflare adapter. This will install the adapter and make the appropriate changes to your astro.",
+    "host_name": "docs.astro.build",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://eastondev.com/blog/en/posts/dev/20251202-astro-ssr-guide",
+    "name": "Complete Guide to Astro SSR: Enable Server-Side Rendering in 3",
+    "snippet": "Enable Astro SSR in 3 steps: install adapter, configure output mode, set prerender flags, use SSR for: user authentication, real-time data, ...",
+    "host_name": "eastondev.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://render.com/articles/deploying-astro-websites-with-hybrid-rendering",
+    "name": "Deploying Astro websites with hybrid rendering",
+    "snippet": "In this article, you'll learn how Astro's rendering modes work, and see practical configuration examples for hybrid deployments. Understanding ...\nAstro implements two primary rendering strategies: static site generation (SSG) and server-side rendering (SSR). Static site generation ...",
+    "host_name": "render.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/astrojs/comments/1rbsb6t/building_a_serverless_blog_with_astro_cloudflare",
+    "name": "Building a Serverless Blog with Astro, Cloudflare, and Zero Monthly",
+    "snippet": "Costs nothing to run. Deploys in seconds. TLDR; Astro + Cloudflare worked very well, given Astro's SSG and SSR hybrid capabilities and ...",
+    "host_name": "www.reddit.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.cloudflare.com/t/astro-6-ssr-deployment-on-cloudflare-pages/914516",
+    "name": "Astro 6 SSR deployment on Cloudflare pages",
+    "snippet": "After hunting around, the fix to get Astro to successfully build was a one-line change to the wrangler config file, from this Worker Migration ...",
+    "host_name": "community.cloudflare.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.gmkennedy.com/blog/deploy-astro-cloudflare-pages",
+    "name": "How to Deploy Astro on Cloudflare Pages Without Getting Screwed",
+    "snippet": "Cloudflare's UI will try to deploy your static Astro site as a Worker. Here's how to catch it, fix it, and set up your domains correctly.",
+    "host_name": "www.gmkennedy.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.freecodecamp.org/news/how-to-build-a-headless-wordpress-frontend-with-astro-ssr-on-cloudflare-pages",
+    "name": "How to Build a Headless WordPress Frontend with Astro SSR on",
+    "snippet": "This tutorial shows you how to run WordPress as a headless CMS with an Astro frontend deployed to Cloudflare Pages.",
+    "host_name": "www.freecodecamp.org",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.cloudflare.com/pages/framework-guides/deploy-an-astro-site",
+    "name": "Astro · Cloudflare Pages docs",
+    "snippet": "In this guide, you will create a new Astro application and deploy it using Cloudflare Pages. Video Tutorial.",
+    "host_name": "developers.cloudflare.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
