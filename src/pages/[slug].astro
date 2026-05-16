@@ -1,139 +1,110 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { API_BASE } from '../lib/utils';
 
-// Parse the slug: "september-9-2025" -> "September 9, 2025"
-const slug = Astro.params.slug || '';
-const parts = slug.replace(/^answer-for-/, '').split('-');
-
-const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-let dateStr = '';
-
-if (parts.length >= 3) {
-  const monthName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-  const day = parseInt(parts[1]);
-  const year = parts[2];
-  if (months.includes(parts[0].toLowerCase()) && day > 0 && year.length === 4) {
-    dateStr = `${monthName} ${day}, ${year}`;
+export function getStaticPaths() {
+  // Generate answer pages for the last 100 days
+  const paths = [];
+  const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const today = new Date();
+  for (let i = 0; i < 100; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    paths.push({
+      params: { slug: `answer-for-${month}-${day}-${year}` },
+    });
   }
+  return paths;
 }
-
-if (!dateStr) {
-  return Astro.redirect('/archive');
-}
-
-// Search for puzzle by date
-const searchRes = await fetch(`${API_BASE}/api/search/date/${encodeURIComponent(dateStr)}`);
-const searchData = await searchRes.json();
-const results = searchData.results || [];
-
-if (results.length === 0) {
-  return Astro.redirect('/archive');
-}
-
-const puzzleData = results[0];
-const puzzle = puzzleData.puzzle || puzzleData;
-const words = puzzleData.words || [];
-const totalPoints = puzzleData.totalPoints || 0;
-const hasPerfectPangram = puzzleData.hasPerfectPangram || false;
-
-const center = puzzle.letters || '';
-const allLetters = puzzle.all_letters || '';
-const outerLetters = allLetters.split('').filter((l: string) => l !== center);
-const pangrams = words.filter((w: any) => w.is_pangram === 1);
-const regularWords = words.filter((w: any) => w.is_pangram !== 1);
 ---
 
-<BaseLayout title={`Spelling Bee Answers for ${puzzle.date}`} description={`NYT Spelling Bee answers for ${puzzle.date}. All ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and ${totalPoints} total points.`}>
+<BaseLayout title="Spelling Bee Answers" description="Find answers for any NYT Spelling Bee puzzle by date.">
   <div class="max-w-4xl mx-auto px-4 py-8">
     <div class="mb-6">
       <a href="/archive" class="text-sm text-amber-600 hover:text-amber-700 mb-2 inline-block">← Back to Archive</a>
       <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
-      <p class="text-gray-500">{puzzle.date}</p>
     </div>
 
-    <!-- Honeycomb -->
-    <div class="flex justify-center mb-6">
-      <div class="relative w-48 h-52">
-        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-18 h-18 hex-shape hex-center flex items-center justify-center text-3xl z-10" style="width:72px;height:72px;">
-          {center}
-        </div>
-        {outerLetters.map((letter: string, i: number) => {
-          const angles = [270, 330, 30, 90, 150, 210];
-          const angle = (angles[i] || 0) * Math.PI / 180;
-          const radius = 62;
-          const x = 50 + radius * Math.cos(angle) / 100 * 100;
-          const y = 50 + radius * Math.sin(angle) / 100 * 100;
-          return (
-            <div class="absolute w-14 h-14 hex-shape bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-700" style={`left: ${x}%; top: ${y}%; transform: translate(-50%, -50%);`}>
-              {letter}
-            </div>
-          );
-        })}
+    <div id="answer-content">
+      <div class="text-center py-12">
+        <div class="inline-block w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-gray-500 mt-3">Loading puzzle...</p>
       </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
-        <p class="text-2xl font-bold text-amber-600">{puzzle.word_count}</p>
-        <p class="text-xs text-gray-500 mt-1">Words</p>
-      </div>
-      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
-        <p class="text-2xl font-bold text-amber-600">{puzzle.pangrams_count}</p>
-        <p class="text-xs text-gray-500 mt-1">Pangrams</p>
-      </div>
-      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
-        <p class="text-2xl font-bold text-amber-600">{totalPoints}</p>
-        <p class="text-xs text-gray-500 mt-1">Points</p>
-      </div>
-      <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
-        <p class="text-2xl font-bold text-amber-600">{hasPerfectPangram ? '✓' : '—'}</p>
-        <p class="text-xs text-gray-500 mt-1">Perfect Pangram</p>
-      </div>
-    </div>
-
-    <!-- Pangrams -->
-    {pangrams.length > 0 && (
-      <div class="mb-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><span class="text-amber-500">★</span> Pangrams</h2>
-        <div class="flex flex-wrap gap-2">
-          {pangrams.map((w: any) => (
-            <span class="pangram-word px-3 py-1.5 rounded-md text-sm border border-amber-200">{w.word} <span class="text-xs text-amber-400 ml-1">{w.length}</span></span>
-          ))}
-        </div>
-      </div>
-    )}
-
-    <!-- All Words -->
-    <div>
-      <h2 class="text-lg font-bold text-gray-800 mb-3">All Words ({words.length})</h2>
-      <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scroll">
-        {(() => {
-          const byLen = {};
-          for (const w of regularWords) {
-            const l = w.length;
-            if (!byLen[l]) byLen[l] = [];
-            byLen[l].push(w);
-          }
-          return Object.keys(byLen).sort((a,b) => +b - +a).map(len => (
-            <div class="px-4 py-3">
-              <p class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{len}-Letter Words ({byLen[+len].length})</p>
-              <div class="flex flex-wrap gap-1.5">
-                {byLen[+len].map((w: any) => (
-                  <span class="word-item bg-gray-50 text-gray-700 border border-gray-100">{w.word}</span>
-                ))}
-              </div>
-            </div>
-          ));
-        })()}
-      </div>
-    </div>
-
-    <!-- SEO -->
-    <div class="mt-10">
-      <h2 class="text-xl font-bold text-gray-800 mb-3">About This Puzzle</h2>
-      <p class="text-gray-600 leading-relaxed">The NYT Spelling Bee for {puzzle.date} features center letter <strong>{center}</strong> with outer letters <strong>{outerLetters.join(', ')}</strong>. Players can find <strong>{puzzle.word_count} words</strong> including <strong>{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</strong>, earning up to <strong>{totalPoints} points</strong>.</p>
     </div>
   </div>
 </BaseLayout>
+
+<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+  function parseSlug() {
+    const path = window.location.pathname;
+    const slug = path.replace(/^\//, '').replace(/\/$/, '');
+    const parts = slug.replace(/^answer-for-/, '').split('-');
+    const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    if (parts.length >= 3) {
+      const monthName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      const day = parseInt(parts[1]);
+      const year = parts[2];
+      if (months.includes(parts[0].toLowerCase()) && day > 0 && year.length === 4) {
+        return monthName + ' ' + day + ', ' + year;
+      }
+    }
+    return null;
+  }
+
+  async function loadPuzzle() {
+    const dateStr = parseSlug();
+    if (!dateStr) {
+      window.location.href = '/archive';
+      return;
+    }
+    try {
+      const res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
+      const data = await res.json();
+      const results = data.results || [];
+      if (results.length === 0) {
+        document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-gray-500 text-lg">No puzzle found for ' + dateStr + '</p><a href="/archive" class="text-amber-600 hover:text-amber-700 mt-2 inline-block">Browse Archive →</a></div>';
+        return;
+      }
+      const puzzleData = results[0];
+      const puzzle = puzzleData.puzzle || puzzleData;
+      const words = puzzleData.words || [];
+      const totalPoints = puzzleData.totalPoints || 0;
+      const hasPerfectPangram = puzzleData.hasPerfectPangram || false;
+      const center = puzzle.letters || '';
+      const allLetters = puzzle.all_letters || '';
+      const outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
+      const pangrams = words.filter(function(w) { return w.is_pangram === 1; });
+      const regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
+
+      document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SB Solver';
+
+      var hexAngles = [270, 330, 30, 90, 150, 210];
+      var outerHexes = outerLetters.map(function(letter, i) {
+        var angle = (hexAngles[i] || 0) * Math.PI / 180;
+        var radius = 62;
+        var x = 50 + radius * Math.cos(angle) / 100 * 100;
+        var y = 50 + radius * Math.sin(angle) / 100 * 100;
+        return '<div class="absolute w-14 h-14 hex-shape bg-gray-100 border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-700" style="left: ' + x + '%; top: ' + y + '%; transform: translate(-50%, -50%);">' + letter + '</div>';
+      }).join('');
+
+      var byLen = {};
+      for (var w of regularWords) {
+        var l = w.length;
+        if (!byLen[l]) byLen[l] = [];
+        byLen[l].push(w);
+      }
+      var wordsHtml = Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
+        return '<div class="px-4 py-3"><p class="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-1.5">' + byLen[len].map(function(w) { return '<span class="word-item bg-gray-50 text-gray-700 border border-gray-100">' + w.word + '</span>'; }).join('') + '</div></div>';
+      }).join('');
+
+      var pangramsHtml = pangrams.length > 0 ? '<div class="mb-6"><h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2"><span class="text-amber-500">★</span> Pangrams</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-word px-3 py-1.5 rounded-md text-sm border border-amber-200">' + w.word + ' <span class="text-xs text-amber-400 ml-1">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';
+
+      document.getElementById('answer-content').innerHTML = '<p class="text-gray-500 mb-4">' + puzzle.date + '</p><div class="flex justify-center mb-6"><div class="relative w-48 h-52"><div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hex-shape hex-center flex items-center justify-center text-3xl z-10" style="width:72px;height:72px;">' + center + '</div>' + outerHexes + '</div></div><div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"><div class="bg-white rounded-xl border border-gray-200 p-4 text-center"><p class="text-2xl font-bold text-amber-600">' + puzzle.word_count + '</p><p class="text-xs text-gray-500 mt-1">Words</p></div><div class="bg-white rounded-xl border border-gray-200 p-4 text-center"><p class="text-2xl font-bold text-amber-600">' + puzzle.pangrams_count + '</p><p class="text-xs text-gray-500 mt-1">Pangrams</p></div><div class="bg-white rounded-xl border border-gray-200 p-4 text-center"><p class="text-2xl font-bold text-amber-600">' + totalPoints + '</p><p class="text-xs text-gray-500 mt-1">Points</p></div><div class="bg-white rounded-xl border border-gray-200 p-4 text-center"><p class="text-2xl font-bold text-amber-600">' + (hasPerfectPangram ? '✓' : '—') + '</p><p class="text-xs text-gray-500 mt-1">Perfect Pangram</p></div></div>' + pangramsHtml + '<div><h2 class="text-lg font-bold text-gray-800 mb-3">All Words (' + words.length + ')</h2><div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 max-h-[500px] overflow-y-auto custom-scroll">' + wordsHtml + '</div></div><div class="mt-10"><h2 class="text-xl font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed">The NYT Spelling Bee for ' + puzzle.date + ' features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>.</p></div>';
+    } catch (error) {
+      document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-red-500">Failed to load puzzle data</p><a href="/archive" class="text-amber-600 hover:text-amber-700 mt-2 inline-block">Browse Archive →</a></div>';
+    }
+  }
+  loadPuzzle();
+</script>
