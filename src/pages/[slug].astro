@@ -88,6 +88,11 @@ export function getStaticPaths() {
       var percentiles = data.percentiles || {};
       var excludedWords = data.excludedWords || [];
       var excludedCount = data.excludedCount || 0;
+      var comparisonData = data.comparisonData || {};
+      var mostCommonWords = data.mostCommonWords || [];
+      var globalWordLengthDistribution = data.globalWordLengthDistribution || {};
+      var totalAnswersEver = data.totalAnswersEver || 0;
+      var uniqueWordsEver = data.uniqueWordsEver || 0;
 
       var center = puzzle.center || puzzle.letters || '';
       var allLetters = puzzle.all_letters || '';
@@ -180,6 +185,37 @@ export function getStaticPaths() {
       }
       lenChartHtml += '</div></div>';
 
+      // How Long Are Words in the Bee? - Global section
+      var globalLenHtml = '';
+      if (Object.keys(globalWordLengthDistribution).length > 0) {
+        var globalLenEntries = Object.entries(globalWordLengthDistribution).sort(function(a,b) { return +a[0] - +b[0]; });
+        var globalMaxLen = Math.max.apply(null, globalLenEntries.map(function(e) { return e[1]; }).concat([1]));
+
+        globalLenHtml = '<div class="mt-8 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2">How Long Are Words in the Bee?</h2>';
+        globalLenHtml += '<p class="text-xs text-gray-400 mb-4">There have been ' + totalAnswersEver.toLocaleString() + ' answers ever accepted in the Bee - with ' + uniqueWordsEver.toLocaleString() + ' unique words. Below are the distributions of the lengths of these words.</p>';
+        globalLenHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+
+        // This Puzzle
+        globalLenHtml += '<div><h4 class="text-xs font-bold text-gray-500 mb-2 uppercase">This Puzzle</h4><div class="space-y-1.5">';
+        for (var i = 0; i < sortedLenAll.length; i++) {
+          var len = sortedLenAll[i]; var count = wordsByLenAll[len].length; var thisMax = Math.max.apply(null, Object.values(wordsByLenAll).map(function(v) { return v.length; }).concat([1]));
+          var barWidth = Math.max((count / thisMax) * 100, 3); var isPangramLen = wordsByLenAll[len].some(function(w) { return w.is_pangram; });
+          globalLenHtml += '<div class="flex items-center gap-2"><span class="w-6 text-xs font-bold text-gray-500 text-right">' + len + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden"><div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold ' + (isPangramLen ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' : 'bg-gradient-to-r from-blue-400 to-blue-500 text-white') + '" style="width:' + barWidth + '%">' + count + '</div></div></div></div>';
+        }
+        globalLenHtml += '</div></div>';
+
+        // All Puzzles
+        globalLenHtml += '<div><h4 class="text-xs font-bold text-gray-500 mb-2 uppercase">All Puzzles</h4><div class="space-y-1.5">';
+        for (var i = 0; i < globalLenEntries.length; i++) {
+          var len = globalLenEntries[i][0]; var count = globalLenEntries[i][1];
+          var barWidth = Math.max((count / globalMaxLen) * 100, 3);
+          globalLenHtml += '<div class="flex items-center gap-2"><span class="w-6 text-xs font-bold text-gray-500 text-right">' + len + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden"><div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold bg-gradient-to-r from-purple-400 to-purple-500 text-white" style="width:' + barWidth + '%">' + count.toLocaleString() + '</div></div></div></div>';
+        }
+        globalLenHtml += '</div></div>';
+
+        globalLenHtml += '</div></div>';
+      }
+
       // First letter counts
       var wordsByFirstLetter = {};
       for (var w of words) { var first = w.word[0] ? w.word[0].toUpperCase() : ''; if (!first) continue; if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false, words: [] }; wordsByFirstLetter[first].count++; wordsByFirstLetter[first].words.push(w.word); if (w.is_pangram) wordsByFirstLetter[first].isPangram = true; }
@@ -218,18 +254,48 @@ export function getStaticPaths() {
         pangramHistoryHtml += '</div>';
       }
 
-      // How Does This Puzzle Compare?
-      var percentilesHtml = '';
-      if (percentiles.word_count || percentiles.total_points) {
-        percentilesHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> How Does This Puzzle Compare?</h2><p class="text-xs text-gray-400 mb-4">This puzzle\'s stats compared to all other puzzles.</p><div class="space-y-4">';
-        if (percentiles.word_count) {
-          percentilesHtml += '<div><div class="flex justify-between items-center mb-1.5"><span class="text-sm font-semibold text-gray-700">Word Count</span><span class="text-sm font-bold text-purple-600">' + percentiles.word_count.value + ' words — Top ' + (100 - percentiles.word_count.percentile) + '%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div class="h-3 rounded-full bg-gradient-to-r from-purple-400 to-purple-600" style="width:' + percentiles.word_count.percentile + '%"></div></div><p class="text-xs text-gray-400 mt-1">This puzzle has more answers than ' + percentiles.word_count.percentile + '% of all puzzles.</p></div>';
-        }
-        if (percentiles.total_points) {
-          percentilesHtml += '<div><div class="flex justify-between items-center mb-1.5"><span class="text-sm font-semibold text-gray-700">Total Points</span><span class="text-sm font-bold text-purple-600">' + percentiles.total_points.value + ' pts — Top ' + (100 - percentiles.total_points.percentile) + '%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div class="h-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style="width:' + percentiles.total_points.percentile + '%"></div></div><p class="text-xs text-gray-400 mt-1">This puzzle scores higher than ' + percentiles.total_points.percentile + '% of all puzzles.</p></div>';
-        }
-        percentilesHtml += '</div></div>';
-      }
+      // How Does This Puzzle Compare? - 4 chart cards
+      var percentilesHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> How Does This Puzzle Compare To Other Puzzles?</h2><p class="text-xs text-gray-400 mb-4">This puzzle\'s stats compared to all other puzzles.</p>';
+      percentilesHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+
+      // Card 1: Total Points
+      var ptsPercentile = percentiles.total_points ? percentiles.total_points.percentile : 0;
+      percentilesHtml += '<div class="p-4 bg-gray-50 rounded-xl"><h3 class="text-sm font-bold text-gray-800 mb-2">Total Points</h3><p class="text-xs text-gray-600 mb-3 leading-relaxed">';
+      percentilesHtml += 'This puzzle\'s score of <strong>' + totalPoints + '</strong> was in the <strong>' + ptsPercentile + 'th</strong> percentile of all puzzles.';
+      if (comparisonData.lastTimeScoreThisHigh) percentilesHtml += ' The last time there was a score this high was on ' + comparisonData.lastTimeScoreThisHigh + '.';
+      if (comparisonData.highestScoreEver) percentilesHtml += ' The highest score ever was <strong>' + comparisonData.highestScoreEver.value + '</strong> on ' + comparisonData.highestScoreEver.date + '.';
+      if (comparisonData.lowestScoreEver) percentilesHtml += ' The lowest score ever was <strong>' + comparisonData.lowestScoreEver.value + '</strong> on ' + comparisonData.lowestScoreEver.date + '.';
+      percentilesHtml += '</p>';
+      percentilesHtml += '<div class="relative"><div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden"><div class="h-4 rounded-full bg-gradient-to-r from-blue-400 to-blue-600" style="width:' + ptsPercentile + '%"></div></div>';
+      percentilesHtml += '<div class="absolute top-0 h-4 flex items-center" style="left:calc(' + ptsPercentile + '% - 8px)"><div class="w-4 h-4 bg-amber-500 rounded-full border-2 border-white shadow-md"></div></div></div>';
+      percentilesHtml += '<div class="flex justify-between text-xs text-gray-400 mt-1"><span>' + (comparisonData.lowestScoreEver ? comparisonData.lowestScoreEver.value : '?') + ' pts</span><span>' + (comparisonData.highestScoreEver ? comparisonData.highestScoreEver.value : '?') + ' pts</span></div></div>';
+
+      // Card 2: Word Count
+      var wcPercentile = percentiles.word_count ? percentiles.word_count.percentile : 0;
+      percentilesHtml += '<div class="p-4 bg-gray-50 rounded-xl"><h3 class="text-sm font-bold text-gray-800 mb-2">Number of Answers</h3><p class="text-xs text-gray-600 mb-3 leading-relaxed">';
+      percentilesHtml += 'This puzzle\'s <strong>' + puzzle.word_count + '</strong> possible answers rank it in the <strong>' + wcPercentile + 'th</strong> percentile of all puzzles.';
+      if (comparisonData.lastTimeWordCountThisHigh) percentilesHtml += ' The last time there were more answers was on ' + comparisonData.lastTimeWordCountThisHigh + '.';
+      if (comparisonData.highestWordCountEver) percentilesHtml += ' The highest number of answers was <strong>' + comparisonData.highestWordCountEver.value + '</strong> on ' + comparisonData.highestWordCountEver.date + '.';
+      if (comparisonData.lowestWordCountEver) percentilesHtml += ' The lowest number of answers was <strong>' + comparisonData.lowestWordCountEver.value + '</strong> on ' + comparisonData.lowestWordCountEver.date + '.';
+      percentilesHtml += '</p>';
+      percentilesHtml += '<div class="relative"><div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden"><div class="h-4 rounded-full bg-gradient-to-r from-purple-400 to-purple-600" style="width:' + wcPercentile + '%"></div></div>';
+      percentilesHtml += '<div class="absolute top-0 h-4 flex items-center" style="left:calc(' + wcPercentile + '% - 8px)"><div class="w-4 h-4 bg-amber-500 rounded-full border-2 border-white shadow-md"></div></div></div>';
+      percentilesHtml += '<div class="flex justify-between text-xs text-gray-400 mt-1"><span>' + (comparisonData.lowestWordCountEver ? comparisonData.lowestWordCountEver.value : '?') + ' words</span><span>' + (comparisonData.highestWordCountEver ? comparisonData.highestWordCountEver.value : '?') + ' words</span></div></div>';
+
+      // Card 3: Min Word Length for Genius
+      percentilesHtml += '<div class="p-4 bg-gray-50 rounded-xl"><h3 class="text-sm font-bold text-gray-800 mb-2">Min Word Length for Genius</h3>';
+      percentilesHtml += '<div class="text-4xl font-black text-purple-600 mb-2">' + (comparisonData.minWordLengthForGenius || '?') + '</div>';
+      percentilesHtml += '<p class="text-xs text-gray-600 leading-relaxed">It takes a <strong>' + (comparisonData.minWordLengthForGenius || '?') + '</strong>-letter word for genius.';
+      if (comparisonData.lastTimeWordCountThisHigh) percentilesHtml += ' The last time this happened was on ' + comparisonData.lastTimeWordCountThisHigh + '.';
+      percentilesHtml += '</p></div>';
+
+      // Card 4: Average Word Length
+      percentilesHtml += '<div class="p-4 bg-gray-50 rounded-xl"><h3 class="text-sm font-bold text-gray-800 mb-2">Average Word Length</h3>';
+      percentilesHtml += '<div class="flex items-end gap-3 mb-2"><div class="text-4xl font-black text-blue-600">' + (comparisonData.avgWordLengthThis || '?') + '</div><div class="text-sm text-gray-400 pb-1">this puzzle</div></div>';
+      percentilesHtml += '<div class="flex items-end gap-3"><div class="text-2xl font-bold text-gray-400">' + (comparisonData.avgWordLengthAll || '?') + '</div><div class="text-xs text-gray-400 pb-0.5">all puzzles average</div></div>';
+      percentilesHtml += '</div>';
+
+      percentilesHtml += '</div></div>';
 
       // Haven't I Seen These Letters Before?
       var letterHistoryHtml = '';
@@ -241,6 +307,35 @@ export function getStaticPaths() {
           letterHistoryHtml += '<div class="group relative"><div class="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black cursor-default transition-all hover:scale-110 ' + (isCenter ? 'bg-amber-400 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200') + '">' + letter + '</div>';
           letterHistoryHtml += '<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-white rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl"><p class="font-bold text-base mb-1.5">' + letter + '</p><div class="space-y-1"><p>Center letter: <strong>' + (info.centerCount || 0) + '</strong> times</p><p>Appeared in: <strong>' + (info.totalCount || 0) + '</strong> puzzles</p>' + (info.firstCenterDate ? '<p>First as center: ' + info.firstCenterDate + '</p>' : '') + (info.lastCenterDate ? '<p>Last as center: ' + info.lastCenterDate + '</p>' : '') + (info.firstAppearanceDate ? '<p>First appeared: ' + info.firstAppearanceDate + '</p>' : '') + (info.lastAppearanceDate ? '<p>Last appeared: ' + info.lastAppearanceDate + '</p>' : '') + '</div></div></div>';
         });
+        letterHistoryHtml += '</div>';
+
+        // Bar charts for letter history
+        letterHistoryHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">';
+
+        // Center Letter Frequency chart
+        var maxCenterCount = 0;
+        allLetters.split('').forEach(function(l) { var c = (letterHistory[l] || {}).centerCount || 0; if (c > maxCenterCount) maxCenterCount = c; });
+        letterHistoryHtml += '<div><h4 class="text-xs font-bold text-gray-500 mb-2 uppercase">Times as Center Letter</h4><div class="space-y-1.5">';
+        allLetters.split('').forEach(function(letter) {
+          var info = letterHistory[letter] || {};
+          var barWidth = maxCenterCount > 0 ? Math.max(((info.centerCount || 0) / maxCenterCount) * 100, 3) : 3;
+          var isCenter = letter === center;
+          letterHistoryHtml += '<div class="flex items-center gap-2"><span class="w-6 text-xs font-black text-right ' + (isCenter ? 'text-amber-600' : 'text-gray-500') + '">' + letter + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden"><div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold ' + (isCenter ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' : 'bg-gradient-to-r from-gray-300 to-gray-400 text-white') + '" style="width:' + barWidth + '%">' + (info.centerCount || 0) + '</div></div></div></div>';
+        });
+        letterHistoryHtml += '</div></div>';
+
+        // Total Appearances chart
+        var maxTotalCount = 0;
+        allLetters.split('').forEach(function(l) { var c = (letterHistory[l] || {}).totalCount || 0; if (c > maxTotalCount) maxTotalCount = c; });
+        letterHistoryHtml += '<div><h4 class="text-xs font-bold text-gray-500 mb-2 uppercase">Total Appearances</h4><div class="space-y-1.5">';
+        allLetters.split('').forEach(function(letter) {
+          var info = letterHistory[letter] || {};
+          var barWidth = maxTotalCount > 0 ? Math.max(((info.totalCount || 0) / maxTotalCount) * 100, 3) : 3;
+          var isCenter = letter === center;
+          letterHistoryHtml += '<div class="flex items-center gap-2"><span class="w-6 text-xs font-black text-right ' + (isCenter ? 'text-amber-600' : 'text-gray-500') + '">' + letter + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden"><div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold ' + (isCenter ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' : 'bg-gradient-to-r from-blue-400 to-blue-500 text-white') + '" style="width:' + barWidth + '%">' + (info.totalCount || 0) + '</div></div></div></div>';
+        });
+        letterHistoryHtml += '</div></div>';
+
         letterHistoryHtml += '</div></div>';
       }
 
@@ -254,7 +349,14 @@ export function getStaticPaths() {
           var cls = freq.other_puzzles > 20 ? 'bg-red-50 text-red-700' : freq.other_puzzles > 10 ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700';
           wordFreqHtml += '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + cls + '" title="Appears in ' + freq.other_puzzles + ' other puzzle' + (freq.other_puzzles !== 1 ? 's' : '') + '">' + w.word + ' <span class="opacity-60">(' + freq.other_puzzles + ')</span></span>';
         });
-        wordFreqHtml += '</div></div>';
+        wordFreqHtml += '</div>';
+
+        // Add most common words globally
+        wordFreqHtml += '<div class="mt-4 pt-4 border-t border-gray-100"><h3 class="text-sm font-bold text-gray-700 mb-3">The most common words in the Bee are:</h3><div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-0.5 max-h-80 overflow-y-auto custom-scroll">';
+        mostCommonWords.forEach(function(w) {
+          wordFreqHtml += '<div class="flex justify-between text-xs py-0.5 border-b border-gray-50"><span class="text-gray-700">' + w.word + '</span><span class="text-gray-400 font-medium">' + w.count + '</span></div>';
+        });
+        wordFreqHtml += '</div></div></div>';
       }
 
       // Excluded Valid Words
@@ -280,6 +382,7 @@ export function getStaticPaths() {
         pangramsHtml +
         wordsHtml +
         lenChartHtml +
+        globalLenHtml +
         firstLetterBtnHtml +
         firstLetterChartHtml +
         pangramHistoryHtml +
