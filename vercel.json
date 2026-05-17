@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/yesterday", "destination": "/archive" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
