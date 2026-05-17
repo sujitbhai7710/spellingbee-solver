@@ -1,5 +1,14 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+// Fetch today's puzzle data at build time for autofill (NO runtime API call)
+const todayRes = await fetch(`${API_BASE}/today`);
+const todayData = await todayRes.json();
+const todayPuzzle = todayData.puzzle || {};
+const todayCenter = (todayPuzzle.letters || '').toUpperCase();
+const todayAllLetters = (todayPuzzle.all_letters || '').toUpperCase();
+const todayOuterLetters = todayAllLetters.split('').filter(l => l !== todayCenter);
 
 const howToSchema = JSON.stringify({
   "@context": "https://schema.org",
@@ -94,8 +103,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
   <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
     <!-- Header -->
     <div class="text-center mb-8">
-      <div class="badge badge-gold mb-3 inline-flex">Free Tool</div>
-      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver - Find All Words Instantly</h1>
+      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver</h1>
       <p class="text-gray-500 text-lg">Enter your letters and find all possible words instantly</p>
     </div>
 
@@ -110,7 +118,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
               <svg viewBox="0 -17 256 256" fill="none" class="solver-hex-svg">
                 <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
               </svg>
-              <input type="text" class="solver-hex-input" maxlength="1" id="center-letter" name="centerLetter" required autocomplete="off" aria-label="Center Letter" placeholder="C" />
+              <input type="text" class="solver-hex-input" maxlength="1" id="center-letter" name="centerLetter" required autocomplete="off" aria-label="Center Letter" placeholder="" />
             </div>
 
             <!-- Outer hexes -->
@@ -209,6 +217,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
               <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Perfect Pangrams
             </h3>
+            <p class="text-xs text-emerald-600 mb-2">Uses all 7 letters exactly once (7 letters total).</p>
             <div id="perfect-pangram-list" class="flex flex-wrap gap-2"></div>
           </div>
 
@@ -332,7 +341,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
   </div>
 </BaseLayout>
 
-<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+<script define:vars={{ todayCenter, todayOuterLetters }}>
   let dictionary = [];
   let dictLoaded = false;
 
@@ -357,11 +366,11 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
       if (w.length < 4) continue;
       if (!w.includes(centerLetter.toLowerCase())) continue;
       let valid = true;
-      let pangram = true;
       for (const ch of w) {
         if (!letterSet.has(ch)) { valid = false; break; }
       }
       if (!valid) continue;
+      let pangram = true;
       for (const l of letterSet) {
         if (!w.includes(l)) { pangram = false; break; }
       }
@@ -450,20 +459,8 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
       perfectPangramsDiv.classList.add('hidden');
     }
 
-    // Regular Pangrams section (exclude perfect pangrams)
-    const nonPerfectPangrams = pangrams.filter(r => r.word.length !== 7);
-    if (nonPerfectPangrams.length > 0) {
-      pangramsDiv.classList.remove('hidden');
-      pangramList.innerHTML = nonPerfectPangrams.map(r =>
-        '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
-      ).join('');
-    } else if (pangrams.length > 0 && perfectPangrams.length > 0) {
-      // All pangrams are perfect, still show pangrams section with all of them
-      pangramsDiv.classList.remove('hidden');
-      pangramList.innerHTML = pangrams.map(r =>
-        '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
-      ).join('');
-    } else if (pangrams.length > 0) {
+    // Pangrams section (all pangrams)
+    if (pangrams.length > 0) {
       pangramsDiv.classList.remove('hidden');
       pangramList.innerHTML = pangrams.map(r =>
         '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
@@ -575,37 +572,21 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
     document.getElementById('solver-empty').classList.remove('hidden');
   });
 
+  // Autofill using LOCAL build-time data (NO API call at runtime)
   document.getElementById('autofill-btn').addEventListener('click', async function() {
     const btn = this;
-    btn.disabled = true;
-    btn.innerHTML = '<div class="inline-block w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div> Loading...';
 
-    try {
-      const res = await fetch(API_BASE + '/today');
-      const data = await res.json();
-      const puzzle = data.puzzle || {};
-
-      if (!puzzle.letters) {
-        throw new Error('No puzzle data');
-      }
-
-      const center = puzzle.letters.toUpperCase();
-      const allLetters = (puzzle.all_letters || '').toUpperCase();
-      const outerLetters = allLetters.split('').filter(l => l !== center);
-
-      centerInput.value = center;
-      outerInputList.forEach((input, i) => {
-        input.value = outerLetters[i] || '';
-      });
-
-      solve();
-    } catch (e) {
-      console.error('Autofill failed:', e);
-      alert('Could not load today\'s puzzle. Please try again.');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Autofill Today\'s NYT Puzzle';
+    if (!todayCenter) {
+      alert('Today\'s puzzle data is not available. Please try again later.');
+      return;
     }
+
+    centerInput.value = todayCenter;
+    outerInputList.forEach((input, i) => {
+      input.value = todayOuterLetters[i] || '';
+    });
+
+    solve();
   });
 </script>
 
@@ -688,7 +669,8 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
   }
 
   .solver-hex-input::placeholder {
-    color: rgba(0,0,0,0.2);
+    color: rgba(0,0,0,0.15);
+    font-size: 0.75rem;
   }
 
   .solver-hex-outer:focus-within .solver-hex-svg {

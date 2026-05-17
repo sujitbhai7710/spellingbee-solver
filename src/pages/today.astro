@@ -18,6 +18,44 @@ const hasPerfectPangram = data.hasPerfectPangram || false;
 const perfectPangrams = data.perfectPangrams || [];
 const geniusThreshold = Math.ceil(totalPoints * 0.70);
 
+// Calculate Genius Requirement Analysis (nytbee.com feature)
+const pangramPoints = pangrams.reduce((sum, w) => {
+  const pts = w.length === 4 ? 1 : w.length;
+  return sum + pts + 7; // base + bonus
+}, 0);
+const nonPangramPoints = totalPoints - pangramPoints;
+const pointsNeededWithoutPangrams = Math.max(0, geniusThreshold);
+const pctWithoutPangrams = totalPoints > 0 ? Math.round((pointsNeededWithoutPangrams / totalPoints) * 100) : 0;
+const remainingAfterPangrams = totalPoints - pangramPoints;
+const pointsStillNeededWithPangrams = Math.max(0, geniusThreshold - pangramPoints);
+const pctWithPangrams = remainingAfterPangrams > 0 ? Math.round((pointsStillNeededWithPangrams / remainingAfterPangrams) * 100) : 0;
+
+// Min words for genius (all 4-letter = 1pt each)
+const minWordsForGenius = Math.ceil(geniusThreshold / 1);
+// Max words for genius (all longest words, roughly)
+const avgWordPoints = words.length > 0 ? totalPoints / words.length : 1;
+const maxWordsForGenius = Math.ceil(geniusThreshold / Math.max(avgWordPoints, 1));
+
+// Minimum word length needed for genius
+let minLenForGenius = 4;
+if (words.length > 0) {
+  // Sort words by points (ascending)
+  const sortedByPoints = [...words].sort((a, b) => {
+    const ptsA = a.length === 4 ? 1 : a.length;
+    const ptsB = b.length === 4 ? 1 : b.length;
+    return ptsA - ptsB;
+  });
+  let cumulativePts = 0;
+  for (const w of sortedByPoints) {
+    const pts = w.length === 4 ? 1 : w.length + (w.is_pangram ? 7 : 0);
+    cumulativePts += pts;
+    if (cumulativePts >= geniusThreshold) {
+      minLenForGenius = w.length;
+      break;
+    }
+  }
+}
+
 // Group words by length
 const wordsByLength = {};
 for (const w of regularWords) {
@@ -27,13 +65,34 @@ for (const w of regularWords) {
 }
 const sortedLengths = Object.keys(wordsByLength).sort((a,b) => +b - +a);
 
+// Word length distribution chart data
+const wordsByLenAll = {};
+for (const w of words) {
+  const l = w.length;
+  if (!wordsByLenAll[l]) wordsByLenAll[l] = [];
+  wordsByLenAll[l].push(w);
+}
+const sortedLenAll = Object.keys(wordsByLenAll).sort((a,b) => +a - +b);
+const maxLenCount = Math.max(...Object.values(wordsByLenAll).map(v => v.length), 1);
+
+// Points by length
+const pointsByLength = {};
+for (const w of words) {
+  const l = w.length;
+  const pts = l === 4 ? 1 : l + (w.is_pangram ? 7 : 0);
+  if (!pointsByLength[l]) pointsByLength[l] = 0;
+  pointsByLength[l] += pts;
+}
+const maxPointsByLen = Math.max(...Object.values(pointsByLength), 1);
+
 // Show Counts by First Letter (nytbee.com feature)
 const wordsByFirstLetter = {};
 for (const w of words) {
   const first = w.word[0]?.toUpperCase();
   if (!first) continue;
-  if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false };
+  if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false, words: [] };
   wordsByFirstLetter[first].count++;
+  wordsByFirstLetter[first].words.push(w.word);
   if (w.is_pangram === 1) wordsByFirstLetter[first].isPangram = true;
 }
 const sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
@@ -61,6 +120,7 @@ const faqSchema = JSON.stringify({
       "name": `What is the center letter in today's Spelling Bee?`,
       "acceptedAnswer": {
         "@type": "Answer",
+        "@type": "Answer",
         "text": `Today's center letter is ${center}. Every word must contain this letter. The full set of letters is ${allLetters.split('').join(', ')}.`
       }
     },
@@ -84,17 +144,14 @@ const faqSchema = JSON.stringify({
 });
 ---
 
-<BaseLayout title="Today's NYT Spelling Bee Answers" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and hints. Center letter: ${center}.`} schema={faqSchema}>
+<BaseLayout title={`Spelling Bee Answers for ${puzzle.date} | Today's NYT Puzzle`} description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and hints. Center letter: ${center}.`} schema={faqSchema}>
   <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
     <div class="flex flex-col lg:flex-row gap-8 lg:gap-10">
       <!-- Main Content -->
       <div class="flex-1 min-w-0">
-        <!-- Header -->
+        <!-- Header - Date BELOW H1 -->
         <div class="mb-8">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="badge badge-gold">Today</span>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers and Clues with Meaning</h1>
-          </div>
+          <h1 class="text-2xl sm:text-3xl font-black text-gray-900 mb-2">Spelling Bee Answers and Clue with Meaning</h1>
           <p class="text-gray-500 font-medium">{puzzle.date}</p>
         </div>
 
@@ -120,20 +177,42 @@ const faqSchema = JSON.stringify({
                 <p class="stat-label">Max Points</p>
               </div>
               <div class="stat-card">
-                <p class="stat-value">{hasPerfectPangram ? 'Yes' : '\u2014'}</p>
-                <p class="stat-label">Perfect Pangram</p>
+                <p class="stat-value">{geniusThreshold}</p>
+                <p class="stat-label">Points for Genius</p>
               </div>
             </div>
-            <!-- Genius threshold -->
+            <!-- Letters info -->
             <div class="text-sm text-gray-500 mb-3">
-              <span class="font-semibold text-purple-600">Genius threshold:</span> {geniusThreshold} points (70% of {totalPoints})
-            </div>
-            <div class="text-sm text-gray-500">
               <span class="font-semibold text-gray-700">Center:</span> <span class="letter-circle letter-circle-center !w-7 !h-7 !text-xs inline-flex">{center}</span>
               <span class="mx-2 text-gray-300">|</span>
               <span class="font-semibold text-gray-700">Letters:</span> {allLetters.split('').map((l) => <span class:list={['inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold mx-0.5', l === center ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600']}>{l}</span>)}
             </div>
+            {hasPerfectPangram && (
+              <div class="text-sm text-emerald-700 font-semibold flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Has Perfect Pangram!
+              </div>
+            )}
           </div>
+        </div>
+
+        <!-- Genius Requirement Analysis (nytbee.com feature) -->
+        <div class="card-elevated p-5 mb-6">
+          <h2 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            Genius Requirement Analysis
+          </h2>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Genius requires between <strong>{minWordsForGenius}</strong> and <strong>{maxWordsForGenius}</strong> words. You need at least a <strong>{minLenForGenius}-letter word</strong> to reach genius.
+            {pangrams.length > 0 ? (
+              <>
+                If you don't get the pangrams, you need <strong>{pctWithoutPangrams}%</strong> of the total points to reach genius.
+                If you get the pangrams, you only need <strong>{pctWithPangrams}%</strong> of the remaining points to reach genius.
+              </>
+            ) : (
+              <>You need <strong>{pctWithoutPangrams}%</strong> of the total points to reach genius.</>
+            )}
+          </p>
         </div>
 
         <!-- Spoiler Reveal Button -->
@@ -154,6 +233,7 @@ const faqSchema = JSON.stringify({
                 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Perfect Pangram{perfectPangrams.length > 1 ? 's' : ''}!
               </h2>
+              <p class="text-xs text-emerald-600 mb-3">A perfect pangram uses all 7 letters exactly once (7 letters total).</p>
               <div class="flex flex-wrap gap-2">
                 {perfectPangrams.map(w => (
                   <span class="perfect-pangram-chip">{w}</span>
@@ -198,23 +278,91 @@ const faqSchema = JSON.stringify({
             </div>
           </div>
 
-          <!-- Show Counts by First Letter -->
+          <!-- Word Length Distribution Chart (nytbee.com feature) -->
           <div class="mt-8 card-elevated p-6">
-            <h2 class="text-lg font-bold text-gray-800 mb-4">Words by First Letter</h2>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Length of Words in This Puzzle</h2>
+            <p class="text-xs text-gray-400 mb-4">Hover over bars to see which words belong to each length.</p>
+            <div class="space-y-2.5">
+              {sortedLenAll.map(len => {
+                const count = wordsByLenAll[len].length;
+                const pct = Math.round((count / words.length) * 100);
+                const barWidth = Math.max((count / maxLenCount) * 100, 3);
+                const isPangramLen = wordsByLenAll[len].some(w => w.is_pangram);
+                return (
+                  <div class="flex items-center gap-3 group cursor-default" title={wordsByLenAll[len].map(w => w.word).join(', ')}>
+                    <span class="w-8 text-sm font-bold text-gray-600 text-right">{len}</span>
+                    <div class="flex-1">
+                      <div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden">
+                        <div class:list={[
+                          'h-8 rounded-full flex items-center pl-3 text-xs font-bold transition-all',
+                          isPangramLen ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700'
+                        ]} style={`width: ${barWidth}%`}>
+                          {count} {isPangramLen && <span class="ml-1 text-amber-100">&#9733;</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-400 font-medium w-10 text-right">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <!-- Points by Length Chart -->
+          <div class="mt-6 card-elevated p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Points Available by Length</h2>
+            <p class="text-xs text-gray-400 mb-4">How the total score breaks down by word length.</p>
+            <div class="space-y-2.5">
+              {sortedLenAll.map(len => {
+                const pts = pointsByLength[len] || 0;
+                const pct = totalPoints > 0 ? Math.round((pts / totalPoints) * 100) : 0;
+                const barWidth = Math.max((pts / maxPointsByLen) * 100, 3);
+                return (
+                  <div class="flex items-center gap-3">
+                    <span class="w-8 text-sm font-bold text-gray-600 text-right">{len}</span>
+                    <div class="flex-1">
+                      <div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden">
+                        <div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold bg-gradient-to-r from-purple-300 to-purple-500 text-white" style={`width: ${barWidth}%`}>
+                          {pts} pts
+                        </div>
+                      </div>
+                    </div>
+                    <span class="text-xs text-gray-400 font-medium w-10 text-right">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <!-- Show Counts by First Letter (nytbee.com style) -->
+          <div class="mt-6">
+            <button id="show-first-letter-btn" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              Show Counts by First Letter
+            </button>
+            <p class="text-xs text-gray-400 mt-1.5">Reveals a chart with the number of words starting with each letter. Red bars indicate pangram(s).</p>
+          </div>
+          <div id="first-letter-chart" class="hidden mt-4 card-elevated p-6">
+            <div class="space-y-2.5">
               {sortedFirstLetters.map(letter => {
                 const info = wordsByFirstLetter[letter];
                 const barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
                 return (
-                  <div class:list={['p-3 rounded-xl border', info.isPangram ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white']}>
-                    <div class="flex items-center justify-between mb-2">
-                      <span class:list={['text-lg font-black', info.isPangram ? 'text-amber-600' : 'text-gray-700']}>{letter}</span>
-                      <span class="text-sm font-bold text-gray-500">{info.count}</span>
+                  <div class="flex items-center gap-3" title={info.words.join(', ')}>
+                    <span class:list={['w-8 text-sm font-black text-right', info.isPangram ? 'text-red-500' : 'text-gray-600']}>{letter}</span>
+                    <div class="flex-1">
+                      <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
+                        <div class:list={[
+                          'h-7 rounded-full flex items-center pl-3 text-xs font-bold',
+                          info.isPangram ? 'bg-red-400 text-white' : 'bg-gray-300 text-gray-700'
+                        ]} style={`width: ${barWidth}%`}>
+                          {info.count}
+                        </div>
+                      </div>
                     </div>
-                    <div class="w-full bg-gray-100 rounded-full h-2">
-                      <div class:list={['h-2 rounded-full', info.isPangram ? 'bg-amber-400' : 'bg-gray-300']} style={`width: ${barWidth}%`}></div>
-                    </div>
-                    {info.isPangram && <span class="text-[10px] text-amber-600 font-bold mt-1 block">HAS PANGRAM</span>}
+                    {info.isPangram && (
+                      <span class="text-xs text-red-500 font-bold">PANGRAM</span>
+                    )}
                   </div>
                 );
               })}
@@ -246,7 +394,7 @@ const faqSchema = JSON.stringify({
               <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What score do I need for Genius today?
                 <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
               </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">You need {geniusThreshold} points out of {totalPoints} total to reach Genius. That's 70% of the maximum score. {puzzle.pangrams_count > 0 ? `Finding the pangram${puzzle.pangrams_count > 1 ? 's' : ''} helps a lot since each one is worth at least 14 points (7-letter word = 7 points + 7 bonus).` : ''}</p>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">You need {geniusThreshold} points out of {totalPoints} total to reach Genius. That's 70% of the maximum score. {pangrams.length > 0 ? `Finding the pangram${pangrams.length > 1 ? 's' : ''} helps a lot since each one is worth at least 14 points (7-letter word = 7 points + 7 bonus).` : ''}</p>
             </details>
             <details class="card-elevated p-5 group">
               <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Does today's puzzle have a perfect pangram?
@@ -293,11 +441,22 @@ const faqSchema = JSON.stringify({
   </div>
 
   <script>
+    // Reveal answers button
     document.getElementById('reveal-answers-btn')?.addEventListener('click', function() {
       const container = document.getElementById('answers-container');
       if (container) {
         container.classList.remove('hidden');
         this.style.display = 'none';
+      }
+    });
+
+    // Show first letter chart toggle
+    document.getElementById('show-first-letter-btn')?.addEventListener('click', function() {
+      const chart = document.getElementById('first-letter-chart');
+      if (chart) {
+        const isHidden = chart.classList.contains('hidden');
+        chart.classList.toggle('hidden');
+        this.textContent = isHidden ? 'Hide Counts by First Letter' : 'Show Counts by First Letter';
       }
     });
   </script>

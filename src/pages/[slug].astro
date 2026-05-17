@@ -26,7 +26,7 @@ export function getStaticPaths() {
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
         Back to Archive
       </a>
-      <h1 id="page-h1" class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+      <h1 id="page-h1" class="text-2xl sm:text-3xl font-black text-gray-900">Spelling Bee Answers</h1>
     </div>
 
     <div id="answer-content">
@@ -57,8 +57,6 @@ export function getStaticPaths() {
 
   function buildHoneycombHTML(center, outer) {
     var html = '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:1.5rem;">';
-
-    // Outer hexagons
     outer.forEach(function(letter, i) {
       html += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
       html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
@@ -67,17 +65,20 @@ export function getStaticPaths() {
       html += '<span class="hex-letter">' + letter + '</span>';
       html += '</div>';
     });
-
-    // Center hexagon
     html += '<div class="hex-cell hex-center hex-pos-center">';
     html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
     html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
     html += '</svg>';
     html += '<span class="hex-letter hex-letter-center">' + center + '</span>';
     html += '</div>';
-
     html += '</div>';
     return html;
+  }
+
+  function calculateWordPoints(word, isPangram) {
+    var pts = word.length === 4 ? 1 : word.length;
+    if (isPangram) pts += 7;
+    return pts;
   }
 
   async function loadPuzzle() {
@@ -87,12 +88,10 @@ export function getStaticPaths() {
       return;
     }
     try {
-      // Use the date search API endpoint for efficient lookup
       var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
       var data = await res.json();
       var results = data.results || [];
 
-      // Fallback: try the puzzle list with search param
       if (results.length === 0) {
         res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
         data = await res.json();
@@ -117,6 +116,44 @@ export function getStaticPaths() {
       var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
       var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
       var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
+      var geniusThreshold = Math.ceil(totalPoints * 0.70);
+
+      // Genius analysis
+      var pangramPoints = pangrams.reduce(function(sum, w) {
+        var pts = w.length === 4 ? 1 : w.length;
+        return sum + pts + 7;
+      }, 0);
+      var nonPangramPoints = totalPoints - pangramPoints;
+      var pointsNeededWithoutPangrams = Math.max(0, geniusThreshold);
+      var pctWithoutPangrams = totalPoints > 0 ? Math.round((pointsNeededWithoutPangrams / totalPoints) * 100) : 0;
+      var remainingAfterPangrams = totalPoints - pangramPoints;
+      var pointsStillNeededWithPangrams = Math.max(0, geniusThreshold - pangramPoints);
+      var pctWithPangrams = remainingAfterPangrams > 0 ? Math.round((pointsStillNeededWithPangrams / remainingAfterPangrams) * 100) : 0;
+
+      // Min words for genius
+      var minWordsForGenius = Math.ceil(geniusThreshold / 1);
+      var avgWordPoints = words.length > 0 ? totalPoints / words.length : 1;
+      var maxWordsForGenius = Math.ceil(geniusThreshold / Math.max(avgWordPoints, 1));
+
+      // Min word length for genius
+      var minLenForGenius = 4;
+      if (words.length > 0) {
+        var sortedByPoints = words.slice().sort(function(a, b) {
+          var ptsA = a.length === 4 ? 1 : a.length;
+          var ptsB = b.length === 4 ? 1 : b.length;
+          return ptsA - ptsB;
+        });
+        var cumulativePts = 0;
+        for (var i = 0; i < sortedByPoints.length; i++) {
+          var w = sortedByPoints[i];
+          var pts = w.length === 4 ? 1 : w.length + (w.is_pangram ? 7 : 0);
+          cumulativePts += pts;
+          if (cumulativePts >= geniusThreshold) {
+            minLenForGenius = w.length;
+            break;
+          }
+        }
+      }
 
       // Update page title and H1 dynamically
       document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SbSolver';
@@ -130,17 +167,32 @@ export function getStaticPaths() {
       var statsHtml = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.pangrams_count + '</p><p class="stat-label">Pangrams</p></div>' +
-        '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Points</p></div>' +
-        '<div class="stat-card"><p class="stat-value">' + (hasPerfectPangram ? 'Yes' : '\u2014') + '</p><p class="stat-label">Perfect Pangram</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Max Points</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + geniusThreshold + '</p><p class="stat-label">Points for Genius</p></div>' +
         '</div>';
+
+      // Genius analysis section
+      var geniusHtml = '<div class="card-elevated p-5 mb-6">' +
+        '<h2 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>' +
+        'Genius Requirement Analysis</h2>' +
+        '<p class="text-sm text-gray-600 leading-relaxed">' +
+        'Genius requires between <strong>' + minWordsForGenius + '</strong> and <strong>' + maxWordsForGenius + '</strong> words. ' +
+        'You need at least a <strong>' + minLenForGenius + '-letter word</strong> to reach genius. ' +
+        (pangrams.length > 0 ?
+          'If you don\'t get the pangrams, you need <strong>' + pctWithoutPangrams + '%</strong> of the total points to reach genius. ' +
+          'If you get the pangrams, you only need <strong>' + pctWithPangrams + '%</strong> of the remaining points to reach genius.' :
+          'You need <strong>' + pctWithoutPangrams + '%</strong> of the total points to reach genius.'
+        ) + '</p></div>';
 
       // Perfect Pangrams section
       var perfectPangramsHtml = '';
       if (hasPerfectPangram && perfectPangrams.length > 0) {
         perfectPangramsHtml = '<div class="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">' +
-          '<h2 class="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">' +
+          '<h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">' +
           '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
           'Perfect Pangram' + (perfectPangrams.length > 1 ? 's' : '') + '!</h2>' +
+          '<p class="text-xs text-emerald-600 mb-3">A perfect pangram uses all 7 letters exactly once (7 letters total).</p>' +
           '<div class="flex flex-wrap gap-2">' +
           perfectPangrams.map(function(w) { return '<span class="perfect-pangram-chip">' + w + '</span>'; }).join('') +
           '</div></div>';
@@ -158,14 +210,97 @@ export function getStaticPaths() {
         return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-2">' + byLen[len].map(function(w) { return '<span class="word-chip">' + w.word + '</span>'; }).join('') + '</div></div>';
       }).join('');
 
+      // Word length distribution chart
+      var wordsByLenAll = {};
+      for (var w of words) {
+        var l = w.length;
+        if (!wordsByLenAll[l]) wordsByLenAll[l] = [];
+        wordsByLenAll[l].push(w);
+      }
+      var sortedLenAll = Object.keys(wordsByLenAll).sort(function(a,b) { return +a - +b; });
+      var maxLenCount = Math.max.apply(null, Object.values(wordsByLenAll).map(function(v) { return v.length; }).concat([1]));
+
+      var lenChartHtml = '<div class="mt-8 card-elevated p-6">' +
+        '<h2 class="text-lg font-bold text-gray-800 mb-2">Length of Words in This Puzzle</h2>' +
+        '<p class="text-xs text-gray-400 mb-4">Hover over bars to see which words belong to each length.</p>' +
+        '<div class="space-y-2.5">';
+
+      for (var i = 0; i < sortedLenAll.length; i++) {
+        var len = sortedLenAll[i];
+        var count = wordsByLenAll[len].length;
+        var pct = Math.round((count / words.length) * 100);
+        var barWidth = Math.max((count / maxLenCount) * 100, 3);
+        var isPangramLen = wordsByLenAll[len].some(function(w) { return w.is_pangram; });
+        var wordList = wordsByLenAll[len].map(function(w) { return w.word; }).join(', ');
+
+        lenChartHtml += '<div class="flex items-center gap-3 cursor-default" title="' + wordList + '">' +
+          '<span class="w-8 text-sm font-bold text-gray-600 text-right">' + len + '</span>' +
+          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden">' +
+          '<div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold ' +
+          (isPangramLen ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700') +
+          '" style="width: ' + barWidth + '%">' + count + (isPangramLen ? ' <span class="ml-1 text-amber-100">&#9733;</span>' : '') +
+          '</div></div></div>' +
+          '<span class="text-xs text-gray-400 font-medium w-10 text-right">' + pct + '%</span></div>';
+      }
+      lenChartHtml += '</div></div>';
+
+      // First letter counts chart
+      var wordsByFirstLetter = {};
+      for (var w of words) {
+        var first = w.word[0] ? w.word[0].toUpperCase() : '';
+        if (!first) continue;
+        if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false, words: [] };
+        wordsByFirstLetter[first].count++;
+        wordsByFirstLetter[first].words.push(w.word);
+        if (w.is_pangram) wordsByFirstLetter[first].isPangram = true;
+      }
+      var sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
+      var maxFirstLetterCount = Math.max.apply(null, Object.values(wordsByFirstLetter).map(function(v) { return v.count; }).concat([1]));
+
+      var firstLetterBtnHtml = '<div class="mt-6"><button id="show-first-letter-btn-dynamic" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> ' +
+        'Show Counts by First Letter</button>' +
+        '<p class="text-xs text-gray-400 mt-1.5">Red bars indicate that there is a pangram(s) starting with that letter.</p></div>';
+
+      var firstLetterChartHtml = '<div id="first-letter-chart-dynamic" class="hidden mt-4 card-elevated p-6"><div class="space-y-2.5">';
+      for (var i = 0; i < sortedFirstLetters.length; i++) {
+        var letter = sortedFirstLetters[i];
+        var info = wordsByFirstLetter[letter];
+        var barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
+        firstLetterChartHtml += '<div class="flex items-center gap-3" title="' + info.words.join(', ') + '">' +
+          '<span class="w-8 text-sm font-black text-right ' + (info.isPangram ? 'text-red-500' : 'text-gray-600') + '">' + letter + '</span>' +
+          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">' +
+          '<div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' +
+          (info.isPangram ? 'bg-red-400 text-white' : 'bg-gray-300 text-gray-700') +
+          '" style="width: ' + barWidth + '%">' + info.count + '</div></div></div>' +
+          (info.isPangram ? '<span class="text-xs text-red-500 font-bold">PANGRAM</span>' : '') +
+          '</div>';
+      }
+      firstLetterChartHtml += '</div></div>';
+
       document.getElementById('answer-content').innerHTML =
         '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
         honeycombHtml +
         statsHtml +
+        geniusHtml +
         perfectPangramsHtml +
         pangramsHtml +
         '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
-        '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>.</p></div>';
+        lenChartHtml +
+        firstLetterBtnHtml +
+        firstLetterChartHtml +
+        '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>. To reach Genius, you need <strong>' + geniusThreshold + ' points</strong> (70% of the total).' + (hasPerfectPangram ? ' This puzzle features a <strong>perfect pangram</strong> — a 7-letter word using all letters exactly once.' : '') + '</p></div>';
+
+      // Add click handler for first letter chart toggle
+      document.getElementById('show-first-letter-btn-dynamic')?.addEventListener('click', function() {
+        var chart = document.getElementById('first-letter-chart-dynamic');
+        if (chart) {
+          var isHidden = chart.classList.contains('hidden');
+          chart.classList.toggle('hidden');
+          this.textContent = isHidden ? 'Hide Counts by First Letter' : 'Show Counts by First Letter';
+        }
+      });
+
     } catch (error) {
       document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-red-500 font-medium">Failed to load puzzle data</p><a href="/archive" class="btn-primary mt-4 inline-flex">Browse Archive</a></div>';
     }
