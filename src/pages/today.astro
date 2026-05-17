@@ -85,15 +85,15 @@ const faqSchema = JSON.stringify({
 ---
 
 <BaseLayout title="Today's NYT Spelling Bee Answers" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and hints. Center letter: ${center}.`} schema={faqSchema}>
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-    <div class="flex flex-col lg:flex-row gap-8">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+    <div class="flex flex-col lg:flex-row gap-8 lg:gap-10">
       <!-- Main Content -->
       <div class="flex-1 min-w-0">
         <!-- Header -->
         <div class="mb-8">
           <div class="flex items-center gap-3 mb-2">
             <span class="badge badge-gold">Today</span>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers and Clues with Meaning</h1>
           </div>
           <p class="text-gray-500 font-medium">{puzzle.date}</p>
         </div>
@@ -101,7 +101,9 @@ const faqSchema = JSON.stringify({
         <!-- Honeycomb + Stats Row -->
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-8">
           <div class="flex-shrink-0">
-            <Honeycomb center={center} outer={outerLetters} size="md" />
+            <div class="p-4 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl border border-amber-100">
+              <Honeycomb center={center} outer={outerLetters} size="md" />
+            </div>
           </div>
           <div class="flex-1 w-full">
             <div class="grid grid-cols-2 gap-3 mb-5">
@@ -147,14 +149,14 @@ const faqSchema = JSON.stringify({
         <div id="answers-container" class="hidden">
           <!-- Perfect Pangrams -->
           {hasPerfectPangram && perfectPangrams.length > 0 && (
-            <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="#10B981"><circle cx="10" cy="10" r="9" fill="none" stroke="#10B981" stroke-width="2"/><path d="M6 10l3 3 5-5" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <h2 class="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 Perfect Pangram{perfectPangrams.length > 1 ? 's' : ''}!
               </h2>
               <div class="flex flex-wrap gap-2">
                 {perfectPangrams.map(w => (
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 border border-emerald-300 rounded-lg text-sm font-bold text-emerald-800 uppercase">{w}</span>
+                  <span class="perfect-pangram-chip">{w}</span>
                 ))}
               </div>
             </div>
@@ -284,7 +286,6 @@ const faqSchema = JSON.stringify({
             <svg width="16" height="18" viewBox="0 0 100 110"><polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="white" stroke="white" stroke-width="3"/></svg>
             Use Solver
           </a>
-          <a href="/yesterday" class="btn-secondary w-full text-sm !py-3">Yesterday's Answers</a>
           <a href="/archive" class="btn-secondary w-full text-sm !py-3">Puzzle Archive</a>
         </div>
       </aside>

@@ -32,11 +32,11 @@ const faqSchema = JSON.stringify({
 });
 ---
 
-<BaseLayout title="Spelling Bee Puzzle Archive" description={`Browse ${pagination.total_items || '2,900+'} NYT Spelling Bee puzzles with complete answers. Search by date, letter, or puzzle ID.`} schema={faqSchema}>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+<BaseLayout title="Spelling Bee Puzzle Archive - Browse All Past Answers" description={`Browse ${pagination.total_items || '2,900+'} NYT Spelling Bee puzzles with complete answers. Search by date, letter, or puzzle ID.`} schema={faqSchema}>
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Spelling Bee Puzzle Archive - Browse All Past Answers</h1>
       <p class="text-gray-500">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
     </div>
 

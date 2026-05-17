@@ -91,11 +91,11 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
 ---
 
 <BaseLayout title="Spelling Bee Solver - Find All Words Instantly" description="Free NYT Spelling Bee solver tool. Enter your 7 letters and find all possible words, pangrams, and scores instantly. Works with today's puzzle or any letter combination." schema={combinedSchema}>
-  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
     <!-- Header -->
     <div class="text-center mb-8">
       <div class="badge badge-gold mb-3 inline-flex">Free Tool</div>
-      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver</h1>
+      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-2">Spelling Bee Solver - Find All Words Instantly</h1>
       <p class="text-gray-500 text-lg">Enter your letters and find all possible words instantly</p>
     </div>
 
@@ -203,6 +203,15 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
             <div class="space-y-1.5" id="progress-levels"></div>
           </div>
 
+          <!-- Perfect Pangrams -->
+          <div id="solver-perfect-pangrams" class="mb-6 hidden">
+            <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Perfect Pangrams
+            </h3>
+            <div id="perfect-pangram-list" class="flex flex-wrap gap-2"></div>
+          </div>
+
           <!-- Pangrams -->
           <div id="solver-pangrams" class="mb-6 hidden">
             <h3 class="text-sm font-bold text-amber-700 mb-3 flex items-center gap-1.5">
@@ -231,28 +240,22 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
 
     <!-- How To Section -->
     <section class="mt-12">
-      <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Use the Spelling Bee Solver</h2>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div class="card p-5">
-          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
-            <span class="text-amber-700 font-black text-lg">1</span>
-          </div>
-          <h3 class="font-bold text-gray-800 mb-1.5">Find the center letter</h3>
-          <p class="text-sm text-gray-500">Open the NYT Spelling Bee and identify the letter in the center hexagon. Every valid word must include this letter — it's the one constraint that shapes the entire puzzle.</p>
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">How to Use the Spelling Bee Solver</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="card feature-card p-6">
+          <div class="step-number mb-4">1</div>
+          <h3 class="font-bold text-gray-800 mb-2">Find the center letter</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">Open the NYT Spelling Bee and identify the letter in the center hexagon. Every valid word must include this letter — it's the one constraint that shapes the entire puzzle.</p>
         </div>
-        <div class="card p-5">
-          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
-            <span class="text-amber-700 font-black text-lg">2</span>
-          </div>
-          <h3 class="font-bold text-gray-800 mb-1.5">Enter your letters</h3>
-          <p class="text-sm text-gray-500">Click the center hex above and type the center letter. Then fill in the six surrounding hexagons with the outer letters. Letters auto-capitalize and auto-advance to the next hex.</p>
+        <div class="card feature-card p-6">
+          <div class="step-number mb-4">2</div>
+          <h3 class="font-bold text-gray-800 mb-2">Enter your letters</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">Click the center hex above and type the center letter. Then fill in the six surrounding hexagons with the outer letters. Letters auto-capitalize and auto-advance to the next hex.</p>
         </div>
-        <div class="card p-5">
-          <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center mb-3">
-            <span class="text-amber-700 font-black text-lg">3</span>
-          </div>
-          <h3 class="font-bold text-gray-800 mb-1.5">Get your results</h3>
-          <p class="text-sm text-gray-500">Click Solve or press Enter. The solver returns every dictionary-valid word sorted by length, with pangrams highlighted and total points calculated using official NYT scoring rules.</p>
+        <div class="card feature-card p-6">
+          <div class="step-number mb-4">3</div>
+          <h3 class="font-bold text-gray-800 mb-2">Get your results</h3>
+          <p class="text-sm text-gray-500 leading-relaxed">Click Solve or press Enter. The solver returns every dictionary-valid word sorted by length, with pangrams highlighted and total points calculated using official NYT scoring rules.</p>
         </div>
       </div>
     </section>
@@ -400,6 +403,8 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
     const statsDiv = document.getElementById('solver-stats');
     const pangramsDiv = document.getElementById('solver-pangrams');
     const pangramList = document.getElementById('pangram-list');
+    const perfectPangramsDiv = document.getElementById('solver-perfect-pangrams');
+    const perfectPangramList = document.getElementById('perfect-pangram-list');
     const wordsDiv = document.getElementById('solver-words');
     const progressDiv = document.getElementById('solver-progress');
     const progressLevelsDiv = document.getElementById('progress-levels');
@@ -409,6 +414,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
     resultsDiv.classList.remove('hidden');
 
     const pangrams = results.filter(r => r.isPangram);
+    const perfectPangrams = pangrams.filter(r => r.word.length === 7);
     const regular = results.filter(r => !r.isPangram);
     const totalPts = results.reduce((s, r) => s + calculateWordPoints(r.word, r.isPangram), 0);
 
@@ -434,7 +440,30 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
       `).join('');
     }
 
-    if (pangrams.length > 0) {
+    // Perfect Pangrams section
+    if (perfectPangrams.length > 0) {
+      perfectPangramsDiv.classList.remove('hidden');
+      perfectPangramList.innerHTML = perfectPangrams.map(r =>
+        '<span class="perfect-pangram-chip">' + r.word + '</span>'
+      ).join('');
+    } else {
+      perfectPangramsDiv.classList.add('hidden');
+    }
+
+    // Regular Pangrams section (exclude perfect pangrams)
+    const nonPerfectPangrams = pangrams.filter(r => r.word.length !== 7);
+    if (nonPerfectPangrams.length > 0) {
+      pangramsDiv.classList.remove('hidden');
+      pangramList.innerHTML = nonPerfectPangrams.map(r =>
+        '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
+      ).join('');
+    } else if (pangrams.length > 0 && perfectPangrams.length > 0) {
+      // All pangrams are perfect, still show pangrams section with all of them
+      pangramsDiv.classList.remove('hidden');
+      pangramList.innerHTML = pangrams.map(r =>
+        '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
+      ).join('');
+    } else if (pangrams.length > 0) {
       pangramsDiv.classList.remove('hidden');
       pangramList.innerHTML = pangrams.map(r =>
         '<span class="pangram-chip"><span class="star">&#9733;</span>' + r.word + ' <span class="text-xs text-amber-500 opacity-70">' + r.word.length + '</span></span>'
@@ -542,6 +571,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
     document.getElementById('solver-results').classList.add('hidden');
     document.getElementById('solver-loading').classList.add('hidden');
     document.getElementById('solver-progress').classList.add('hidden');
+    document.getElementById('solver-perfect-pangrams').classList.add('hidden');
     document.getElementById('solver-empty').classList.remove('hidden');
   });
 
