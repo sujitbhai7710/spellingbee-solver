@@ -55,30 +55,8 @@ export function getStaticPaths() {
     return null;
   }
 
-  function buildHoneycombHTML(center, outer) {
-    var html = '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:1.5rem;">';
-    outer.forEach(function(letter, i) {
-      html += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
-      html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
-      html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
-      html += '</svg>';
-      html += '<span class="hex-letter">' + letter + '</span>';
-      html += '</div>';
-    });
-    html += '<div class="hex-cell hex-center hex-pos-center">';
-    html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
-    html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
-    html += '</svg>';
-    html += '<span class="hex-letter hex-letter-center">' + center + '</span>';
-    html += '</div>';
-    html += '</div>';
-    return html;
-  }
-
-  function calculateWordPoints(word, isPangram) {
-    var pts = word.length === 4 ? 1 : word.length;
-    if (isPangram) pts += 7;
-    return pts;
+  function slugFromDate(date) {
+    return 'answer-for-' + date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
   }
 
   async function loadPuzzle() {
@@ -88,220 +66,247 @@ export function getStaticPaths() {
       return;
     }
     try {
-      var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
+      // SINGLE enriched API call — gets ALL data including nytbee features
+      var res = await fetch(API_BASE + '/api/puzzle/enriched/' + encodeURIComponent(dateStr));
       var data = await res.json();
-      var results = data.results || [];
 
-      if (results.length === 0) {
-        res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
-        data = await res.json();
-        results = data.puzzles || [];
-      }
-
-      if (results.length === 0) {
+      if (!data.success || !data.puzzle) {
         document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-gray-500 text-lg font-medium">No puzzle found for ' + dateStr + '</p><a href="/archive" class="btn-primary mt-4 inline-flex">Browse Archive</a></div>';
         return;
       }
 
-      var p = results[0];
-      var puzzleRes = await fetch(API_BASE + '/api/puzzle/' + p.puzzle_id);
-      var puzzleData = await puzzleRes.json();
-      var puzzle = puzzleData.puzzle || p;
-      var words = puzzleData.words || [];
-      var totalPoints = puzzleData.totalPoints || 0;
-      var hasPerfectPangram = puzzleData.hasPerfectPangram || false;
-      var perfectPangrams = puzzleData.perfectPangrams || [];
-      var center = puzzle.letters || '';
+      var puzzle = data.puzzle;
+      var words = data.words || [];
+      var totalPoints = data.totalPoints || 0;
+      var geniusThreshold = data.geniusThreshold || Math.ceil(totalPoints * 0.70);
+      var hasPerfectPangram = data.hasPerfectPangram || false;
+      var perfectPangrams = data.perfectPangrams || [];
+      var geniusAnalysis = data.geniusAnalysis || {};
+      var pangramHistory = data.pangramHistory || {};
+      var wordFrequency = data.wordFrequency || {};
+      var letterHistory = data.letterHistory || {};
+      var percentiles = data.percentiles || {};
+      var excludedWords = data.excludedWords || [];
+      var excludedCount = data.excludedCount || 0;
+
+      var center = puzzle.center || puzzle.letters || '';
       var allLetters = puzzle.all_letters || '';
-      var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
+      var outerLetters = Array.isArray(puzzle.outer_letters) ? puzzle.outer_letters : allLetters.split('').filter(function(l) { return l !== center; });
       var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
       var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
-      var geniusThreshold = Math.ceil(totalPoints * 0.70);
-
-      // Genius analysis
-      var pangramPoints = pangrams.reduce(function(sum, w) {
-        var pts = w.length === 4 ? 1 : w.length;
-        return sum + pts + 7;
-      }, 0);
-      var nonPangramPoints = totalPoints - pangramPoints;
-      var pointsNeededWithoutPangrams = Math.max(0, geniusThreshold);
-      var pctWithoutPangrams = totalPoints > 0 ? Math.round((pointsNeededWithoutPangrams / totalPoints) * 100) : 0;
-      var remainingAfterPangrams = totalPoints - pangramPoints;
-      var pointsStillNeededWithPangrams = Math.max(0, geniusThreshold - pangramPoints);
-      var pctWithPangrams = remainingAfterPangrams > 0 ? Math.round((pointsStillNeededWithPangrams / remainingAfterPangrams) * 100) : 0;
-
-      // Min words for genius
-      var minWordsForGenius = Math.ceil(geniusThreshold / 1);
-      var avgWordPoints = words.length > 0 ? totalPoints / words.length : 1;
-      var maxWordsForGenius = Math.ceil(geniusThreshold / Math.max(avgWordPoints, 1));
-
-      // Min word length for genius
-      var minLenForGenius = 4;
-      if (words.length > 0) {
-        var sortedByPoints = words.slice().sort(function(a, b) {
-          var ptsA = a.length === 4 ? 1 : a.length;
-          var ptsB = b.length === 4 ? 1 : b.length;
-          return ptsA - ptsB;
-        });
-        var cumulativePts = 0;
-        for (var i = 0; i < sortedByPoints.length; i++) {
-          var w = sortedByPoints[i];
-          var pts = w.length === 4 ? 1 : w.length + (w.is_pangram ? 7 : 0);
-          cumulativePts += pts;
-          if (cumulativePts >= geniusThreshold) {
-            minLenForGenius = w.length;
-            break;
-          }
-        }
-      }
 
       // Update page title and H1 dynamically
       document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SbSolver';
       var h1El = document.getElementById('page-h1');
-      if (h1El) {
-        h1El.textContent = 'Spelling Bee Answers for ' + puzzle.date;
-      }
+      if (h1El) h1El.textContent = 'Spelling Bee Answers for ' + puzzle.date;
 
-      var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombHTML(center, outerLetters) + '</div>';
+      // Build honeycomb HTML
+      var honeycombHtml = '<div class="flex justify-center mb-6"><div class="p-4 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl border border-amber-100 inline-block">';
+      honeycombHtml += '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:0;">';
+      outerLetters.forEach(function(letter, i) {
+        honeycombHtml += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
+        honeycombHtml += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+        honeycombHtml += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+        honeycombHtml += '</svg><span class="hex-letter">' + letter + '</span></div>';
+      });
+      honeycombHtml += '<div class="hex-cell hex-center hex-pos-center">';
+      honeycombHtml += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+      honeycombHtml += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+      honeycombHtml += '</svg><span class="hex-letter hex-letter-center">' + center + '</span></div>';
+      honeycombHtml += '</div></div></div>';
 
+      // Stats
       var statsHtml = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +
         '<div class="stat-card"><p class="stat-value">' + puzzle.pangrams_count + '</p><p class="stat-label">Pangrams</p></div>' +
         '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Max Points</p></div>' +
-        '<div class="stat-card"><p class="stat-value">' + geniusThreshold + '</p><p class="stat-label">Points for Genius</p></div>' +
-        '</div>';
+        '<div class="stat-card"><p class="stat-value">' + geniusThreshold + '</p><p class="stat-label">Points for Genius</p></div></div>';
 
-      // Genius analysis section
+      // Letters info
+      var lettersInfo = '<div class="text-sm text-gray-500 mb-3"><span class="font-semibold text-gray-700">Center:</span> <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">' + center + '</span><span class="mx-2 text-gray-300">|</span><span class="font-semibold text-gray-700">Letters:</span> ';
+      allLetters.split('').forEach(function(l) {
+        lettersInfo += '<span class="inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold mx-0.5 ' + (l === center ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600') + '">' + l + '</span>';
+      });
+      lettersInfo += '</div>';
+
+      if (hasPerfectPangram) {
+        lettersInfo += '<div class="text-sm text-emerald-700 font-semibold flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Has Perfect Pangram!</div>';
+      }
+
+      // Genius analysis
       var geniusHtml = '<div class="card-elevated p-5 mb-6">' +
         '<h2 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>' +
         'Genius Requirement Analysis</h2>' +
         '<p class="text-sm text-gray-600 leading-relaxed">' +
-        'Genius requires between <strong>' + minWordsForGenius + '</strong> and <strong>' + maxWordsForGenius + '</strong> words. ' +
-        'You need at least a <strong>' + minLenForGenius + '-letter word</strong> to reach genius. ' +
+        'Genius requires between <strong>' + (geniusAnalysis.minWordsForGenius || '?') + '</strong> and <strong>' + (geniusAnalysis.maxWordsForGenius || '?') + '</strong> words. ' +
         (pangrams.length > 0 ?
-          'If you don\'t get the pangrams, you need <strong>' + pctWithoutPangrams + '%</strong> of the total points to reach genius. ' +
-          'If you get the pangrams, you only need <strong>' + pctWithPangrams + '%</strong> of the remaining points to reach genius.' :
-          'You need <strong>' + pctWithoutPangrams + '%</strong> of the total points to reach genius.'
+          'If you don\'t get the pangrams, you need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points. ' +
+          'If you get the pangrams, you only need <strong>' + (geniusAnalysis.pctWithPangrams || 0) + '%</strong> of the remaining points.' :
+          'You need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points to reach genius.'
         ) + '</p></div>';
 
-      // Perfect Pangrams section
+      // Spoiler reveal button
+      var revealBtn = '<div class="mb-6"><button id="reveal-answers-btn-dynamic" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Show All Answers</button><p class="text-xs text-gray-400 mt-1.5">Spoilers ahead! Click to reveal the complete word list.</p></div>';
+
+      // Perfect Pangrams
       var perfectPangramsHtml = '';
       if (hasPerfectPangram && perfectPangrams.length > 0) {
-        perfectPangramsHtml = '<div class="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl">' +
-          '<h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">' +
-          '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-          'Perfect Pangram' + (perfectPangrams.length > 1 ? 's' : '') + '!</h2>' +
-          '<p class="text-xs text-emerald-600 mb-3">A perfect pangram uses all 7 letters exactly once (7 letters total).</p>' +
-          '<div class="flex flex-wrap gap-2">' +
-          perfectPangrams.map(function(w) { return '<span class="perfect-pangram-chip">' + w + '</span>'; }).join('') +
-          '</div></div>';
+        perfectPangramsHtml = '<div class="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl"><h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#10B981" stroke-width="2"><circle cx="10" cy="10" r="9"/><path d="M6 10l3 3 5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>Perfect Pangram' + (perfectPangrams.length > 1 ? 's' : '') + '!</h2><p class="text-xs text-emerald-600 mb-3">A perfect pangram uses all 7 letters exactly once (7 letters total).</p><div class="flex flex-wrap gap-2">' + perfectPangrams.map(function(w) { return '<span class="perfect-pangram-chip">' + w + '</span>'; }).join('') + '</div></div>';
       }
 
+      // Pangrams
       var pangramsHtml = pangrams.length > 0 ? '<div class="mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg> Pangrams (' + pangrams.length + ')</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-chip"><span class="star">&#9733;</span>' + w.word + ' <span class="text-xs text-amber-500 opacity-70">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';
 
+      // Words by length
       var byLen = {};
-      for (var w of regularWords) {
-        var l = w.length;
-        if (!byLen[l]) byLen[l] = [];
-        byLen[l].push(w);
-      }
-      var wordsHtml = Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
+      for (var w of regularWords) { var l = w.length; if (!byLen[l]) byLen[l] = []; byLen[l].push(w); }
+      var wordsHtml = '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated divide-y divide-gray-50 max-h-[600px] overflow-y-auto custom-scroll">' + Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
         return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-2">' + byLen[len].map(function(w) { return '<span class="word-chip">' + w.word + '</span>'; }).join('') + '</div></div>';
-      }).join('');
+      }).join('') + '</div></div>';
 
       // Word length distribution chart
       var wordsByLenAll = {};
-      for (var w of words) {
-        var l = w.length;
-        if (!wordsByLenAll[l]) wordsByLenAll[l] = [];
-        wordsByLenAll[l].push(w);
-      }
+      for (var w of words) { var l = w.length; if (!wordsByLenAll[l]) wordsByLenAll[l] = []; wordsByLenAll[l].push(w); }
       var sortedLenAll = Object.keys(wordsByLenAll).sort(function(a,b) { return +a - +b; });
       var maxLenCount = Math.max.apply(null, Object.values(wordsByLenAll).map(function(v) { return v.length; }).concat([1]));
 
-      var lenChartHtml = '<div class="mt-8 card-elevated p-6">' +
-        '<h2 class="text-lg font-bold text-gray-800 mb-2">Length of Words in This Puzzle</h2>' +
-        '<p class="text-xs text-gray-400 mb-4">Hover over bars to see which words belong to each length.</p>' +
-        '<div class="space-y-2.5">';
-
+      var lenChartHtml = '<div class="mt-8 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2">Length of Words in This Puzzle</h2><p class="text-xs text-gray-400 mb-4">Hover over bars to see which words belong to each length.</p><div class="space-y-2.5">';
       for (var i = 0; i < sortedLenAll.length; i++) {
-        var len = sortedLenAll[i];
-        var count = wordsByLenAll[len].length;
-        var pct = Math.round((count / words.length) * 100);
-        var barWidth = Math.max((count / maxLenCount) * 100, 3);
-        var isPangramLen = wordsByLenAll[len].some(function(w) { return w.is_pangram; });
+        var len = sortedLenAll[i]; var count = wordsByLenAll[len].length; var pct = Math.round((count / words.length) * 100);
+        var barWidth = Math.max((count / maxLenCount) * 100, 3); var isPangramLen = wordsByLenAll[len].some(function(w) { return w.is_pangram; });
         var wordList = wordsByLenAll[len].map(function(w) { return w.word; }).join(', ');
-
-        lenChartHtml += '<div class="flex items-center gap-3 cursor-default" title="' + wordList + '">' +
-          '<span class="w-8 text-sm font-bold text-gray-600 text-right">' + len + '</span>' +
-          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden">' +
-          '<div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold ' +
-          (isPangramLen ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700') +
-          '" style="width: ' + barWidth + '%">' + count + (isPangramLen ? ' <span class="ml-1 text-amber-100">&#9733;</span>' : '') +
-          '</div></div></div>' +
-          '<span class="text-xs text-gray-400 font-medium w-10 text-right">' + pct + '%</span></div>';
+        lenChartHtml += '<div class="flex items-center gap-3 cursor-default" title="' + wordList + '"><span class="w-8 text-sm font-bold text-gray-600 text-right">' + len + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold ' + (isPangramLen ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700') + '" style="width:' + barWidth + '%">' + count + (isPangramLen ? ' <span class="ml-1 text-amber-100">&#9733;</span>' : '') + '</div></div></div><span class="text-xs text-gray-400 font-medium w-10 text-right">' + pct + '%</span></div>';
       }
       lenChartHtml += '</div></div>';
 
-      // First letter counts chart
+      // First letter counts
       var wordsByFirstLetter = {};
-      for (var w of words) {
-        var first = w.word[0] ? w.word[0].toUpperCase() : '';
-        if (!first) continue;
-        if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false, words: [] };
-        wordsByFirstLetter[first].count++;
-        wordsByFirstLetter[first].words.push(w.word);
-        if (w.is_pangram) wordsByFirstLetter[first].isPangram = true;
-      }
+      for (var w of words) { var first = w.word[0] ? w.word[0].toUpperCase() : ''; if (!first) continue; if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false, words: [] }; wordsByFirstLetter[first].count++; wordsByFirstLetter[first].words.push(w.word); if (w.is_pangram) wordsByFirstLetter[first].isPangram = true; }
       var sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
       var maxFirstLetterCount = Math.max.apply(null, Object.values(wordsByFirstLetter).map(function(v) { return v.count; }).concat([1]));
 
-      var firstLetterBtnHtml = '<div class="mt-6"><button id="show-first-letter-btn-dynamic" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> ' +
-        'Show Counts by First Letter</button>' +
-        '<p class="text-xs text-gray-400 mt-1.5">Red bars indicate that there is a pangram(s) starting with that letter.</p></div>';
+      var firstLetterBtnHtml = '<div class="mt-6"><button id="show-first-letter-btn-dynamic" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> Show Counts by First Letter</button><p class="text-xs text-gray-400 mt-1.5">Red bars indicate pangram(s) starting with that letter.</p></div>';
 
       var firstLetterChartHtml = '<div id="first-letter-chart-dynamic" class="hidden mt-4 card-elevated p-6"><div class="space-y-2.5">';
       for (var i = 0; i < sortedFirstLetters.length; i++) {
-        var letter = sortedFirstLetters[i];
-        var info = wordsByFirstLetter[letter];
-        var barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
-        firstLetterChartHtml += '<div class="flex items-center gap-3" title="' + info.words.join(', ') + '">' +
-          '<span class="w-8 text-sm font-black text-right ' + (info.isPangram ? 'text-red-500' : 'text-gray-600') + '">' + letter + '</span>' +
-          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">' +
-          '<div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' +
-          (info.isPangram ? 'bg-red-400 text-white' : 'bg-gray-300 text-gray-700') +
-          '" style="width: ' + barWidth + '%">' + info.count + '</div></div></div>' +
-          (info.isPangram ? '<span class="text-xs text-red-500 font-bold">PANGRAM</span>' : '') +
-          '</div>';
+        var letter = sortedFirstLetters[i]; var info = wordsByFirstLetter[letter]; var barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
+        firstLetterChartHtml += '<div class="flex items-center gap-3" title="' + info.words.join(', ') + '"><span class="w-8 text-sm font-black text-right ' + (info.isPangram ? 'text-red-500' : 'text-gray-600') + '">' + letter + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden"><div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' + (info.isPangram ? 'bg-red-400 text-white' : 'bg-gray-300 text-gray-700') + '" style="width:' + barWidth + '%">' + info.count + '</div></div></div>' + (info.isPangram ? '<span class="text-xs text-red-500 font-bold">PANGRAM</span>' : '') + '</div>';
       }
       firstLetterChartHtml += '</div></div>';
 
+      // ========== NYTBEE NEW FEATURES ==========
+
+      // Other Days With This Pangram
+      var pangramHistoryHtml = '';
+      if (Object.keys(pangramHistory).length > 0) {
+        pangramHistoryHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Other Days With This Pangram</h2><p class="text-xs text-gray-400 mb-4">See which other puzzles featured the same pangram word.</p>';
+        Object.keys(pangramHistory).forEach(function(word) {
+          var dates = pangramHistory[word];
+          pangramHistoryHtml += '<div class="mb-3"><p class="text-sm font-bold text-amber-700 mb-1.5">' + word.toUpperCase() + '</p>';
+          if (dates.length > 0) {
+            pangramHistoryHtml += '<div class="flex flex-wrap gap-2">';
+            dates.forEach(function(d) {
+              pangramHistoryHtml += '<a href="/' + slugFromDate(d.date) + '" class="text-xs bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full hover:bg-purple-100 transition-colors">' + d.date + ' (Center: ' + d.center + ')</a>';
+            });
+            pangramHistoryHtml += '</div>';
+          } else {
+            pangramHistoryHtml += '<p class="text-xs text-gray-400">No other puzzles with this pangram.</p>';
+          }
+          pangramHistoryHtml += '</div>';
+        });
+        pangramHistoryHtml += '</div>';
+      }
+
+      // How Does This Puzzle Compare?
+      var percentilesHtml = '';
+      if (percentiles.word_count || percentiles.total_points) {
+        percentilesHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> How Does This Puzzle Compare?</h2><p class="text-xs text-gray-400 mb-4">This puzzle\'s stats compared to all other puzzles.</p><div class="space-y-4">';
+        if (percentiles.word_count) {
+          percentilesHtml += '<div><div class="flex justify-between items-center mb-1.5"><span class="text-sm font-semibold text-gray-700">Word Count</span><span class="text-sm font-bold text-purple-600">' + percentiles.word_count.value + ' words — Top ' + (100 - percentiles.word_count.percentile) + '%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div class="h-3 rounded-full bg-gradient-to-r from-purple-400 to-purple-600" style="width:' + percentiles.word_count.percentile + '%"></div></div><p class="text-xs text-gray-400 mt-1">This puzzle has more answers than ' + percentiles.word_count.percentile + '% of all puzzles.</p></div>';
+        }
+        if (percentiles.total_points) {
+          percentilesHtml += '<div><div class="flex justify-between items-center mb-1.5"><span class="text-sm font-semibold text-gray-700">Total Points</span><span class="text-sm font-bold text-purple-600">' + percentiles.total_points.value + ' pts — Top ' + (100 - percentiles.total_points.percentile) + '%</span></div><div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div class="h-3 rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style="width:' + percentiles.total_points.percentile + '%"></div></div><p class="text-xs text-gray-400 mt-1">This puzzle scores higher than ' + percentiles.total_points.percentile + '% of all puzzles.</p></div>';
+        }
+        percentilesHtml += '</div></div>';
+      }
+
+      // Haven't I Seen These Letters Before?
+      var letterHistoryHtml = '';
+      if (Object.keys(letterHistory).length > 0) {
+        letterHistoryHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Haven\'t I Seen These Letters Before?</h2><p class="text-xs text-gray-400 mb-4">Hover over any letter to see its history across all puzzles.</p><div class="flex flex-wrap gap-3 justify-center">';
+        allLetters.split('').forEach(function(letter) {
+          var info = letterHistory[letter] || {};
+          var isCenter = letter === center;
+          letterHistoryHtml += '<div class="group relative"><div class="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-black cursor-default transition-all hover:scale-110 ' + (isCenter ? 'bg-amber-400 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-gray-200') + '">' + letter + '</div>';
+          letterHistoryHtml += '<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-gray-900 text-white rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl"><p class="font-bold text-base mb-1.5">' + letter + '</p><div class="space-y-1"><p>Center letter: <strong>' + (info.centerCount || 0) + '</strong> times</p><p>Appeared in: <strong>' + (info.totalCount || 0) + '</strong> puzzles</p>' + (info.firstCenterDate ? '<p>First as center: ' + info.firstCenterDate + '</p>' : '') + (info.lastCenterDate ? '<p>Last as center: ' + info.lastCenterDate + '</p>' : '') + (info.firstAppearanceDate ? '<p>First appeared: ' + info.firstAppearanceDate + '</p>' : '') + (info.lastAppearanceDate ? '<p>Last appeared: ' + info.lastAppearanceDate + '</p>' : '') + '</div></div></div>';
+        });
+        letterHistoryHtml += '</div></div>';
+      }
+
+      // Haven't I Seen These Words Before?
+      var wordFreqHtml = '';
+      var freqWords = words.filter(function(w) { return wordFrequency[w.word] && wordFrequency[w.word].other_puzzles > 0; }).sort(function(a, b) { return (wordFrequency[b.word]?.other_puzzles || 0) - (wordFrequency[a.word]?.other_puzzles || 0); }).slice(0, 20);
+      if (freqWords.length > 0) {
+        wordFreqHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Haven\'t I Seen These Words Before?</h2><p class="text-xs text-gray-400 mb-4">Words from this puzzle that appear frequently across other puzzles.</p><div class="flex flex-wrap gap-2">';
+        freqWords.forEach(function(w) {
+          var freq = wordFrequency[w.word];
+          var cls = freq.other_puzzles > 20 ? 'bg-red-50 text-red-700' : freq.other_puzzles > 10 ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700';
+          wordFreqHtml += '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ' + cls + '" title="Appears in ' + freq.other_puzzles + ' other puzzle' + (freq.other_puzzles !== 1 ? 's' : '') + '">' + w.word + ' <span class="opacity-60">(' + freq.other_puzzles + ')</span></span>';
+        });
+        wordFreqHtml += '</div></div>';
+      }
+
+      // Excluded Valid Words
+      var excludedHtml = '';
+      if (excludedCount > 0) {
+        excludedHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Valid Dictionary Words Not in Today\'s Official Answers</h2><p class="text-xs text-gray-400 mb-3">These ' + excludedCount + ' words follow the Spelling Bee rules but aren\'t in the NYT\'s official answer list. The NYT uses a curated dictionary that excludes obscure, offensive, or less common words.</p><button id="show-excluded-btn-dynamic" class="btn-secondary text-xs !py-2 mb-3" type="button">Show Excluded Words (' + excludedCount + ')</button><div id="excluded-words-container-dynamic" class="hidden"><div class="flex flex-wrap gap-1.5">';
+        excludedWords.slice(0, 50).forEach(function(w) {
+          excludedHtml += '<span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">' + w.word + '</span>';
+        });
+        excludedHtml += '</div>' + (excludedCount > 50 ? '<p class="text-xs text-gray-400 mt-2">Showing 50 of ' + excludedCount + ' excluded words.</p>' : '') + '</div></div>';
+      }
+
+      // Assemble all content
       document.getElementById('answer-content').innerHTML =
         '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
         honeycombHtml +
         statsHtml +
+        lettersInfo +
         geniusHtml +
+        revealBtn +
+        '<div id="answers-container-dynamic" class="hidden">' +
         perfectPangramsHtml +
         pangramsHtml +
-        '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
+        wordsHtml +
         lenChartHtml +
         firstLetterBtnHtml +
         firstLetterChartHtml +
-        '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>. To reach Genius, you need <strong>' + geniusThreshold + ' points</strong> (70% of the total).' + (hasPerfectPangram ? ' This puzzle features a <strong>perfect pangram</strong> — a 7-letter word using all letters exactly once.' : '') + '</p></div>';
+        pangramHistoryHtml +
+        percentilesHtml +
+        letterHistoryHtml +
+        wordFreqHtml +
+        excludedHtml +
+        '</div>';
 
-      // Add click handler for first letter chart toggle
+      // Event handlers
+      document.getElementById('reveal-answers-btn-dynamic')?.addEventListener('click', function() {
+        var container = document.getElementById('answers-container-dynamic');
+        if (container) { container.classList.remove('hidden'); this.style.display = 'none'; }
+      });
+
       document.getElementById('show-first-letter-btn-dynamic')?.addEventListener('click', function() {
         var chart = document.getElementById('first-letter-chart-dynamic');
-        if (chart) {
-          var isHidden = chart.classList.contains('hidden');
-          chart.classList.toggle('hidden');
-          this.textContent = isHidden ? 'Hide Counts by First Letter' : 'Show Counts by First Letter';
-        }
+        if (chart) { var isHidden = chart.classList.contains('hidden'); chart.classList.toggle('hidden'); this.innerHTML = (isHidden ? 'Hide' : 'Show') + ' Counts by First Letter'; }
+      });
+
+      document.getElementById('show-excluded-btn-dynamic')?.addEventListener('click', function() {
+        var container = document.getElementById('excluded-words-container-dynamic');
+        if (container) { container.classList.remove('hidden'); this.style.display = 'none'; }
       });
 
     } catch (error) {
+      console.error('Error loading puzzle:', error);
       document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-red-500 font-medium">Failed to load puzzle data</p><a href="/archive" class="btn-primary mt-4 inline-flex">Browse Archive</a></div>';
     }
   }
