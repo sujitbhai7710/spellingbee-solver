@@ -341,7 +341,53 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
   </div>
 </BaseLayout>
 
-<script define:vars={{ todayCenter, todayOuterLetters, API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+<script define:vars={{ todayCenter, todayOuterLetters }}>
+  // Client-side TWL06 dictionary for instant solving (no API needed)
+  let dictionary = [];
+  let dictLoaded = false;
+
+  async function loadDictionary() {
+    if (dictLoaded) return;
+    try {
+      // Load TWL06 dictionary from our own static file (CDN-cached, fast, works offline)
+      const res = await fetch('/twl06.txt');
+      if (!res.ok) throw new Error('Failed to fetch dictionary');
+      const text = await res.text();
+      dictionary = text.split('\n').filter(w => w.trim().length > 0);
+      dictLoaded = true;
+    } catch (e) {
+      console.error('Failed to load dictionary:', e);
+    }
+  }
+
+  function solveSpellingBee(centerLetter, outerLetters, dict) {
+    const allLetters = [centerLetter, ...outerLetters];
+    const letterSet = new Set(allLetters.map(l => l.toLowerCase()));
+    const results = [];
+
+    for (const word of dict) {
+      const w = word.toLowerCase();
+      if (w.length < 4) continue;
+      if (!w.includes(centerLetter.toLowerCase())) continue;
+      let valid = true;
+      for (const ch of w) {
+        if (!letterSet.has(ch)) { valid = false; break; }
+      }
+      if (!valid) continue;
+      let pangram = true;
+      for (const l of letterSet) {
+        if (!w.includes(l)) { pangram = false; break; }
+      }
+      results.push({ word: w, isPangram: pangram, length: w.length });
+    }
+
+    return results.sort((a, b) => {
+      if (a.isPangram !== b.isPangram) return a.isPangram ? -1 : 1;
+      if (b.word.length !== a.word.length) return b.word.length - a.word.length;
+      return a.word.localeCompare(b.word);
+    });
+  }
+
   function calculateWordPoints(word, isPangram) {
     let pts = word.length === 4 ? 1 : word.length;
     if (isPangram) pts += 7;
@@ -471,22 +517,36 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
     loadingDiv.classList.remove('hidden');
 
     try {
-      const res = await fetch(API_BASE + '/api/solve?center=' + center + '&outer=' + outer.join(''));
-      const data = await res.json();
-
-      if (!data.success) {
+      // Client-side solving with TWL06 dictionary (no API call needed)
+      await loadDictionary();
+      const results = solveSpellingBee(center, outer, dictionary);
+      
+      if (results.length === 0) {
         loadingDiv.classList.add('hidden');
         emptyDiv.classList.remove('hidden');
-        emptyDiv.querySelector('p').textContent = data.error || 'Solve failed';
+        emptyDiv.querySelector('p').textContent = 'No words found for these letters';
         return;
       }
+
+      // Calculate totals
+      const pangrams = results.filter(r => r.isPangram);
+      const perfectPangrams = pangrams.filter(r => r.length === 7);
+      const totalPoints = results.reduce((s, r) => s + calculateWordPoints(r.word, r.isPangram), 0);
+
+      // Convert to same format as the API response for displayResults compatibility
+      const data = {
+        words: results.map(r => ({ word: r.word, length: r.length, isPangram: r.isPangram })),
+        totalPoints,
+        pangramCount: pangrams.length,
+        perfectPangrams: perfectPangrams.map(r => r.word),
+      };
 
       displayResults(data);
     } catch (e) {
       console.error('Solve failed:', e);
       loadingDiv.classList.add('hidden');
       emptyDiv.classList.remove('hidden');
-      emptyDiv.querySelector('p').textContent = 'Failed to connect to solver API';
+      emptyDiv.querySelector('p').textContent = 'Failed to solve. Please try again.';
     }
   }
 
