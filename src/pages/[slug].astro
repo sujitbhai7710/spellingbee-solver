@@ -147,7 +147,7 @@ export function getStaticPaths() {
         'Genius requires between <strong>' + (geniusAnalysis.minWordsForGenius || '?') + '</strong> and <strong>' + (geniusAnalysis.maxWordsForGenius || '?') + '</strong> words. ' +
         (pangrams.length > 0 ?
           'If you don\'t get the pangrams, you need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points. ' +
-          'If you get the pangrams, you only need <strong>' + (geniusAnalysis.pctWithPangrams || 0) + '%</strong> of the remaining points.' :
+          'If you get the pangrams, you only need <strong>' + (geniusAnalysis.pctWithPangrams || 0) + '%</strong> of the remaining points.' + (geniusAnalysis.pctWithPangrams >= 100 ? ' <span class="text-amber-600">(Getting the pangrams alone already exceeds the Genius threshold!)</span>' : '') :
           'You need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points to reach genius.'
         ) + '</p></div>';
 
@@ -184,6 +184,18 @@ export function getStaticPaths() {
         lenChartHtml += '<div class="flex items-center gap-3 cursor-default" title="' + wordList + '"><span class="w-8 text-sm font-bold text-gray-600 text-right">' + len + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold ' + (isPangramLen ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700') + '" style="width:' + barWidth + '%">' + count + (isPangramLen ? ' <span class="ml-1 text-amber-100">&#9733;</span>' : '') + '</div></div></div><span class="text-xs text-gray-400 font-medium w-10 text-right">' + pct + '%</span></div>';
       }
       lenChartHtml += '</div></div>';
+
+      // Points by Length chart
+      var pointsByLength = {};
+      for (var w of words) { var l = w.length; var pts = l === 4 ? 1 : l + (w.is_pangram ? 7 : 0); if (!pointsByLength[l]) pointsByLength[l] = 0; pointsByLength[l] += pts; }
+      var maxPointsByLen = Math.max.apply(null, Object.values(pointsByLength).concat([1]));
+      var pointsByLenHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2">Points Available by Length</h2><p class="text-xs text-gray-400 mb-4">How the total score breaks down by word length.</p><div class="space-y-2.5">';
+      for (var i = 0; i < sortedLenAll.length; i++) {
+        var len = sortedLenAll[i]; var pts = pointsByLength[len] || 0; var pct = totalPoints > 0 ? Math.round((pts / totalPoints) * 100) : 0;
+        var barWidth = Math.max((pts / maxPointsByLen) * 100, 3);
+        pointsByLenHtml += '<div class="flex items-center gap-3"><span class="w-8 text-sm font-bold text-gray-600 text-right">' + len + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-8 overflow-hidden"><div class="h-8 rounded-full flex items-center pl-3 text-xs font-bold bg-gradient-to-r from-purple-300 to-purple-500 text-white" style="width:' + barWidth + '%">' + pts + ' pts</div></div></div><span class="text-xs text-gray-400 font-medium w-10 text-right">' + pct + '%</span></div>';
+      }
+      pointsByLenHtml += '</div></div>';
 
       // How Long Are Words in the Bee? - Global section
       var globalLenHtml = '';
@@ -382,6 +394,7 @@ export function getStaticPaths() {
         pangramsHtml +
         wordsHtml +
         lenChartHtml +
+        pointsByLenHtml +
         globalLenHtml +
         firstLetterBtnHtml +
         firstLetterChartHtml +
