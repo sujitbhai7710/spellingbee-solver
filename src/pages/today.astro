@@ -460,7 +460,8 @@ const faqSchema = JSON.stringify({
                   <h3 class="text-sm font-bold text-gray-800 mb-2">Total Points</h3>
                   <p class="text-xs text-gray-600 mb-3 leading-relaxed">
                     Today's score of <strong>{totalPoints}</strong> was in the <strong>{percentiles.total_points.percentile}th</strong> percentile of all puzzles.
-                    {comparisonData.lastTimeScoreThisHigh && <span> The last time there was a score this high was on <strong>{comparisonData.lastTimeScoreThisHigh}</strong>.</span>}
+                    {percentiles.total_points.percentile <= 50 && comparisonData.lastTimeScoreThisLow && <span> The last time there was a score this low was on <strong>{comparisonData.lastTimeScoreThisLow}</strong>.</span>}
+                    {percentiles.total_points.percentile > 50 && comparisonData.lastTimeScoreThisHigh && <span> The last time there was a score this high was on <strong>{comparisonData.lastTimeScoreThisHigh}</strong>.</span>}
                     {comparisonData.highestScoreEver && <span> The highest score ever was <strong>{comparisonData.highestScoreEver.value}</strong> on {comparisonData.highestScoreEver.date}.</span>}
                     {comparisonData.lowestScoreEver && <span> The lowest score ever was <strong>{comparisonData.lowestScoreEver.value}</strong> on {comparisonData.lowestScoreEver.date}.</span>}
                   </p>
@@ -483,7 +484,8 @@ const faqSchema = JSON.stringify({
                   <h3 class="text-sm font-bold text-gray-800 mb-2">Word Count</h3>
                   <p class="text-xs text-gray-600 mb-3 leading-relaxed">
                     This puzzle's <strong>{percentiles.word_count.value}</strong> possible answers rank it in the <strong>{percentiles.word_count.percentile}th</strong> percentile.
-                    {comparisonData.lastTimeWordCountThisHigh && <span> The last time there were more answers was on <strong>{comparisonData.lastTimeWordCountThisHigh}</strong>.</span>}
+                    {percentiles.word_count.percentile <= 50 && comparisonData.lastTimeWordCountThisLow && <span> The last time there were fewer answers was on <strong>{comparisonData.lastTimeWordCountThisLow}</strong>.</span>}
+                    {percentiles.word_count.percentile > 50 && comparisonData.lastTimeWordCountThisHigh && <span> The last time there were more answers was on <strong>{comparisonData.lastTimeWordCountThisHigh}</strong>.</span>}
                     {comparisonData.highestWordCountEver && <span> The highest was <strong>{comparisonData.highestWordCountEver.value}</strong> on {comparisonData.highestWordCountEver.date}.</span>}
                     {comparisonData.lowestWordCountEver && <span> The lowest was <strong>{comparisonData.lowestWordCountEver.value}</strong> on {comparisonData.lowestWordCountEver.date}.</span>}
                   </p>
