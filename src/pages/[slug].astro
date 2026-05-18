@@ -404,7 +404,17 @@ export function getStaticPaths() {
         excludedHtml += '</div>' + (excludedCount > 50 ? '<p class="text-xs text-gray-400 mt-2">Showing 50 of ' + excludedCount + ' excluded words.</p>' : '') + '</div></div>';
       }
 
-      // Assemble all content
+      // Fix excluded words HTML to match nytbee.com style
+      var excludedHtmlFixed = '';
+      if (excludedCount > 0) {
+        excludedHtmlFixed = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2">Valid dictionary words not in today\'s official answers</h2><p class="text-xs text-gray-500 mb-3">You may be wondering why these words aren\'t here*:</p><div><div class="flex flex-wrap gap-1.5">';
+        excludedWords.slice(0, 50).forEach(function(w) {
+          excludedHtmlFixed += '<span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">' + w.word + '</span>';
+        });
+        excludedHtmlFixed += '</div>' + (excludedCount > 50 ? '<p class="text-xs text-gray-400 mt-2">Showing 50 of ' + excludedCount + ' excluded words.</p>' : '') + '<p class="text-xs text-gray-400 mt-3 italic">*Because the New York Times considers them obscure or offensive.</p></div></div>';
+      }
+
+      // Assemble all content - excluded words OUTSIDE spoiler container
       document.getElementById('answer-content').innerHTML =
         '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
         honeycombHtml +
@@ -425,8 +435,8 @@ export function getStaticPaths() {
         histogramHtml +
         letterHistoryHtml +
         wordFreqHtml +
-        excludedHtml +
-        '</div>';
+        '</div>' +
+        excludedHtmlFixed;
 
       // Event handlers
       document.getElementById('reveal-answers-btn-dynamic')?.addEventListener('click', function() {

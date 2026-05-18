@@ -767,27 +767,27 @@ const faqSchema = JSON.stringify({
             </div>
           )}
 
-          <!-- Excluded Valid Words (nytbee.com feature) -->
-          {excludedCount > 0 && (
-            <div class="mt-6 card-elevated p-6">
-              <h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-                Valid Dictionary Words Not in Today's Official Answers
-              </h2>
-              <p class="text-xs text-gray-400 mb-3">These {excludedCount} words follow the Spelling Bee rules but aren't in the NYT's official answer list. The NYT uses a curated dictionary that excludes obscure, offensive, or less common words.</p>
-              <div>
-                <div class="flex flex-wrap gap-1.5">
-                  {excludedWords.slice(0, 50).map(w => (
-                    <span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">{w.word}</span>
-                  ))}
-                </div>
-                {excludedCount > 50 && (
-                  <p class="text-xs text-gray-400 mt-2">Showing 50 of {excludedCount} excluded words.</p>
-                )}
-              </div>
-            </div>
-          )}
+          <!-- Excluded Valid Words (nytbee.com feature) - moved OUTSIDE spoiler container -->
         </div>
+
+        <!-- Valid Dictionary Words Not in Today's Official Answers (nytbee.com style - always visible) -->
+        {excludedCount > 0 && (
+          <div class="mt-6 card-elevated p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Valid dictionary words not in today's official answers</h2>
+            <p class="text-xs text-gray-500 mb-3">You may be wondering why these words aren't here*:</p>
+            <div>
+              <div class="flex flex-wrap gap-1.5">
+                {excludedWords.slice(0, 50).map(w => (
+                  <span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">{w.word}</span>
+                ))}
+              </div>
+              {excludedCount > 50 && (
+                <p class="text-xs text-gray-400 mt-2">Showing 50 of {excludedCount} excluded words.</p>
+              )}
+              <p class="text-xs text-gray-400 mt-3 italic">*Because the New York Times considers them obscure or offensive.</p>
+            </div>
+          </div>
+        )}
 
         <!-- SEO Content Section -->
         <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
