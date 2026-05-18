@@ -147,7 +147,9 @@ export function getStaticPaths() {
         'Genius requires between <strong>' + (geniusAnalysis.minWordsForGenius || '?') + '</strong> and <strong>' + (geniusAnalysis.maxWordsForGenius || '?') + '</strong> words. ' +
         (pangrams.length > 0 ?
           'If you don\'t get the pangrams, you need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points. ' +
-          'If you get the pangrams, you only need <strong>' + (geniusAnalysis.pctWithPangrams || 0) + '%</strong> of the remaining points.' + (geniusAnalysis.pctWithPangrams >= 100 ? ' <span class="text-amber-600">(Getting the pangrams alone already exceeds the Genius threshold!)</span>' : '') :
+          (geniusAnalysis.pctWithPangrams >= 100 ? 
+            '<span class="text-amber-600 font-semibold">Getting the pangrams alone already earns enough points to reach Genius!</span>' :
+            'If you get the pangrams, you only need <strong>' + (geniusAnalysis.pctWithPangrams || 0) + '%</strong> of the remaining points.') :
           'You need <strong>' + (geniusAnalysis.pctWithoutPangrams || 70) + '%</strong> of the total points to reach genius.'
         ) + '</p></div>';
 

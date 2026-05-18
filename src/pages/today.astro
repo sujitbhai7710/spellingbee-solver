@@ -187,9 +187,10 @@ const faqSchema = JSON.stringify({
             {pangrams.length > 0 ? (
               <>
                 If you don't get the pangrams, you need <strong>{geniusAnalysis.pctWithoutPangrams}%</strong> of the total points to reach genius.
-                If you get the pangrams, you only need <strong>{geniusAnalysis.pctWithPangrams}%</strong> of the remaining points.
-                {geniusAnalysis.pctWithPangrams >= 100 && (
-                  <span class="text-amber-600">(Getting the pangrams alone already exceeds the Genius threshold!)</span>
+                {geniusAnalysis.pctWithPangrams >= 100 ? (
+                  <span class="text-amber-600 font-semibold">Getting the pangrams alone already earns enough points to reach Genius!</span>
+                ) : (
+                  <>If you get the pangrams, you only need <strong>{geniusAnalysis.pctWithPangrams}%</strong> of the remaining points.</>
                 )}
               </>
             ) : (
