@@ -236,14 +236,35 @@ export function getStaticPaths() {
       var sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
       var maxFirstLetterCount = Math.max.apply(null, Object.values(wordsByFirstLetter).map(function(v) { return v.count; }).concat([1]));
 
-      var firstLetterBtnHtml = '<div class="mt-6"><button id="show-first-letter-btn-dynamic" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> Show Counts by First Letter</button><p class="text-xs text-gray-400 mt-1.5">Red bars indicate pangram(s) starting with that letter.</p></div>';
-
-      var firstLetterChartHtml = '<div id="first-letter-chart-dynamic" class="hidden mt-4 card-elevated p-6"><div class="space-y-2.5">';
+      var firstLetterChartHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2">Words by First Letter</h2><p class="text-xs text-gray-400 mb-4">Red bars indicate pangram(s) starting with that letter.</p><div class="space-y-2.5">';
       for (var i = 0; i < sortedFirstLetters.length; i++) {
         var letter = sortedFirstLetters[i]; var info = wordsByFirstLetter[letter]; var barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
         firstLetterChartHtml += '<div class="flex items-center gap-3" title="' + info.words.join(', ') + '"><span class="w-8 text-sm font-black text-right ' + (info.isPangram ? 'text-red-500' : 'text-gray-600') + '">' + letter + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden"><div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' + (info.isPangram ? 'bg-red-400 text-white' : 'bg-gray-300 text-gray-700') + '" style="width:' + barWidth + '%">' + info.count + '</div></div></div>' + (info.isPangram ? '<span class="text-xs text-red-500 font-bold">PANGRAM</span>' : '') + '</div>';
       }
       firstLetterChartHtml += '</div></div>';
+
+      // Histogram helper
+      function renderHistogramHtml(histogram, title, desc) {
+        if (!histogram || histogram.length === 0) return '';
+        var maxCount = Math.max.apply(null, histogram.map(function(h) { return h.count; }).concat([1]));
+        var html = '<div class="mt-6 pt-6 border-t border-gray-100"><h3 class="text-sm font-bold text-gray-800 mb-3">' + title + '</h3>';
+        html += '<p class="text-xs text-gray-400 mb-3">' + desc + '</p><div class="space-y-1.5">';
+        histogram.forEach(function(h) {
+          var barWidth = Math.max((h.count / maxCount) * 100, 3);
+          var bg = h.isToday ? '#B22222' : '#1f77b4';
+          var label = h.bin !== undefined ? h.bin : (h.length !== undefined ? h.length : '');
+          html += '<div class="flex items-center gap-2"><span class="w-16 text-xs font-bold text-gray-500 text-right">' + label + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden"><div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold text-white" style="width:' + barWidth + '%;background-color:' + bg + '">' + h.count + '</div></div></div></div>';
+        });
+        html += '</div></div>';
+        return html;
+      }
+
+      // Histogram charts
+      var histogramHtml = '';
+      histogramHtml += renderHistogramHtml(comparisonData.scoreHistogram, 'Score Distribution', 'How this puzzle\'s total points compare to all puzzles. Today\'s bin is highlighted in red.');
+      histogramHtml += renderHistogramHtml(comparisonData.wordCountHistogram, 'Word Count Distribution', 'How this puzzle\'s word count compare to all puzzles. Today\'s bin is highlighted in red.');
+      histogramHtml += renderHistogramHtml(comparisonData.geniusLengthDistribution, 'Min Word Length for Genius Distribution', 'How this puzzle\'s minimum word length for genius compares. Today\'s value is highlighted in red.');
+      histogramHtml += renderHistogramHtml(comparisonData.avgWordLengthHistogram, 'Average Word Length Distribution', 'How this puzzle\'s average word length compares. Today\'s bin is highlighted in red.');
 
       // ========== NYTBEE NEW FEATURES ==========
 
@@ -376,7 +397,7 @@ export function getStaticPaths() {
       // Excluded Valid Words
       var excludedHtml = '';
       if (excludedCount > 0) {
-        excludedHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Valid Dictionary Words Not in Today\'s Official Answers</h2><p class="text-xs text-gray-400 mb-3">These ' + excludedCount + ' words follow the Spelling Bee rules but aren\'t in the NYT\'s official answer list. The NYT uses a curated dictionary that excludes obscure, offensive, or less common words.</p><button id="show-excluded-btn-dynamic" class="btn-secondary text-xs !py-2 mb-3" type="button">Show Excluded Words (' + excludedCount + ')</button><div id="excluded-words-container-dynamic" class="hidden"><div class="flex flex-wrap gap-1.5">';
+        excludedHtml = '<div class="mt-6 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg> Valid Dictionary Words Not in Today\'s Official Answers</h2><p class="text-xs text-gray-400 mb-3">These ' + excludedCount + ' words follow the Spelling Bee rules but aren\'t in the NYT\'s official answer list. The NYT uses a curated dictionary that excludes obscure, offensive, or less common words.</p><div><div class="flex flex-wrap gap-1.5">';
         excludedWords.slice(0, 50).forEach(function(w) {
           excludedHtml += '<span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">' + w.word + '</span>';
         });
@@ -398,10 +419,10 @@ export function getStaticPaths() {
         lenChartHtml +
         pointsByLenHtml +
         globalLenHtml +
-        firstLetterBtnHtml +
         firstLetterChartHtml +
         pangramHistoryHtml +
         percentilesHtml +
+        histogramHtml +
         letterHistoryHtml +
         wordFreqHtml +
         excludedHtml +
@@ -413,15 +434,7 @@ export function getStaticPaths() {
         if (container) { container.classList.remove('hidden'); this.style.display = 'none'; }
       });
 
-      document.getElementById('show-first-letter-btn-dynamic')?.addEventListener('click', function() {
-        var chart = document.getElementById('first-letter-chart-dynamic');
-        if (chart) { var isHidden = chart.classList.contains('hidden'); chart.classList.toggle('hidden'); this.innerHTML = (isHidden ? 'Hide' : 'Show') + ' Counts by First Letter'; }
-      });
 
-      document.getElementById('show-excluded-btn-dynamic')?.addEventListener('click', function() {
-        var container = document.getElementById('excluded-words-container-dynamic');
-        if (container) { container.classList.remove('hidden'); this.style.display = 'none'; }
-      });
 
     } catch (error) {
       console.error('Error loading puzzle:', error);

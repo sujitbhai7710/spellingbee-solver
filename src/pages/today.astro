@@ -78,6 +78,23 @@ for (const w of words) {
 const sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
 const maxFirstLetterCount = Math.max(...Object.values(wordsByFirstLetter).map(v => v.count), 1);
 
+// Histogram data from comparisonData
+const scoreHistogram = comparisonData.scoreHistogram || [];
+const wordCountHistogram = comparisonData.wordCountHistogram || [];
+const geniusLengthDistribution = comparisonData.geniusLengthDistribution || [];
+const avgWordLengthHistogram = comparisonData.avgWordLengthHistogram || [];
+
+// Helper to render histogram bars
+function renderHistogram(histogram, label) {
+  if (!histogram || histogram.length === 0) return '';
+  const maxCount = Math.max(...histogram.map(h => h.count), 1);
+  return histogram.map(h => {
+    const barWidth = Math.max((h.count / maxCount) * 100, 3);
+    const isToday = h.isToday;
+    return { ...h, barWidth, isToday, maxCount };
+  });
+}
+
 // Get last 7 puzzles for the sidebar
 const lastRes = await fetch(`${API_BASE}/api/last/8`);
 const lastData = await lastRes.json();
@@ -99,7 +116,6 @@ const faqSchema = JSON.stringify({
       "@type": "Question",
       "name": `What is the center letter in today's Spelling Bee?`,
       "acceptedAnswer": {
-        "@type": "Answer",
         "@type": "Answer",
         "text": `Today's center letter is ${center}. Every word must contain this letter. The full set of letters is ${allLetters.split('').join(', ')}.`
       }
@@ -373,15 +389,10 @@ const faqSchema = JSON.stringify({
             </div>
           </div>
 
-          <!-- Show Counts by First Letter (nytbee.com style) -->
-          <div class="mt-6">
-            <button id="show-first-letter-btn" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-              Show Counts by First Letter
-            </button>
-            <p class="text-xs text-gray-400 mt-1.5">Reveals a chart with the number of words starting with each letter. Red bars indicate pangram(s).</p>
-          </div>
-          <div id="first-letter-chart" class="hidden mt-4 card-elevated p-6">
+          <!-- Words by First Letter (nytbee.com style) -->
+          <div class="mt-6 card-elevated p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Words by First Letter</h2>
+            <p class="text-xs text-gray-400 mb-4">Red bars indicate pangram(s).</p>
             <div class="space-y-2.5">
               {sortedFirstLetters.map(letter => {
                 const info = wordsByFirstLetter[letter];
@@ -525,6 +536,95 @@ const faqSchema = JSON.stringify({
                   </div>
                 </div>
               </div>
+
+              <!-- Histogram Charts -->
+              {scoreHistogram.length > 0 && (
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                  <h3 class="text-sm font-bold text-gray-800 mb-3">Score Distribution</h3>
+                  <p class="text-xs text-gray-400 mb-3">How this puzzle's total points compare to all puzzles. Today's bin is highlighted in red.</p>
+                  <div class="space-y-1.5">
+                    {renderHistogram(scoreHistogram).map(h => (
+                      <div class="flex items-center gap-2">
+                        <span class="w-16 text-xs font-bold text-gray-500 text-right">{h.bin}</span>
+                        <div class="flex-1">
+                          <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div class:list={['h-5 rounded-full flex items-center pl-2 text-xs font-bold', h.isToday ? 'text-white' : 'text-white']} style={`width: ${h.barWidth}%; background-color: ${h.isToday ? '#B22222' : '#1f77b4'}`}>
+                              {h.count}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {wordCountHistogram.length > 0 && (
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                  <h3 class="text-sm font-bold text-gray-800 mb-3">Word Count Distribution</h3>
+                  <p class="text-xs text-gray-400 mb-3">How this puzzle's word count compare to all puzzles. Today's bin is highlighted in red.</p>
+                  <div class="space-y-1.5">
+                    {renderHistogram(wordCountHistogram).map(h => (
+                      <div class="flex items-center gap-2">
+                        <span class="w-16 text-xs font-bold text-gray-500 text-right">{h.bin}</span>
+                        <div class="flex-1">
+                          <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div class:list={['h-5 rounded-full flex items-center pl-2 text-xs font-bold', h.isToday ? 'text-white' : 'text-white']} style={`width: ${h.barWidth}%; background-color: ${h.isToday ? '#B22222' : '#1f77b4'}`}>
+                              {h.count}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {geniusLengthDistribution.length > 0 && (
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                  <h3 class="text-sm font-bold text-gray-800 mb-3">Min Word Length for Genius Distribution</h3>
+                  <p class="text-xs text-gray-400 mb-3">How this puzzle's minimum word length for genius compares. Today's value is highlighted in red.</p>
+                  <div class="space-y-1.5">
+                    {geniusLengthDistribution.map(h => {
+                      const maxGLD = Math.max(...geniusLengthDistribution.map(x => x.count), 1);
+                      const barWidth = Math.max((h.count / maxGLD) * 100, 3);
+                      return (
+                        <div class="flex items-center gap-2">
+                          <span class="w-16 text-xs font-bold text-gray-500 text-right">{h.length}</span>
+                          <div class="flex-1">
+                            <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                              <div class="h-5 rounded-full flex items-center pl-2 text-xs font-bold text-white" style={`width: ${barWidth}%; background-color: ${h.isToday ? '#B22222' : '#1f77b4'}`}>
+                                {h.count}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {avgWordLengthHistogram.length > 0 && (
+                <div class="mt-6 pt-6 border-t border-gray-100">
+                  <h3 class="text-sm font-bold text-gray-800 mb-3">Average Word Length Distribution</h3>
+                  <p class="text-xs text-gray-400 mb-3">How this puzzle's average word length compares. Today's bin is highlighted in red.</p>
+                  <div class="space-y-1.5">
+                    {renderHistogram(avgWordLengthHistogram).map(h => (
+                      <div class="flex items-center gap-2">
+                        <span class="w-16 text-xs font-bold text-gray-500 text-right">{h.bin}</span>
+                        <div class="flex-1">
+                          <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                            <div class:list={['h-5 rounded-full flex items-center pl-2 text-xs font-bold', h.isToday ? 'text-white' : 'text-white']} style={`width: ${h.barWidth}%; background-color: ${h.isToday ? '#B22222' : '#1f77b4'}`}>
+                              {h.count}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -673,8 +773,7 @@ const faqSchema = JSON.stringify({
                 Valid Dictionary Words Not in Today's Official Answers
               </h2>
               <p class="text-xs text-gray-400 mb-3">These {excludedCount} words follow the Spelling Bee rules but aren't in the NYT's official answer list. The NYT uses a curated dictionary that excludes obscure, offensive, or less common words.</p>
-              <button id="show-excluded-btn" class="btn-secondary text-xs !py-2 mb-3" type="button">Show Excluded Words ({excludedCount})</button>
-              <div id="excluded-words-container" class="hidden">
+              <div>
                 <div class="flex flex-wrap gap-1.5">
                   {excludedWords.slice(0, 50).map(w => (
                     <span class="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded border border-gray-200">{w.word}</span>
@@ -762,25 +861,6 @@ const faqSchema = JSON.stringify({
     // Reveal answers button
     document.getElementById('reveal-answers-btn')?.addEventListener('click', function() {
       const container = document.getElementById('answers-container');
-      if (container) {
-        container.classList.remove('hidden');
-        this.style.display = 'none';
-      }
-    });
-
-    // Show first letter chart toggle
-    document.getElementById('show-first-letter-btn')?.addEventListener('click', function() {
-      const chart = document.getElementById('first-letter-chart');
-      if (chart) {
-        const isHidden = chart.classList.contains('hidden');
-        chart.classList.toggle('hidden');
-        this.textContent = isHidden ? 'Hide Counts by First Letter' : 'Show Counts by First Letter';
-      }
-    });
-
-    // Show excluded words toggle
-    document.getElementById('show-excluded-btn')?.addEventListener('click', function() {
-      const container = document.getElementById('excluded-words-container');
       if (container) {
         container.classList.remove('hidden');
         this.style.display = 'none';
