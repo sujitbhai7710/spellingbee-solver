@@ -121,27 +121,66 @@ const faqSchema = JSON.stringify({
         <h2 class="text-lg font-bold text-gray-800 mb-5">Extremes</h2>
         <div class="space-y-3">
           {extremes.puzzleWithMostWords && (
-            <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-xl">
-              <span class="text-gray-600 text-sm font-medium">Most words</span>
-              <span class="font-bold text-emerald-700 text-sm">{safeLocale(extremes.puzzleWithMostWords.word_count)} words</span>
+            <div class="p-3 bg-emerald-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Most words</span>
+                <span class="font-bold text-emerald-700 text-sm">{safeLocale(extremes.puzzleWithMostWords.word_count)} words</span>
+              </div>
+              {extremes.puzzleWithMostWords.date && (
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostWords.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+              )}
             </div>
           )}
           {extremes.puzzleWithFewestWords && (
-            <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
-              <span class="text-gray-600 text-sm font-medium">Fewest words</span>
-              <span class="font-bold text-red-700 text-sm">{safeLocale(extremes.puzzleWithFewestWords.word_count)} words</span>
+            <div class="p-3 bg-red-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Fewest words</span>
+                <span class="font-bold text-red-700 text-sm">{safeLocale(extremes.puzzleWithFewestWords.word_count)} words</span>
+              </div>
+              {extremes.puzzleWithFewestWords.date && (
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithFewestWords.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+              )}
             </div>
           )}
           {extremes.puzzleWithMostPangrams && (
-            <div class="flex justify-between items-center p-3 bg-amber-50 rounded-xl">
-              <span class="text-gray-600 text-sm font-medium">Most pangrams</span>
-              <span class="font-bold text-amber-700 text-sm">{safeLocale(extremes.puzzleWithMostPangrams.pangrams_count)} pangrams</span>
+            <div class="p-3 bg-amber-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Most pangrams</span>
+                <span class="font-bold text-amber-700 text-sm">{safeLocale(extremes.puzzleWithMostPangrams.pangrams_count)} pangrams</span>
+              </div>
+              {extremes.puzzleWithMostPangrams.date && (
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostPangrams.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+              )}
+            </div>
+          )}
+          {extremes.highestScore && (
+            <div class="p-3 bg-violet-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Highest score</span>
+                <span class="font-bold text-violet-700 text-sm">{safeLocale(extremes.highestScore.max_score)} points</span>
+              </div>
+              {extremes.highestScore.date && (
+                <p class="text-xs text-gray-500 mt-1">on {extremes.highestScore.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+              )}
+            </div>
+          )}
+          {extremes.lowestScore && (
+            <div class="p-3 bg-orange-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Lowest score</span>
+                <span class="font-bold text-orange-700 text-sm">{safeLocale(extremes.lowestScore.max_score)} points</span>
+              </div>
+              {extremes.lowestScore.date && (
+                <p class="text-xs text-gray-500 mt-1">on {extremes.lowestScore.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+              )}
             </div>
           )}
           {extremes.longestWordLength && (
-            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-xl">
-              <span class="text-gray-600 text-sm font-medium">Longest word</span>
-              <span class="font-bold text-blue-700 text-sm">{safeLocale(extremes.longestWordLength)} letters</span>
+            <div class="p-3 bg-blue-50 rounded-xl">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600 text-sm font-medium">Longest word</span>
+                <span class="font-bold text-blue-700 text-sm">{safeLocale(extremes.longestWordLength)} letters</span>
+              </div>
             </div>
           )}
         </div>
