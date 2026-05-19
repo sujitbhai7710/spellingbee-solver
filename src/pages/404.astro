@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Page Not Found" description="The page you're looking for doesn't exist. Browse our Spelling Bee solver tools and puzzle archive.">
+  <div class="max-w-2xl mx-auto px-4 sm:px-6 py-20 text-center">
+    <div class="mb-8">
+      <svg viewBox="0 -17 256 256" fill="none" width="80" height="80" class="mx-auto opacity-30">
+        <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="#FEF3C7" stroke="#F7C948" stroke-width="3"/>
+        <text x="128" y="125" font-family="system-ui,sans-serif" font-size="80" font-weight="900" fill="#D97706" text-anchor="middle">?</text>
+      </svg>
+    </div>
+    <h1 class="text-4xl font-black text-gray-900 mb-3">404</h1>
+    <p class="text-xl font-bold text-gray-700 mb-2">Page Not Found</p>
+    <p class="text-gray-500 mb-8 max-w-md mx-auto">The page you're looking for doesn't exist. It may have been moved or the URL might be incorrect.</p>
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <a href="/" class="btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Go Home
+      </a>
+      <a href="/archive" class="btn-secondary">Browse Archive</a>
+      <a href="/solver" class="btn-secondary">Solver Tool</a>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  // Handle old /answer-for-* URLs that land on 404
+  // Redirect to /archive using sessionStorage (no query params for SEO)
+  (function() {
+    var path = window.location.pathname;
+    // Match /answer-for-month-day-year or /answer-for-month-day-year/
+    var match = path.match(/^\/answer-for-(.+)\/?$/);
+    if (match) {
+      var slug = match[1].replace(/\/$/, ''); // Remove trailing slash
+      // Store the date slug in sessionStorage, then redirect to /archive
+      // The archive page will read this and auto-open that day's puzzle
+      sessionStorage.setItem('sb_archive_date', slug);
+      window.location.replace('/archive');
+    }
+  })();
+</script>

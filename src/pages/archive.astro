@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Honeycomb from '../components/Honeycomb.astro';
 import { API_BASE } from '../lib/utils';
 
 const page = parseInt(Astro.url.searchParams.get('page') || '1');
@@ -25,18 +26,18 @@ const faqSchema = JSON.stringify({
       "name": "Can I search for a specific date's puzzle?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. Use the date picker above the puzzle list to jump directly to a specific date. You can also browse page by page using the pagination controls."
+        "text": "Yes. Use the date picker above the puzzle list to jump directly to a specific date. The puzzle details will be shown right here on the archive page."
       }
     }
   ]
 });
 ---
 
-<BaseLayout title="Spelling Bee Puzzle Archive - Browse All Past Answers" description={`Browse ${pagination.total_items || '2,900+'} NYT Spelling Bee puzzles with complete answers. Search by date, letter, or puzzle ID.`} schema={faqSchema}>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+<BaseLayout title="Spelling Bee Puzzle Archive" description={`Browse ${pagination.total_items || '2,900+'} NYT Spelling Bee puzzles with complete answers. Search by date, letter, or puzzle ID.`} schema={faqSchema}>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <!-- Header -->
     <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">Spelling Bee Puzzle Archive - Browse All Past Answers</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
       <p class="text-gray-500">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
     </div>
 
@@ -49,46 +50,64 @@ const faqSchema = JSON.stringify({
       </div>
     </div>
 
-    <!-- Puzzle List -->
-    <div class="card-elevated divide-y divide-gray-50">
-      {puzzles.map(p => {
-        const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
-        return (
-          <a href={`/answer-for-${slug}`} class="flex items-center justify-between p-5 hover:bg-amber-50/50 transition-colors group">
-            <div class="flex items-center gap-4">
-              <span class="letter-circle letter-circle-center">{p.letters}</span>
-              <div>
-                <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors">{p.date}</p>
-                <p class="text-xs text-gray-400 font-mono mt-0.5">{p.all_letters}</p>
-              </div>
-            </div>
-            <div class="text-right">
-              <p class="text-sm font-semibold text-gray-600">{p.word_count} words</p>
-              <p class="text-xs text-amber-500">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
-            </div>
-          </a>
-        );
-      })}
+    <!-- Puzzle Detail View (hidden by default, shown when date is selected) -->
+    <div id="puzzle-detail" class="hidden">
+      <div class="mb-6">
+        <button id="back-to-list-btn" class="text-sm font-semibold text-amber-600 hover:text-amber-700 mb-3 inline-flex items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
+          Back to Archive List
+        </button>
+      </div>
+      <div id="puzzle-detail-content">
+        <div class="text-center py-12">
+          <div class="inline-block w-10 h-10 border-[3px] border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+          <p class="text-gray-500 mt-3 font-medium">Loading puzzle...</p>
+        </div>
+      </div>
     </div>
 
-    <!-- Pagination -->
-    {pagination.total_pages > 1 && (
-      <div class="flex items-center justify-center gap-3 mt-8">
-        {pagination.page > 1 && (
-          <a href={`/archive?page=${pagination.page - 1}`} class="btn-secondary !py-2.5 !px-5 text-sm">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
-            Previous
-          </a>
-        )}
-        <span class="text-sm text-gray-500 font-medium">Page {pagination.page} of {pagination.total_pages}</span>
-        {pagination.has_next && (
-          <a href={`/archive?page=${pagination.page + 1}`} class="btn-primary !py-2.5 !px-5 text-sm">
-            Next
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
-          </a>
-        )}
+    <!-- Puzzle List View (default) -->
+    <div id="puzzle-list-view">
+      <div class="card-elevated divide-y divide-gray-50">
+        {puzzles.map(p => {
+          const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+          return (
+            <button data-slug={slug} data-date={p.date} class="archive-puzzle-btn flex items-center justify-between p-5 hover:bg-amber-50/50 transition-colors group w-full text-left">
+              <div class="flex items-center gap-4">
+                <span class="letter-circle letter-circle-center">{p.letters}</span>
+                <div>
+                  <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors">{p.date}</p>
+                  <p class="text-xs text-gray-400 font-mono mt-0.5">{p.all_letters}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-semibold text-gray-600">{p.word_count} words</p>
+                <p class="text-xs text-amber-500">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
-    )}
+
+      <!-- Pagination -->
+      {pagination.total_pages > 1 && (
+        <div class="flex items-center justify-center gap-3 mt-8">
+          {pagination.page > 1 && (
+            <a href={`/archive?page=${pagination.page - 1}`} class="btn-secondary !py-2.5 !px-5 text-sm">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
+              Previous
+            </a>
+          )}
+          <span class="text-sm text-gray-500 font-medium">Page {pagination.page} of {pagination.total_pages}</span>
+          {pagination.has_next && (
+            <a href={`/archive?page=${pagination.page + 1}`} class="btn-primary !py-2.5 !px-5 text-sm">
+              Next
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
+            </a>
+          )}
+        </div>
+      )}
+    </div>
 
     <!-- SEO Content -->
     <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
@@ -113,7 +132,7 @@ const faqSchema = JSON.stringify({
           <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Can I search for a specific date?
             <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </summary>
-          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Yes. Use the date picker at the top of the archive page to jump directly to any date. You can also browse page by page using the Previous and Next buttons. Each page shows 20 puzzles in reverse chronological order.</p>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Yes. Use the date picker at the top of the archive page to jump directly to any date. The puzzle details will be shown right on this page. You can also browse page by page using the Previous and Next buttons. Each page shows 20 puzzles in reverse chronological order.</p>
         </details>
       </div>
     </div>
@@ -121,26 +140,227 @@ const faqSchema = JSON.stringify({
 
   <script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
     const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    const puzzleDetail = document.getElementById('puzzle-detail');
+    const puzzleDetailContent = document.getElementById('puzzle-detail-content');
+    const puzzleListView = document.getElementById('puzzle-list-view');
+    const backBtn = document.getElementById('back-to-list-btn');
 
-    document.getElementById('go-date-btn')?.addEventListener('click', function() {
-      const datePicker = document.getElementById('date-picker');
+    function parseSlugToDate(slug) {
+      var parts = slug.split('-');
+      if (parts.length >= 3) {
+        var monthName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        var day = parseInt(parts[1]);
+        var year = parts[2];
+        if (months.includes(parts[0].toLowerCase()) && day > 0 && year.length === 4) {
+          return monthName + ' ' + day + ', ' + year;
+        }
+      }
+      return null;
+    }
+
+    function buildHoneycombHTML(center, outer) {
+      var html = '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:1.5rem;">';
+      outer.forEach(function(letter, i) {
+        html += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
+        html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+        html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+        html += '</svg>';
+        html += '<span class="hex-letter">' + letter + '</span>';
+        html += '</div>';
+      });
+      html += '<div class="hex-cell hex-center hex-pos-center">';
+      html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+      html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+      html += '</svg>';
+      html += '<span class="hex-letter hex-letter-center">' + center + '</span>';
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    function showListView() {
+      puzzleDetail.classList.add('hidden');
+      puzzleListView.classList.remove('hidden');
+      // Keep URL as just /archive — no query params
+      var url = new URL(window.location);
+      url.searchParams.delete('date');
+      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+    }
+
+    function showDetailView() {
+      puzzleListView.classList.add('hidden');
+      puzzleDetail.classList.remove('hidden');
+      // Ensure URL stays as /archive (no date param)
+      var url = new URL(window.location);
+      if (url.searchParams.has('date')) {
+        url.searchParams.delete('date');
+        window.history.replaceState({}, '', url.pathname + (url.search || ''));
+      }
+    }
+
+    async function loadPuzzleBySlug(slug) {
+      var dateStr = parseSlugToDate(slug);
+      if (!dateStr) {
+        showNotFound('Invalid date format');
+        return;
+      }
+
+      showDetailView();
+      puzzleDetailContent.innerHTML = '<div class="text-center py-12"><div class="inline-block w-10 h-10 border-[3px] border-amber-400 border-t-transparent rounded-full animate-spin"></div><p class="text-gray-500 mt-3 font-medium">Loading puzzle...</p></div>';
+
+      // Do NOT change the URL — keep it as /archive only
+      // This avoids duplicate indexing issues
+
+      try {
+        var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
+        var data = await res.json();
+        var results = data.results || [];
+
+        if (results.length === 0) {
+          res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
+          data = await res.json();
+          results = data.puzzles || [];
+        }
+
+        if (results.length === 0) {
+          showNotFound(dateStr);
+          return;
+        }
+
+        var p = results[0];
+        var puzzleRes = await fetch(API_BASE + '/api/puzzle/' + p.puzzle_id);
+        var puzzleData = await puzzleRes.json();
+        var puzzle = puzzleData.puzzle || p;
+        var words = puzzleData.words || [];
+        var totalPoints = puzzleData.totalPoints || 0;
+        var hasPerfectPangram = puzzleData.hasPerfectPangram || false;
+        var perfectPangrams = puzzleData.perfectPangrams || [];
+        var geniusThreshold = Math.ceil(totalPoints * 0.70);
+        var center = puzzle.letters || '';
+        var allLetters = puzzle.all_letters || '';
+        var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
+        var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
+        var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
+
+        document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SpellingBee Solver';
+
+        var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombHTML(center, outerLetters) + '</div>';
+
+        var statsHtml = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">' +
+          '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +
+          '<div class="stat-card"><p class="stat-value">' + puzzle.pangrams_count + '</p><p class="stat-label">Pangrams</p></div>' +
+          '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Points</p></div>' +
+          '<div class="stat-card"><p class="stat-value">' + (hasPerfectPangram ? 'Yes' : '\u2014') + '</p><p class="stat-label">Perfect Pangram</p></div>' +
+          '</div>' +
+          '<div class="text-sm text-gray-500 mb-3"><span class="font-semibold text-purple-600">Genius threshold:</span> ' + geniusThreshold + ' points (70% of ' + totalPoints + ')</div>' +
+          '<div class="text-sm text-gray-500"><span class="font-semibold text-gray-700">Center:</span> <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#F7C948;color:white;font-size:0.75rem;font-weight:700;">' + center + '</span><span style="margin:0 8px;color:#CBD5E1;">|</span><span class="font-semibold text-gray-700">Letters:</span> ' + allLetters.split('').map(function(l) { return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;font-size:0.75rem;font-weight:700;margin:0 2px;' + (l === center ? 'background:#FEF3C7;color:#B45309;' : 'background:#F1F5F9;color:#475569;') + '">' + l + '</span>'; }).join('') + '</div>';
+
+        var perfectPangramsHtml = '';
+        if (hasPerfectPangram && perfectPangrams.length > 0) {
+          perfectPangramsHtml = '<div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl"><h2 class="text-sm font-bold text-emerald-800 mb-2">Perfect Pangram' + (perfectPangrams.length > 1 ? 's' : '') + '!</h2><div class="flex flex-wrap gap-2">' + perfectPangrams.map(function(w) { return '<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#D1FAE5;border:1px solid #6EE7B7;border-radius:8px;font-size:0.875rem;font-weight:700;color:#065F46;text-transform:uppercase;">' + w + '</span>'; }).join('') + '</div></div>';
+        }
+
+        var pangramsHtml = pangrams.length > 0 ? '<div class="mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg> Pangrams (' + pangrams.length + ')</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-chip"><span class="star">&#9733;</span>' + w.word + ' <span class="text-xs text-amber-500 opacity-70">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';
+
+        var byLen = {};
+        for (var w of regularWords) {
+          var l = w.length;
+          if (!byLen[l]) byLen[l] = [];
+          byLen[l].push(w);
+        }
+        var wordsHtml = Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
+          return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-2">' + byLen[len].map(function(w) { return '<span class="word-chip">' + w.word + '</span>'; }).join('') + '</div></div>';
+        }).join('');
+
+        // Words by First Letter
+        var byFirst = {};
+        for (var w of words) {
+          var first = w.word[0] ? w.word[0].toUpperCase() : '';
+          if (!first) continue;
+          if (!byFirst[first]) byFirst[first] = { count: 0, isPangram: false };
+          byFirst[first].count++;
+          if (w.is_pangram === 1) byFirst[first].isPangram = true;
+        }
+        var sortedFirsts = Object.keys(byFirst).sort();
+        var maxFirst = Math.max.apply(null, sortedFirsts.map(function(k) { return byFirst[k].count; }).concat([1]));
+
+        var firstLetterHtml = '<div class="mt-8 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-4">Words by First Letter</h2><div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' + sortedFirsts.map(function(letter) {
+          var info = byFirst[letter];
+          var barWidth = Math.max((info.count / maxFirst) * 100, 8);
+          return '<div style="padding:12px;border-radius:12px;border:1px solid ' + (info.isPangram ? '#FDE68A' : '#F1F5F9') + ';background:' + (info.isPangram ? '#FFFBEB' : '#fff') + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+            '<span style="font-size:1.125rem;font-weight:900;color:' + (info.isPangram ? '#D97706' : '#374151') + '">' + letter + '</span>' +
+            '<span style="font-size:0.875rem;font-weight:700;color:#6B7280;">' + info.count + '</span></div>' +
+            '<div style="width:100%;background:#F1F5F9;border-radius:9999px;height:8px;"><div style="height:8px;border-radius:9999px;background:' + (info.isPangram ? '#FBBF24' : '#D1D5DB') + ';width:' + barWidth + '%;"></div></div>' +
+            (info.isPangram ? '<span style="font-size:10px;color:#D97706;font-weight:700;margin-top:4px;display:block;">HAS PANGRAM</span>' : '') +
+            '</div>';
+        }).join('') + '</div></div>';
+
+        puzzleDetailContent.innerHTML =
+          '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
+          honeycombHtml +
+          statsHtml +
+          perfectPangramsHtml +
+          pangramsHtml +
+          '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
+          firstLetterHtml +
+          '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>.</p></div>';
+
+      } catch (error) {
+        puzzleDetailContent.innerHTML = '<div class="text-center py-12"><p class="text-red-500 font-medium">Failed to load puzzle data</p><button onclick="showListView()" class="btn-primary mt-4 inline-flex">Back to Archive</button></div>';
+      }
+    }
+
+    function showNotFound(dateStr) {
+      showDetailView();
+      puzzleDetailContent.innerHTML =
+        '<div class="text-center py-16">' +
+        '<svg viewBox="0 -17 256 256" fill="none" width="64" height="64" class="mx-auto opacity-30 mb-4"><path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="#FEF3C7" stroke="#F7C948" stroke-width="3"/><text x="128" y="125" font-family="system-ui,sans-serif" font-size="80" font-weight="900" fill="#D97706" text-anchor="middle">?</text></svg>' +
+        '<h2 class="text-xl font-bold text-gray-800 mb-2">Puzzle Not Found</h2>' +
+        '<p class="text-gray-500 mb-6">No Spelling Bee puzzle exists for <strong>' + (dateStr || 'this date') + '</strong>. The puzzle may not have been published on that date, or it may be outside our archive range.</p>' +
+        '<button onclick="document.getElementById(\'back-to-list-btn\').click()" class="btn-primary">Back to Archive</button>' +
+        '</div>';
+    }
+
+    // Back button
+    backBtn.addEventListener('click', showListView);
+
+    // Date picker go button
+    document.getElementById('go-date-btn').addEventListener('click', function() {
+      var datePicker = document.getElementById('date-picker');
       if (!datePicker || !datePicker.value) return;
-
-      const dateObj = new Date(datePicker.value + 'T00:00:00Z');
+      var dateObj = new Date(datePicker.value + 'T00:00:00Z');
       if (isNaN(dateObj.getTime())) return;
-
-      const month = months[dateObj.getMonth()];
-      const day = dateObj.getDate();
-      const year = dateObj.getFullYear();
-
-      window.location.href = `/answer-for-${month}-${day}-${year}`;
+      var month = months[dateObj.getMonth()];
+      var day = dateObj.getDate();
+      var year = dateObj.getFullYear();
+      var slug = month + '-' + day + '-' + year;
+      loadPuzzleBySlug(slug);
     });
 
     // Allow Enter key on date picker
-    document.getElementById('date-picker')?.addEventListener('keydown', function(e) {
+    document.getElementById('date-picker').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
-        document.getElementById('go-date-btn')?.click();
+        document.getElementById('go-date-btn').click();
       }
     });
+
+    // Click on puzzle rows in the list
+    document.querySelectorAll('.archive-puzzle-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var slug = this.getAttribute('data-slug');
+        if (slug) loadPuzzleBySlug(slug);
+      });
+    });
+
+    // Check sessionStorage for redirect from /answer-for-* URLs
+    // This is set by the 404 page when it detects an old permalink pattern
+    (function() {
+      var redirectSlug = sessionStorage.getItem('sb_archive_date');
+      if (redirectSlug) {
+        sessionStorage.removeItem('sb_archive_date');
+        loadPuzzleBySlug(redirectSlug);
+      }
+    })();
   </script>
 </BaseLayout>

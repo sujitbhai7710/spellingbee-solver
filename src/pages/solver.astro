@@ -14,7 +14,7 @@ const howToSchema = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "HowTo",
   "name": "How to Solve the NYT Spelling Bee Puzzle",
-  "description": "Use the SbSolver tool to find all possible words for any Spelling Bee puzzle by entering the center letter and six outer letters.",
+  "description": "Use the SpellingBee Solver tool to find all possible words for any Spelling Bee puzzle by entering the center letter and six outer letters.",
   "step": [
     {
       "@type": "HowToStep",
@@ -291,7 +291,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
       <p class="text-gray-600 leading-relaxed text-sm mb-3">Look for words with repeated letters. The Spelling Bee allows you to use letters more than once, which opens up possibilities like double letters (ROOM, DOOR), repeated prefixes (REDO, REUSE), and compound-adjacent words. Many players forget that letter reuse is allowed and miss words that seem too long for the available letters.</p>
 
       <h3 class="text-lg font-bold text-gray-800 mb-2 mt-4">About This Solver</h3>
-      <p class="text-gray-600 leading-relaxed text-sm mb-3">SbSolver's Spelling Bee tool uses a comprehensive English dictionary to find all valid words for any combination of seven letters. It follows the same rules as the official game: words must be at least four letters long, must include the center letter, and can only use the given seven letters (with repetition allowed). Pangrams are automatically detected and highlighted.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">SpellingBee Solver uses a comprehensive English dictionary to find all valid words for any combination of seven letters. It follows the same rules as the official game: words must be at least four letters long, must include the center letter, and can only use the given seven letters (with repetition allowed). Pangrams are automatically detected and highlighted.</p>
       <p class="text-gray-600 leading-relaxed text-sm mb-3">One thing to keep in mind: our dictionary is broader than the NYT's official word list. The New York Times excludes words that are obscure, potentially offensive, or not well-known enough for their audience. This means our solver might show words that the NYT wouldn't accept as official answers. If a word seems unusual or archaic, the NYT probably excluded it from the official list.</p>
       <p class="text-gray-600 leading-relaxed text-sm mb-3">The solver processes everything in your browser — no data gets sent to our servers, and results appear instantly. Your letter combinations stay private. This also means the tool works offline once the page has loaded, making it usable anywhere without an internet connection.</p>
     </section>
