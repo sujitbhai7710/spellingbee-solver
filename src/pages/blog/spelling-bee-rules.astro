@@ -1,0 +1,419 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const articleSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Spelling Bee Rules - Complete Guide to the NYT Spelling Bee",
+  "description": "Learn the complete rules of the NYT Spelling Bee including scoring, ranking levels, pangrams, and expert strategies.",
+  "author": { "@type": "Organization", "name": "SpellingBee Solver" },
+  "publisher": { "@type": "Organization", "name": "SpellingBee Solver" },
+  "mainEntityOfPage": "https://spellingbeesolver.dev/blog/spelling-bee-rules"
+});
+---
+
+<BaseLayout title="Spelling Bee Rules - Complete Guide" description="Complete guide to NYT Spelling Bee rules, scoring system, ranking levels, pangrams, and expert strategies. Learn everything about the Spelling Bee puzzle." schema={articleSchema}>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Hero Section -->
+    <div class="mb-10 text-center">
+      <div class="inline-flex items-center gap-2 mb-4">
+        <a href="/blog" class="text-sm text-amber-600 hover:text-amber-700 font-medium">&larr; Back to Blog</a>
+      </div>
+      <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 mb-4">Spelling Bee Rules</h1>
+      <p class="text-lg text-gray-500 max-w-2xl mx-auto">The complete guide to understanding the NYT Spelling Bee — from basic rules to expert strategies for reaching Queen Bee.</p>
+      <div class="flex items-center justify-center gap-4 mt-4 text-sm text-gray-400">
+        <span class="flex items-center gap-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          10 min read
+        </span>
+        <span>Last updated 2025</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Sticky Table of Contents Sidebar -->
+      <aside class="lg:w-64 flex-shrink-0">
+        <div class="lg:sticky lg:top-24">
+          <nav class="card-elevated p-4">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">On This Page</h3>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#basic-rules" class="text-gray-600 hover:text-amber-600 transition-colors block">Basic Rules</a></li>
+              <li><a href="#scoring-system" class="text-gray-600 hover:text-amber-600 transition-colors block">Scoring System</a></li>
+              <li><a href="#ranking-levels" class="text-gray-600 hover:text-amber-600 transition-colors block">Ranking Levels</a></li>
+              <li><a href="#pangram-bonuses" class="text-gray-600 hover:text-amber-600 transition-colors block">Pangram Bonuses</a></li>
+              <li><a href="#queen-bee" class="text-gray-600 hover:text-amber-600 transition-colors block">What is Queen Bee?</a></li>
+              <li><a href="#expert-strategies" class="text-gray-600 hover:text-amber-600 transition-colors block">Expert Strategies</a></li>
+              <li><a href="#faq" class="text-gray-600 hover:text-amber-600 transition-colors block">FAQ</a></li>
+            </ul>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <div class="flex-1 min-w-0">
+
+        <!-- Basic Rules Section -->
+        <section id="basic-rules" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+            Basic Rules
+          </h2>
+          <p class="text-gray-600 leading-relaxed mb-6">The New York Times Spelling Bee presents you with seven letters arranged in a honeycomb pattern. One letter sits at the center of the honeycomb, and the other six surround it. Your goal is to find as many valid English words as possible using these seven letters. While the concept is simple, the rules that govern what counts as a valid word are specific and worth understanding thoroughly before you start playing.</p>
+
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Rule 1 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">Minimum 4 Letters</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Every word you submit must be at least four letters long. Three-letter words are never accepted, no matter how valid they are in English. This minimum length requirement is one of the most fundamental constraints that shapes the puzzle, as it eliminates a large number of potential words right from the start.</p>
+            </div>
+            <!-- Rule 2 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">Center Letter Required</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Every word must contain the center letter. This is the single most important rule in the Spelling Bee. No matter how many other letters you use, if the center letter doesn't appear in your word, it won't be accepted. The center letter acts as the primary constraint that gives each puzzle its unique character and difficulty level.</p>
+            </div>
+            <!-- Rule 3 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">The 7-Letter Limit</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">You can only use the seven given letters to form words. No other letters from the alphabet are allowed. If a word requires a letter that isn't in the honeycomb, it's not a valid answer for that puzzle. This seven-letter constraint is what makes each day's puzzle unique and challenging in its own way.</p>
+            </div>
+            <!-- Rule 4 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">Letter Repetition</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">You may use each letter more than once. This is a crucial rule that many beginners overlook. If the available letters include 'R' and 'E', you can spell words like "REFER" or "REPAIRER" where letters repeat. This opens up a much larger pool of potential words than you might initially think.</p>
+            </div>
+            <!-- Rule 5 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">No Proper Nouns</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">Proper nouns are never accepted. This means no names of people, places, brands, or organizations. "PARIS," "JOHN," and "GOOGLE" would all be rejected. The Spelling Bee sticks to common English words that you'd find in a standard dictionary, excluding any capitalized terms that refer to specific entities.</p>
+            </div>
+            <!-- Rule 6 -->
+            <div class="card-elevated p-5">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-2">Dictionary Validity</h3>
+              <p class="text-sm text-gray-500 leading-relaxed">The NYT uses a curated dictionary, not the entire English language. Words they consider too obscure, offensive, or not well-known enough are excluded. This means our solver may find words that the official puzzle doesn't accept. When in doubt, the NYT's word list is the final authority on what counts.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Scoring System Section -->
+        <section id="scoring-system" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Scoring System
+          </h2>
+          <p class="text-gray-600 leading-relaxed mb-6">The Spelling Bee uses a straightforward but strategic scoring system. Understanding exactly how points are awarded helps you prioritize which words to look for and gives you a sense of how close you are to the next ranking level. The scoring rewards longer words and especially rewards pangrams, making the hunt for those all-seven-letter words the most impactful thing you can do for your score.</p>
+
+          <div class="card-elevated overflow-hidden mb-6">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-amber-50">
+                  <th class="text-left py-3 px-5 font-bold text-amber-800">Word Type</th>
+                  <th class="text-center py-3 px-5 font-bold text-amber-800">Points</th>
+                  <th class="text-left py-3 px-5 font-bold text-amber-800">Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t border-gray-100">
+                  <td class="py-3 px-5 text-gray-700">4-letter word</td>
+                  <td class="py-3 px-5 text-center font-bold text-gray-800">1 point</td>
+                  <td class="py-3 px-5 text-gray-500 font-mono">CARE = 1 pt</td>
+                </tr>
+                <tr class="border-t border-gray-100">
+                  <td class="py-3 px-5 text-gray-700">5-letter word</td>
+                  <td class="py-3 px-5 text-center font-bold text-gray-800">5 points</td>
+                  <td class="py-3 px-5 text-gray-500 font-mono">CRANE = 5 pts</td>
+                </tr>
+                <tr class="border-t border-gray-100">
+                  <td class="py-3 px-5 text-gray-700">6-letter word</td>
+                  <td class="py-3 px-5 text-center font-bold text-gray-800">6 points</td>
+                  <td class="py-3 px-5 text-gray-500 font-mono">ANCER = 6 pts</td>
+                </tr>
+                <tr class="border-t border-gray-100">
+                  <td class="py-3 px-5 text-gray-700">7+ letter word</td>
+                  <td class="py-3 px-5 text-center font-bold text-gray-800">1 pt per letter</td>
+                  <td class="py-3 px-5 text-gray-500 font-mono">CARNAGE = 7 pts</td>
+                </tr>
+                <tr class="border-t border-gray-100 bg-amber-50/50">
+                  <td class="py-3 px-5 text-amber-800 font-semibold">Pangram (any length)</td>
+                  <td class="py-3 px-5 text-center font-bold text-amber-700">Length + 7 bonus</td>
+                  <td class="py-3 px-5 text-amber-600 font-mono">CARNAGE = 14 pts</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-gray-600 leading-relaxed text-sm">The key insight is that 4-letter words are worth only 1 point regardless, while 5-letter and longer words earn points equal to their length. This means finding one 7-letter word (7 points) is worth the same as finding seven 4-letter words. Pangrams get an additional 7-point bonus on top of their base score, making them the most valuable finds in the game. A 7-letter pangram is worth 14 points, and a 10-letter pangram earns 17 points.</p>
+        </section>
+
+        <!-- Ranking Levels Section -->
+        <section id="ranking-levels" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Ranking Levels
+          </h2>
+          <p class="text-gray-600 leading-relaxed mb-6">Your progress through the Spelling Bee is tracked by a ranking system based on what percentage of the total possible points you've accumulated. There are nine ranking levels, each requiring a progressively higher percentage of the maximum score. The thresholds are fixed percentages that apply to every puzzle, regardless of how many total points are available that day.</p>
+
+          <div class="space-y-3 mb-6">
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-gray-50 border border-gray-100">
+              <span class="text-2xl">🐝</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Beginner</span>
+                  <span class="text-sm font-mono text-gray-500">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-1"><div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <span class="text-2xl">🌱</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Starting</span>
+                  <span class="text-sm font-mono text-blue-600">2%</span>
+                </div>
+                <div class="w-full bg-blue-100 rounded-full h-2 mt-1"><div class="bg-blue-400 h-2 rounded-full" style="width: 2%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+              <span class="text-2xl">💪</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Solid</span>
+                  <span class="text-sm font-mono text-cyan-600">5%</span>
+                </div>
+                <div class="w-full bg-cyan-100 rounded-full h-2 mt-1"><div class="bg-cyan-400 h-2 rounded-full" style="width: 5%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-lime-50 border border-lime-100">
+              <span class="text-2xl">😊</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Nice</span>
+                  <span class="text-sm font-mono text-lime-600">8%</span>
+                </div>
+                <div class="w-full bg-lime-100 rounded-full h-2 mt-1"><div class="bg-lime-400 h-2 rounded-full" style="width: 8%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-amber-50 border border-amber-100">
+              <span class="text-2xl">👍</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Good</span>
+                  <span class="text-sm font-mono text-amber-600">15%</span>
+                </div>
+                <div class="w-full bg-amber-100 rounded-full h-2 mt-1"><div class="bg-amber-400 h-2 rounded-full" style="width: 15%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-orange-50 border border-orange-100">
+              <span class="text-2xl">⭐</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Great</span>
+                  <span class="text-sm font-mono text-orange-600">25%</span>
+                </div>
+                <div class="w-full bg-orange-100 rounded-full h-2 mt-1"><div class="bg-orange-400 h-2 rounded-full" style="width: 25%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-red-50 border border-red-100">
+              <span class="text-2xl">🔥</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-gray-800">Amazing</span>
+                  <span class="text-sm font-mono text-red-600">40%</span>
+                </div>
+                <div class="w-full bg-red-100 rounded-full h-2 mt-1"><div class="bg-red-400 h-2 rounded-full" style="width: 40%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-purple-50 border border-purple-200">
+              <span class="text-2xl">🌟</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-purple-800">Genius</span>
+                  <span class="text-sm font-mono text-purple-600">70%</span>
+                </div>
+                <div class="w-full bg-purple-100 rounded-full h-2 mt-1"><div class="bg-purple-500 h-2 rounded-full" style="width: 70%"></div></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 p-3 rounded-xl bg-violet-100 border border-violet-300">
+              <span class="text-2xl">👑</span>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-violet-900">Queen Bee</span>
+                  <span class="text-sm font-mono text-violet-700">100%</span>
+                </div>
+                <div class="w-full bg-violet-200 rounded-full h-2 mt-1"><div class="bg-violet-500 h-2 rounded-full" style="width: 100%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-gray-600 leading-relaxed text-sm">Most regular players aim for Genius, which requires finding roughly 70% of all available points. Reaching Queen Bee means finding every single word — a genuinely difficult feat on puzzles with 50 or more answers. The jump from Amazing (40%) to Genius (70%) is the largest single gap between any two consecutive levels, which is why so many players get stuck in that range.</p>
+        </section>
+
+        <!-- Pangram Bonuses Section -->
+        <section id="pangram-bonuses" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#F59E0B" stroke="#D97706" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            Pangram Bonuses
+          </h2>
+          <p class="text-gray-600 leading-relaxed mb-4">A pangram is any word that uses all seven available letters at least once. Pangrams are special because they earn a 7-point bonus on top of their base score, making them the most valuable words in the puzzle. Finding pangrams early can dramatically boost your score and help you progress through the ranking levels much faster than finding regular words alone.</p>
+
+          <div class="card-elevated p-6 mb-4">
+            <h3 class="font-bold text-gray-800 mb-3">Pangram Scoring Breakdown</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                <span class="text-gray-700">7-letter pangram</span>
+                <span class="font-bold text-amber-700">7 (base) + 7 (bonus) = 14 pts</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                <span class="text-gray-700">8-letter pangram</span>
+                <span class="font-bold text-amber-700">8 (base) + 7 (bonus) = 15 pts</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                <span class="text-gray-700">9-letter pangram</span>
+                <span class="font-bold text-amber-700">9 (base) + 7 (bonus) = 16 pts</span>
+              </div>
+              <div class="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                <span class="text-gray-700">10-letter pangram</span>
+                <span class="font-bold text-amber-700">10 (base) + 7 (bonus) = 17 pts</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-gray-600 leading-relaxed text-sm">A perfect pangram is a special type of pangram that uses each letter exactly once, making it exactly 7 letters long. These are rare and particularly satisfying to find. A 7-letter perfect pangram is worth 14 points, which is the same as any 7-letter pangram — the "perfect" designation is just for bragging rights, not extra points. Most puzzles have at least one pangram, and some have multiple. The number of pangrams in a puzzle significantly affects the total point count and the difficulty of reaching Genius.</p>
+        </section>
+
+        <!-- Queen Bee Section -->
+        <section id="queen-bee" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span class="text-3xl">👑</span>
+            What is Queen Bee?
+          </h2>
+          <p class="text-gray-600 leading-relaxed mb-4">Queen Bee is the highest possible rank in the Spelling Bee. You achieve it by finding every single valid word in the puzzle — 100% of the available points. This is significantly harder than reaching Genius (70%), and on puzzles with 50+ words, it can be extremely challenging even for experienced players. The difference between Genius and Queen Bee is that final 30% of words, many of which are obscure or easily overlooked.</p>
+          <p class="text-gray-600 leading-relaxed mb-4">Players who regularly achieve Queen Bee tend to use systematic approaches: they work through every possible letter combination, check all common prefixes and suffixes, and pay close attention to words with repeated letters. Some players also use tools like our SpellingBee Solver to find words they might have missed after they've already reached Genius on their own, using it as a learning tool rather than a shortcut.</p>
+          <p class="text-gray-600 leading-relaxed text-sm">The most commonly missed words on the path to Queen Bee tend to be longer words with unusual letter patterns, words starting with less common letters, and words that reuse the same letter multiple times. If you're stuck between Amazing and Genius, the answer is almost always pangrams — find those, and you'll jump ahead quickly.</p>
+        </section>
+
+        <!-- Expert Strategies Section -->
+        <section id="expert-strategies" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Expert Strategies
+          </h2>
+
+          <div class="space-y-6">
+            <div class="card-elevated p-6">
+              <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-sm font-black text-amber-700">1</span>
+                Hunt Pangrams First
+              </h3>
+              <p class="text-gray-600 leading-relaxed text-sm">Start every puzzle by looking for the pangram. Since pangrams use all seven letters, try combining the center letter with each outer letter as a starting point. Look for common word endings like -ING, -TION, -NESS, and -MENT that might combine with the available letters. Finding the pangram early gives you a massive point boost and often reveals word families you can build on. If you find a 9-letter pangram, that's 16 points — equivalent to finding sixteen 4-letter words.</p>
+            </div>
+
+            <div class="card-elevated p-6">
+              <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-sm font-black text-amber-700">2</span>
+                Work Prefix and Suffix Combinations
+              </h3>
+              <p class="text-gray-600 leading-relaxed text-sm">Systematically try common prefixes (RE-, UN-, IN-, OUT-, OVER-) and suffixes (-ED, -ER, -EST, -ING, -LY, -TION, -NESS) with your available letters. This methodical approach catches words that pure vocabulary recall misses. For example, if you find "TRAIN," immediately check "TRAINING," "RETRAIN," "RETRAINING." This prefix/suffix stacking technique is one of the most reliable ways to find longer, higher-value words.</p>
+            </div>
+
+            <div class="card-elevated p-6">
+              <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-sm font-black text-amber-700">3</span>
+                Don't Forget Letter Repetition
+              </h3>
+              <p class="text-gray-600 leading-relaxed text-sm">Many players forget that you can reuse letters. This opens up words with double letters (like "REBEL" or "CAREER"), repeated prefixes ("REUSE," "REDRAW"), and longer compound-adjacent words. If the letters include common doubling patterns like LL, SS, EE, or TT, make sure to try words that take advantage of them. Letter repetition is especially important for finding pangrams in puzzles with less common letters.</p>
+            </div>
+
+            <div class="card-elevated p-6">
+              <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-sm font-black text-amber-700">4</span>
+                Systematic Letter Rotation
+              </h3>
+              <p class="text-gray-600 leading-relaxed text-sm">Go through each outer letter as a starting letter and try to form as many words as possible. Then rotate to the next letter. This ensures you don't miss words that start with less common letters. Many players naturally focus on letters that form familiar words and skip over the harder starting letters. By forcing yourself to try every letter as a starting point, you'll consistently find words you'd otherwise overlook, especially those starting with vowels or less common consonants.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0891B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+            Frequently Asked Questions
+          </h2>
+
+          <div class="space-y-3">
+            <details class="card-elevated p-5 group" open>
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                What time does the Spelling Bee reset?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">The Spelling Bee resets every day at midnight Eastern time. This means if you're on the West Coast, the new puzzle appears at 9 PM Pacific. The puzzle doesn't change at midnight local time — it's always based on the Eastern time zone, which is where The New York Times is headquartered.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                Can I use a word more than once?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">No. Each word can only be submitted once. If you try to submit the same word again, you'll get a "Already found" message. You don't get extra points for resubmitting words, so once you've found a word, move on to finding new ones.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                Are hyphenated words allowed?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">No. Hyphenated words are not accepted in the Spelling Bee. Every word must be a single unhyphenated entry. So "CO-OP" would not be valid, but "COOP" might be if it's in the dictionary as a standalone word. The same rule applies to words with apostrophes — they're not accepted either.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                How is the Genius threshold calculated?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">The Genius threshold is 70% of the maximum possible score, rounded using Math.round(). For example, if a puzzle has a maximum of 200 points, you need 140 points to reach Genius. The exact threshold can vary slightly due to rounding, but it's always approximately 70% of the total points available in that day's puzzle.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                What makes a perfect pangram different from a regular pangram?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">A perfect pangram uses each of the seven letters exactly once, making it exactly 7 letters long. A regular pangram uses all seven letters but may repeat some. Both earn the same 7-point bonus on top of their base score. Perfect pangrams are rarer and considered a special find, but they don't score any differently than regular pangrams of the same length.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                Can I play previous Spelling Bee puzzles?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">With an NYT Games subscription, you can access a limited archive of recent puzzles through the app. However, for a comprehensive archive of all puzzles dating back to 2018, you can use our SpellingBee Solver archive, which includes complete word lists, pangram details, and scoring breakdowns for every puzzle ever published.</p>
+            </details>
+          </div>
+        </section>
+
+        <!-- SEO Content -->
+        <div class="mt-8 p-6 bg-gray-50 rounded-2xl">
+          <h2 class="text-lg font-bold text-gray-800 mb-3">Master the Spelling Bee with SpellingBee Solver</h2>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">Understanding the rules is just the first step. The NYT Spelling Bee rewards players who combine vocabulary knowledge with systematic thinking and pattern recognition. Whether you're aiming for your first Genius badge or chasing Queen Bee every day, the key is consistent practice and strategic word-finding approaches that go beyond simple vocabulary recall.</p>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">SpellingBee Solver provides daily answers, hints, and in-depth analysis for every Spelling Bee puzzle. Use our solver tool to check your work, our archive to study past puzzles, and our statistics to understand letter and word patterns. With the right combination of knowledge and tools, reaching Genius can become a daily habit rather than an occasional achievement.</p>
+          <p class="text-gray-600 leading-relaxed text-sm">Ready to test your skills? Visit our <a href="/today" class="text-amber-600 hover:text-amber-700 font-medium">Today's Answers</a> page for the latest puzzle, try our <a href="/solver" class="text-amber-600 hover:text-amber-700 font-medium">Word Solver</a> tool, or explore the <a href="/archive" class="text-amber-600 hover:text-amber-700 font-medium">Puzzle Archive</a> to practice with past puzzles.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>

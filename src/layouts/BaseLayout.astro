@@ -61,6 +61,7 @@ const siteDomain = 'https://spellingbeesolver.dev';
           <a href="/archive" class:list={["nav-link", currentPath.startsWith('/archive') && '!bg-amber-50 !text-amber-700']}>Archive</a>
           <a href="/stats" class:list={["nav-link", currentPath === '/stats' && '!bg-amber-50 !text-amber-700']}>Stats</a>
           <a href="/blog" class:list={["nav-link", currentPath.startsWith('/blog') && '!bg-amber-50 !text-amber-700']}>Blog</a>
+          <a href="/blog/spelling-bee-rules" class:list={["nav-link hidden sm:inline-flex", currentPath === '/blog/spelling-bee-rules' && '!bg-amber-50 !text-amber-700']}>Rules</a>
         </nav>
       </div>
     </header>
@@ -72,7 +73,7 @@ const siteDomain = 'https://spellingbeesolver.dev';
     <!-- Footer -->
     <footer class="bg-gray-900 text-gray-400 mt-auto">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-        <div class="grid sm:grid-cols-3 gap-8">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <h4 class="font-bold text-white text-sm mb-3">ANSWERS</h4>
             <div class="space-y-2 text-sm">
@@ -86,7 +87,14 @@ const siteDomain = 'https://spellingbeesolver.dev';
             <h4 class="font-bold text-white text-sm mb-3">TOOLS</h4>
             <div class="space-y-2 text-sm">
               <a href="/solver" class="block hover:text-amber-400 transition-colors">Word Solver</a>
-              <a href="/blog" class="block hover:text-amber-400 transition-colors">Spelling Bee Rules</a>
+              <a href="/blog/spelling-bee-rules" class="block hover:text-amber-400 transition-colors">Spelling Bee Rules</a>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-bold text-white text-sm mb-3">BLOG</h4>
+            <div class="space-y-2 text-sm">
+              <a href="/blog" class="block hover:text-amber-400 transition-colors">All Articles</a>
+              <a href="/blog/spelling-bee-rules" class="block hover:text-amber-400 transition-colors">Rules Guide</a>
             </div>
           </div>
           <div>

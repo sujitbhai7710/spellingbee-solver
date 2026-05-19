@@ -235,7 +235,7 @@ const faqSchema = JSON.stringify({
         var totalPoints = puzzleData.totalPoints || 0;
         var hasPerfectPangram = puzzleData.hasPerfectPangram || false;
         var perfectPangrams = puzzleData.perfectPangrams || [];
-        var geniusThreshold = Math.ceil(totalPoints * 0.70);
+        var geniusThreshold = Math.round(totalPoints * 0.70);
         var center = puzzle.letters || '';
         var allLetters = puzzle.all_letters || '';
         var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });

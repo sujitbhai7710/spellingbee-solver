@@ -396,14 +396,14 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
 
   function getProgressLevels(totalPts) {
     return [
-      { name: 'Beginner', pct: 0, minPts: Math.ceil(totalPts * 0) },
-      { name: 'Starting', pct: 2, minPts: Math.ceil(totalPts * 0.02) },
-      { name: 'Solid', pct: 5, minPts: Math.ceil(totalPts * 0.05) },
-      { name: 'Nice', pct: 8, minPts: Math.ceil(totalPts * 0.08) },
-      { name: 'Good', pct: 15, minPts: Math.ceil(totalPts * 0.15) },
-      { name: 'Great', pct: 25, minPts: Math.ceil(totalPts * 0.25) },
-      { name: 'Amazing', pct: 40, minPts: Math.ceil(totalPts * 0.40) },
-      { name: 'Genius', pct: 70, minPts: Math.ceil(totalPts * 0.70) },
+      { name: 'Beginner', pct: 0, minPts: Math.round(totalPts * 0) },
+      { name: 'Starting', pct: 2, minPts: Math.round(totalPts * 0.02) },
+      { name: 'Solid', pct: 5, minPts: Math.round(totalPts * 0.05) },
+      { name: 'Nice', pct: 8, minPts: Math.round(totalPts * 0.08) },
+      { name: 'Good', pct: 15, minPts: Math.round(totalPts * 0.15) },
+      { name: 'Great', pct: 25, minPts: Math.round(totalPts * 0.25) },
+      { name: 'Amazing', pct: 40, minPts: Math.round(totalPts * 0.40) },
+      { name: 'Genius', pct: 70, minPts: Math.round(totalPts * 0.70) },
       { name: 'Queen Bee', pct: 100, minPts: totalPts },
     ];
   }

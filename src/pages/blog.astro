@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Spelling Bee Blog" description="Tips, strategies, rules, and insights for the NYT Spelling Bee. Learn how to improve your score and reach Genius every day.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-10">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge badge-gold">Blog</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-3">Spelling Bee Blog</h1>
+      <p class="text-lg text-gray-500 max-w-2xl">Tips, strategies, and deep dives into the NYT Spelling Bee. Whether you're a beginner or chasing Queen Bee, we've got something for you.</p>
+    </div>
+
+    <!-- Featured Article -->
+    <a href="/blog/spelling-bee-rules" class="block mb-8 group">
+      <div class="card-elevated p-6 sm:p-8 hover:border-amber-300 transition-all">
+        <div class="flex items-start gap-5">
+          <div class="flex-shrink-0 w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wide">Featured</span>
+              <span class="text-xs text-gray-400">Complete Guide</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-bold text-gray-900 group-hover:text-amber-700 transition-colors mb-2">Spelling Bee Rules</h2>
+            <p class="text-gray-500 leading-relaxed mb-3">Everything you need to know about the NYT Spelling Bee rules, scoring system, ranking levels, and pangram bonuses. A comprehensive guide from basic rules to expert strategies.</p>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              <span class="flex items-center gap-1">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                10 min read
+              </span>
+              <span>10 sections</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- Coming Soon Section -->
+    <div class="mb-10">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        Coming Soon
+      </h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="card-elevated p-5 opacity-70">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-700 text-sm">How to Reach Genius Every Day</h3>
+              <p class="text-xs text-gray-400">Strategies &middot; Intermediate</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">Proven strategies to consistently hit Genius level, including systematic word-finding techniques and common letter patterns to watch for.</p>
+        </div>
+        <div class="card-elevated p-5 opacity-70">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-700 text-sm">Understanding Pangram Patterns</h3>
+              <p class="text-xs text-gray-400">Analysis &middot; Advanced</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">Deep dive into pangram construction, common letter combinations, and historical patterns across thousands of Spelling Bee puzzles.</p>
+        </div>
+        <div class="card-elevated p-5 opacity-70">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-700 text-sm">This Day in Spelling Bee History</h3>
+              <p class="text-xs text-gray-400">History &middot; Fun</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">Notable puzzles, record-breaking word counts, and interesting letter combinations from the Spelling Bee archive. Updated weekly.</p>
+        </div>
+        <div class="card-elevated p-5 opacity-70">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-700 text-sm">Beginner's Guide to the Spelling Bee</h3>
+              <p class="text-xs text-gray-400">Guide &middot; Beginner</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">Just starting out? This step-by-step guide walks you through your first puzzle, explaining every rule and scoring detail along the way.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEO Content -->
+    <div class="mt-8 p-6 bg-gray-50 rounded-2xl">
+      <h2 class="text-lg font-bold text-gray-800 mb-3">About the SpellingBee Solver Blog</h2>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">The SpellingBee Solver Blog is your go-to resource for mastering the New York Times Spelling Bee puzzle. Our articles cover everything from the basic rules of the game to advanced strategies that will help you reach Genius and Queen Bee consistently. Whether you're playing your first puzzle or your thousandth, our in-depth guides and analysis provide the insights you need to improve your game.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Each article is crafted by experienced Spelling Bee players who have analyzed thousands of puzzles. We break down complex patterns into actionable advice, so you can immediately apply what you learn to the next day's puzzle. Our goal is to help every player understand not just what words to find, but how to think about the puzzle more effectively.</p>
+      <p class="text-gray-600 leading-relaxed text-sm">Check back regularly for new articles, or bookmark this page to stay updated on the latest Spelling Bee strategies and insights from SpellingBee Solver.</p>
+    </div>
+  </div>
+</BaseLayout>

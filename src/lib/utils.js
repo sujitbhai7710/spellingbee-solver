@@ -43,16 +43,15 @@ export function calculatePoints(words) {
 
 export function getProgressLevel(points, maxPoints) {
   const pct = maxPoints > 0 ? (points / maxPoints) * 100 : 0;
-  if (pct >= 100) return { name: 'Queen Bee', emoji: '👑', color: 'text-amber-500' };
-  if (pct >= 70) return { name: 'Genius', emoji: '🧠', color: 'text-purple-600' };
-  if (pct >= 50) return { name: 'Amazing', emoji: '🌟', color: 'text-orange-500' };
-  if (pct >= 40) return { name: 'Great', emoji: '💪', color: 'text-blue-600' };
-  if (pct >= 25) return { name: 'Good', emoji: '👍', color: 'text-green-600' };
-  if (pct >= 15) return { name: 'Solid', emoji: '🪨', color: 'text-gray-600' };
-  if (pct >= 8) return { name: 'Nice', emoji: '😊', color: 'text-teal-600' };
-  if (pct >= 5) return { name: 'Getting There', emoji: '🚶', color: 'text-indigo-600' };
-  if (pct >= 2) return { name: 'Beginner', emoji: '🌱', color: 'text-lime-600' };
-  return { name: 'Newbie', emoji: '🐝', color: 'text-gray-500' };
+  if (pct >= 100) return { name: 'Queen Bee', emoji: '👑', color: '#8B5CF6' };
+  if (pct >= 70) return { name: 'Genius', emoji: '🌟', color: '#7C3AED' };
+  if (pct >= 40) return { name: 'Amazing', emoji: '🔥', color: '#DC2626' };
+  if (pct >= 25) return { name: 'Great', emoji: '⭐', color: '#EA580C' };
+  if (pct >= 15) return { name: 'Good', emoji: '👍', color: '#D97706' };
+  if (pct >= 8) return { name: 'Nice', emoji: '😊', color: '#65A30D' };
+  if (pct >= 5) return { name: 'Solid', emoji: '💪', color: '#0891B2' };
+  if (pct >= 2) return { name: 'Starting', emoji: '🌱', color: '#2563EB' };
+  return { name: 'Beginner', emoji: '🐝', color: '#6B7280' };
 }
 
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];

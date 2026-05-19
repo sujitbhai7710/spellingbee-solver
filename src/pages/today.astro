@@ -17,7 +17,7 @@ const regularWords = words.filter(w => w.is_pangram !== 1);
 const totalPoints = data.totalPoints || 0;
 const hasPerfectPangram = data.hasPerfectPangram || false;
 const perfectPangrams = data.perfectPangrams || [];
-const geniusThreshold = Math.ceil(totalPoints * 0.70);
+const geniusThreshold = Math.round(totalPoints * 0.70);
 
 // ==================== COMPUTE PUZZLE STATS ====================
 
@@ -202,7 +202,6 @@ const wordRarity = words.map(w => {
   return { ...w, freq, rarity };
 });
 
-const rarityOrder = { unique: 0, uncommon: 1, occasional: 2, common: 3 };
 const rarityColors = {
   unique: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: 'Unique to this puzzle' },
   uncommon: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Uncommon' },
@@ -586,6 +585,28 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
           </div>
         )}
 
+        <!-- ===== SECTION 6b: OTHER DAYS WITH THIS PANGRAM ===== -->
+        {pangrams.length > 0 && (
+          <div class="card-elevated p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#F59E0B" stroke="#D97706" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Other Days With This Pangram
+            </h2>
+            <p class="text-sm text-gray-500 mb-4">Other puzzles where these pangram words also appeared as pangrams.</p>
+            <div class="space-y-4">
+              {pangrams.map(p => (
+                <div class="mb-3">
+                  <p class="font-semibold text-amber-700 mb-2">{p.word.toUpperCase()}</p>
+                  <div id={`pangram-history-${p.word}`} class="text-sm text-gray-500">
+                    <div class="inline-block w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span class="ml-2">Loading...</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <!-- ===== SECTION 7: HOW DOES THIS PUZZLE COMPARE? ===== -->
         <div class="card-elevated p-6 mb-8">
           <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -881,3 +902,39 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
     </div>
   </div>
 </BaseLayout>
+
+<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev', puzzleId: (data.puzzle || {}).puzzle_id }}>
+  // Fetch pangram history for each pangram word
+  document.addEventListener('DOMContentLoaded', () => {
+    const pangramElements = document.querySelectorAll('[id^="pangram-history-"]');
+    pangramElements.forEach(async (el) => {
+      const word = el.id.replace('pangram-history-', '');
+      if (!word) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/pangramHistory/${word}`);
+        const data = await res.json();
+        const history = (data.pangramHistory || []).filter(p => p.puzzle_id !== puzzleId);
+        if (history.length === 0) {
+          el.innerHTML = '<span class="text-gray-400 italic">No other puzzles found with this pangram</span>';
+        } else {
+          el.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
+            history.slice(0, 6).map(p =>
+              '<a href="/archive" class="block p-3 rounded-lg border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">' +
+                '<div class="flex items-center justify-between mb-1">' +
+                  '<span class="font-semibold text-gray-800 group-hover:text-amber-700 text-xs">' + p.date + '</span>' +
+                  '<span class="font-mono text-[10px] text-gray-400">' + p.all_letters + '</span>' +
+                '</div>' +
+                '<div class="flex items-center gap-2 text-[10px]">' +
+                  '<span class="text-gray-500">' + p.word_count + ' words</span>' +
+                  '<span class="text-amber-600 font-semibold">' + p.pangrams_count + ' pangram' + (p.pangrams_count !== 1 ? 's' : '') + '</span>' +
+                '</div>' +
+              '</a>'
+            ).join('') +
+          '</div>';
+        }
+      } catch (e) {
+        el.innerHTML = '<span class="text-red-400">Failed to load history</span>';
+      }
+    });
+  });
+</script>
