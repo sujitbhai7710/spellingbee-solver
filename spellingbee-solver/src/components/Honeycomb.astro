@@ -1,0 +1,186 @@
+---
+/**
+ * Honeycomb - Beesolver.com-style hexagon grid
+ * Uses CSS absolute positioning with transforms for perfect alignment
+ * Props:
+ *   center: string - center letter
+ *   outer: string[] - 6 outer letters
+ *   size: 'sm' | 'md' | 'lg' - size variant
+ */
+export interface Props {
+  center: string;
+  outer: string[];
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const { center, outer = [], size = 'md' } = Astro.props;
+
+const sizeClasses = {
+  sm: 'honeycomb-sm',
+  md: 'honeycomb-md',
+  lg: 'honeycomb-lg',
+};
+
+const sizeClass = sizeClasses[size];
+---
+
+<div class:list={['honeycomb', sizeClass]}>
+  <!-- Outer hexagons -->
+  {outer.map((letter, i) => (
+    <div class={`hex-cell hex-outer hex-pos-${i}`}>
+      <svg viewBox="0 -17 256 256" fill="none" class="hex-svg">
+        <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+      </svg>
+      <span class="hex-letter">{letter}</span>
+    </div>
+  ))}
+
+  <!-- Center hexagon -->
+  <div class="hex-cell hex-center hex-pos-center">
+    <svg viewBox="0 -17 256 256" fill="none" class="hex-svg">
+      <path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />
+    </svg>
+    <span class="hex-letter hex-letter-center">{center}</span>
+  </div>
+</div>
+
+<style>
+  /* ========================================
+     Honeycomb - CSS-based hexagon layout
+     Based on beesolver.com's approach
+     ======================================== */
+
+  .honeycomb {
+    position: relative;
+    margin: 0 auto;
+  }
+
+  .honeycomb-md {
+    width: 260px;
+    height: 260px;
+  }
+
+  .honeycomb-sm {
+    width: 200px;
+    height: 200px;
+  }
+
+  .honeycomb-lg {
+    width: 300px;
+    height: 300px;
+  }
+
+  .hex-cell {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+  }
+
+  .honeycomb-md .hex-cell {
+    width: 38%;
+    height: 38%;
+  }
+
+  .honeycomb-sm .hex-cell {
+    width: 36%;
+    height: 36%;
+  }
+
+  .honeycomb-lg .hex-cell {
+    width: 38%;
+    height: 38%;
+  }
+
+  /* Position each hexagon using transforms from center */
+  .hex-pos-center {
+    transform: translate(-50%, -50%);
+  }
+  .hex-pos-0 {
+    transform: translate(-50%, -50%) translate(0, -92%);
+  }
+  .hex-pos-1 {
+    transform: translate(-50%, -50%) translate(80%, -46%);
+  }
+  .hex-pos-2 {
+    transform: translate(-50%, -50%) translate(80%, 46%);
+  }
+  .hex-pos-3 {
+    transform: translate(-50%, -50%) translate(0, 92%);
+  }
+  .hex-pos-4 {
+    transform: translate(-50%, -50%) translate(-80%, 46%);
+  }
+  .hex-pos-5 {
+    transform: translate(-50%, -50%) translate(-80%, -46%);
+  }
+
+  .hex-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hex-outer .hex-svg {
+    color: #e5e7eb;
+  }
+
+  .hex-center .hex-svg {
+    color: #f7c948;
+  }
+
+  .hex-letter {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+    color: #475569;
+    z-index: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .honeycomb-md .hex-letter {
+    font-size: 1.75rem;
+  }
+
+  .honeycomb-sm .hex-letter {
+    font-size: 1.35rem;
+  }
+
+  .honeycomb-lg .hex-letter {
+    font-size: 2.1rem;
+  }
+
+  .hex-letter-center {
+    font-weight: 900;
+    color: white;
+  }
+
+  /* Hover effects */
+  .hex-outer:hover .hex-svg {
+    color: #fef3c7;
+  }
+
+  .hex-outer:hover .hex-letter {
+    color: #92400e;
+  }
+
+  .hex-center:hover .hex-svg {
+    color: #fbbf24;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .honeycomb-lg {
+      width: 250px;
+      height: 250px;
+    }
+    .honeycomb-lg .hex-letter {
+      font-size: 1.75rem;
+    }
+  }
+</style>

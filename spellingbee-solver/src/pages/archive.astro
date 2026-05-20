@@ -1,0 +1,146 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+const page = parseInt(Astro.url.searchParams.get('page') || '1');
+const res = await fetch(`${API_BASE}/api/puzzles/list?limit=20&page=${page}`);
+const data = await res.json();
+const puzzles = data.puzzles || [];
+const pagination = data.pagination || {};
+
+const faqSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How far back does the Spelling Bee archive go?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `Our archive contains ${pagination.total_items || 'over 2,900'} puzzles dating back to 2018, covering every daily Spelling Bee puzzle from the NYT.`
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I search for a specific date's puzzle?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Use the date picker above the puzzle list to jump directly to a specific date. You can also browse page by page using the pagination controls."
+      }
+    }
+  ]
+});
+---
+
+<BaseLayout title="Spelling Bee Puzzle Archive" description={`Browse ${pagination.total_items || '2,900+'} NYT Spelling Bee puzzles with complete answers. Search by date, letter, or puzzle ID.`} schema={faqSchema}>
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
+      <p class="text-gray-500">{pagination.total_items?.toLocaleString() || 0} puzzles &middot; Page {pagination.page} of {pagination.total_pages}</p>
+    </div>
+
+    <!-- Date Picker -->
+    <div class="card-elevated p-5 mb-6">
+      <h3 class="font-bold text-gray-800 mb-3 text-sm">Jump to a Date</h3>
+      <div class="flex items-center gap-3">
+        <input type="date" id="date-picker" class="solver-input !py-2.5 !px-4 !text-base !letter-normal !normal-case flex-1" min="2018-01-01" max={new Date().toISOString().split('T')[0]} />
+        <button id="go-date-btn" class="btn-primary !py-2.5 !px-5 text-sm" type="button">Go!</button>
+      </div>
+    </div>
+
+    <!-- Puzzle List -->
+    <div class="card-elevated divide-y divide-gray-50">
+      {puzzles.map(p => {
+        const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+        return (
+          <a href={`/answer-for-${slug}`} class="flex items-center justify-between p-5 hover:bg-amber-50/50 transition-colors group">
+            <div class="flex items-center gap-4">
+              <span class="letter-circle letter-circle-center">{p.letters}</span>
+              <div>
+                <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors">{p.date}</p>
+                <p class="text-xs text-gray-400 font-mono mt-0.5">{p.all_letters}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-semibold text-gray-600">{p.word_count} words</p>
+              <p class="text-xs text-amber-500">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</p>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+
+    <!-- Pagination -->
+    {pagination.total_pages > 1 && (
+      <div class="flex items-center justify-center gap-3 mt-8">
+        {pagination.page > 1 && (
+          <a href={`/archive?page=${pagination.page - 1}`} class="btn-secondary !py-2.5 !px-5 text-sm">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
+            Previous
+          </a>
+        )}
+        <span class="text-sm text-gray-500 font-medium">Page {pagination.page} of {pagination.total_pages}</span>
+        {pagination.has_next && (
+          <a href={`/archive?page=${pagination.page + 1}`} class="btn-primary !py-2.5 !px-5 text-sm">
+            Next
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5L5.5 11 8.5 8 5.5 5z"/></svg>
+          </a>
+        )}
+      </div>
+    )}
+
+    <!-- SEO Content -->
+    <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
+      <h2 class="text-lg font-bold text-gray-800 mb-3">Browse the Complete Spelling Bee Archive</h2>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Our puzzle archive covers every daily NYT Spelling Bee puzzle, providing complete answer lists, pangram details, and scoring breakdowns for each date. Whether you're catching up on puzzles you missed or analyzing patterns across thousands of past games, the archive gives you instant access to the full historical record.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Each entry shows the center letter, all available letters, word count, and pangram count at a glance. Click any date to see the complete word list organized by length, with pangrams highlighted and perfect pangrams called out separately. The scoring breakdown includes total points and Genius threshold for every puzzle.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Use the date picker to jump directly to a specific puzzle, or browse page by page with the pagination controls. Puzzles are listed in reverse chronological order, starting with the most recent. The archive contains {pagination.total_items?.toLocaleString() || 'over 2,900'} puzzles spanning from 2018 to the present day.</p>
+      <p class="text-gray-600 leading-relaxed text-sm">Reviewing past puzzles is one of the most effective ways to improve your Spelling Bee performance. Pay attention to which letter combinations appear frequently, how pangram patterns work, and which word structures tend to show up repeatedly. Players who study the archive consistently score higher than those who only play today's puzzle.</p>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="mt-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
+      <div class="space-y-3">
+        <details class="card-elevated p-5 group" open>
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How far back does the archive go?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The archive contains {pagination.total_items?.toLocaleString() || 'over 2,900'} puzzles starting from 2018. Every daily NYT Spelling Bee puzzle since the game launched in the NYT app is included with complete answer data.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Can I search for a specific date?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Yes. Use the date picker at the top of the archive page to jump directly to any date. You can also browse page by page using the Previous and Next buttons. Each page shows 20 puzzles in reverse chronological order.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+    const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+
+    document.getElementById('go-date-btn')?.addEventListener('click', function() {
+      const datePicker = document.getElementById('date-picker');
+      if (!datePicker || !datePicker.value) return;
+
+      const dateObj = new Date(datePicker.value + 'T00:00:00Z');
+      if (isNaN(dateObj.getTime())) return;
+
+      const month = months[dateObj.getMonth()];
+      const day = dateObj.getDate();
+      const year = dateObj.getFullYear();
+
+      window.location.href = `/answer-for-${month}-${day}-${year}`;
+    });
+
+    // Allow Enter key on date picker
+    document.getElementById('date-picker')?.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('go-date-btn')?.click();
+      }
+    });
+  </script>
+</BaseLayout>

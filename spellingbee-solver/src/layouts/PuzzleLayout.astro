@@ -1,0 +1,116 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Honeycomb from '../components/Honeycomb.astro';
+
+export interface Props {
+  puzzle: any;
+  title: string;
+  showWords?: boolean;
+}
+
+const { puzzle, title, showWords = true } = Astro.props;
+
+const center = puzzle.letters || '';
+const allLetters = puzzle.all_letters || '';
+const outerLetters = allLetters.split('').filter(l => l !== center);
+const pangrams = (puzzle.words || []).filter(w => w.is_pangram === 1);
+const regularWords = (puzzle.words || []).filter(w => w.is_pangram !== 1);
+const totalPoints = puzzle.totalPoints || 0;
+
+const wordsByLength = {};
+for (const w of regularWords) {
+  const l = w.length;
+  if (!wordsByLength[l]) wordsByLength[l] = [];
+  wordsByLength[l].push(w);
+}
+const sortedLengths = Object.keys(wordsByLength).sort((a,b) => +b - +a);
+---
+
+<BaseLayout title={title} description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and hints.`}>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Puzzle Header -->
+    <div class="text-center mb-8">
+      <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Spelling Bee Answers</h1>
+      <p class="text-lg text-gray-500 font-medium">{puzzle.date}</p>
+    </div>
+
+    <!-- Honeycomb + Stats Row -->
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+      <!-- Left: Honeycomb -->
+      <div class="flex-shrink-0 mx-auto lg:mx-0">
+        <Honeycomb center={center} outer={outerLetters} size="md" />
+        <div class="text-center mt-4">
+          <p class="text-sm text-gray-500">
+            Center: <span class="font-bold text-amber-600">{center}</span> &middot;
+            Letters: <span class="font-semibold">{allLetters}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: Stats + Word Lists -->
+      <div class="flex-1 min-w-0 w-full">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div class="stat-card">
+            <p class="stat-value">{puzzle.word_count}</p>
+            <p class="stat-label">Words</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-value">{puzzle.pangrams_count}</p>
+            <p class="stat-label">Pangrams</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-value">{totalPoints}</p>
+            <p class="stat-label">Points</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-value">{puzzle.hasPerfectPangram ? '&#10003;' : '&mdash;'}</p>
+            <p class="stat-label">Perfect Pangram</p>
+          </div>
+        </div>
+
+        {showWords && (
+          <>
+            {pangrams.length > 0 && (
+              <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
+                  Pangrams
+                </h2>
+                <div class="flex flex-wrap gap-2">
+                  {pangrams.map(w => (
+                    <span class="pangram-chip">
+                      <span class="star">&#9733;</span>
+                      {w.word}
+                      <span class="text-xs text-amber-500 opacity-70">{w.length}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h2 class="text-lg font-bold text-gray-800 mb-3">All Words</h2>
+              <div class="card-elevated divide-y divide-gray-50 max-h-96 overflow-y-auto custom-scroll">
+                {sortedLengths.map(len => (
+                  <div class="px-5 py-3">
+                    <p class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">{len}-Letter Words ({wordsByLength[len].length})</p>
+                    <div class="flex flex-wrap gap-2">
+                      {wordsByLength[len].map(w => (
+                        <span class="word-chip">{w.word}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+
+    <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
+      <h2 class="text-lg font-bold text-gray-800 mb-3">About This Spelling Bee</h2>
+      <p class="text-gray-600 leading-relaxed text-sm">The New York Times Spelling Bee for {puzzle.date} features <strong>{center}</strong> as the center letter with outer letters <strong>{outerLetters.join(', ')}</strong>. There are <strong>{puzzle.word_count} words</strong> to find, including <strong>{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</strong> worth a total of <strong>{totalPoints} points</strong>.</p>
+    </div>
+  </div>
+</BaseLayout>

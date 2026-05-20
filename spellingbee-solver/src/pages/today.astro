@@ -1,0 +1,303 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Honeycomb from '../components/Honeycomb.astro';
+import { API_BASE, getProgressLevel } from '../lib/utils';
+
+const res = await fetch(`${API_BASE}/today`);
+const data = await res.json();
+const puzzle = data.puzzle || {};
+const words = data.words || [];
+
+const center = puzzle.letters || '';
+const allLetters = puzzle.all_letters || '';
+const outerLetters = allLetters.split('').filter(l => l !== center);
+const pangrams = words.filter(w => w.is_pangram === 1);
+const regularWords = words.filter(w => w.is_pangram !== 1);
+const totalPoints = data.totalPoints || 0;
+const hasPerfectPangram = data.hasPerfectPangram || false;
+const perfectPangrams = data.perfectPangrams || [];
+const geniusThreshold = Math.ceil(totalPoints * 0.70);
+
+// Group words by length
+const wordsByLength = {};
+for (const w of regularWords) {
+  const l = w.length;
+  if (!wordsByLength[l]) wordsByLength[l] = [];
+  wordsByLength[l].push(w);
+}
+const sortedLengths = Object.keys(wordsByLength).sort((a,b) => +b - +a);
+
+// Show Counts by First Letter (nytbee.com feature)
+const wordsByFirstLetter = {};
+for (const w of words) {
+  const first = w.word[0]?.toUpperCase();
+  if (!first) continue;
+  if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false };
+  wordsByFirstLetter[first].count++;
+  if (w.is_pangram === 1) wordsByFirstLetter[first].isPangram = true;
+}
+const sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
+const maxFirstLetterCount = Math.max(...Object.values(wordsByFirstLetter).map(v => v.count), 1);
+
+// Get last 7 puzzles for the sidebar
+const lastRes = await fetch(`${API_BASE}/api/last/8`);
+const lastData = await lastRes.json();
+const recentPuzzles = (lastData.puzzles || []).filter(p => p.puzzle_id !== puzzle.puzzle_id).slice(0, 6);
+
+const faqSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": `What are the NYT Spelling Bee answers for ${puzzle.date}?`,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `The NYT Spelling Bee for ${puzzle.date} has ${puzzle.word_count} words and ${puzzle.pangrams_count} pangram${puzzle.pangrams_count !== 1 ? 's' : ''}. The center letter is ${center} and the outer letters are ${outerLetters.join(', ')}. The maximum score is ${totalPoints} points.`
+      }
+    },
+    {
+      "@type": "Question",
+      "name": `What is the center letter in today's Spelling Bee?`,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `Today's center letter is ${center}. Every word must contain this letter. The full set of letters is ${allLetters.split('').join(', ')}.`
+      }
+    },
+    {
+      "@type": "Question",
+      "name": `How many pangrams are in today's Spelling Bee?`,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `There ${puzzle.pangrams_count === 1 ? 'is' : 'are'} ${puzzle.pangrams_count} pangram${puzzle.pangrams_count !== 1 ? 's' : ''} in today's puzzle. ${hasPerfectPangram ? 'This puzzle has a perfect pangram (a 7-letter word using all letters exactly once).' : 'There are no perfect pangrams in today\'s puzzle.'}`
+      }
+    },
+    {
+      "@type": "Question",
+      "name": `What score do you need for Genius in today's Spelling Bee?`,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `You need at least ${geniusThreshold} points out of ${totalPoints} total points to reach Genius level in today's puzzle. That's 70% of the maximum score.`
+      }
+    }
+  ]
+});
+---
+
+<BaseLayout title="Today's NYT Spelling Bee Answers" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and hints. Center letter: ${center}.`} schema={faqSchema}>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Main Content -->
+      <div class="flex-1 min-w-0">
+        <!-- Header -->
+        <div class="mb-8">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="badge badge-gold">Today</span>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+          </div>
+          <p class="text-gray-500 font-medium">{puzzle.date}</p>
+        </div>
+
+        <!-- Honeycomb + Stats Row -->
+        <div class="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-8">
+          <div class="flex-shrink-0">
+            <Honeycomb center={center} outer={outerLetters} size="md" />
+          </div>
+          <div class="flex-1 w-full">
+            <div class="grid grid-cols-2 gap-3 mb-5">
+              <div class="stat-card">
+                <p class="stat-value">{puzzle.word_count}</p>
+                <p class="stat-label">Words</p>
+              </div>
+              <div class="stat-card">
+                <p class="stat-value">{puzzle.pangrams_count}</p>
+                <p class="stat-label">Pangrams</p>
+              </div>
+              <div class="stat-card">
+                <p class="stat-value">{totalPoints}</p>
+                <p class="stat-label">Max Points</p>
+              </div>
+              <div class="stat-card">
+                <p class="stat-value">{hasPerfectPangram ? 'Yes' : '\u2014'}</p>
+                <p class="stat-label">Perfect Pangram</p>
+              </div>
+            </div>
+            <!-- Genius threshold -->
+            <div class="text-sm text-gray-500 mb-3">
+              <span class="font-semibold text-purple-600">Genius threshold:</span> {geniusThreshold} points (70% of {totalPoints})
+            </div>
+            <div class="text-sm text-gray-500">
+              <span class="font-semibold text-gray-700">Center:</span> <span class="letter-circle letter-circle-center !w-7 !h-7 !text-xs inline-flex">{center}</span>
+              <span class="mx-2 text-gray-300">|</span>
+              <span class="font-semibold text-gray-700">Letters:</span> {allLetters.split('').map((l) => <span class:list={['inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold mx-0.5', l === center ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600']}>{l}</span>)}
+            </div>
+          </div>
+        </div>
+
+        <!-- Spoiler Reveal Button -->
+        <div class="mb-6">
+          <button id="reveal-answers-btn" class="btn-secondary text-sm !py-2.5 w-full sm:w-auto" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Show All Answers
+          </button>
+          <p class="text-xs text-gray-400 mt-1.5">Spoilers ahead! Click to reveal the complete word list.</p>
+        </div>
+
+        <!-- Answers Container (hidden by default for spoiler) -->
+        <div id="answers-container" class="hidden">
+          <!-- Perfect Pangrams -->
+          {hasPerfectPangram && perfectPangrams.length > 0 && (
+            <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="#10B981"><circle cx="10" cy="10" r="9" fill="none" stroke="#10B981" stroke-width="2"/><path d="M6 10l3 3 5-5" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Perfect Pangram{perfectPangrams.length > 1 ? 's' : ''}!
+              </h2>
+              <div class="flex flex-wrap gap-2">
+                {perfectPangrams.map(w => (
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 border border-emerald-300 rounded-lg text-sm font-bold text-emerald-800 uppercase">{w}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <!-- Pangrams -->
+          {pangrams.length > 0 && (
+            <div class="mb-8">
+              <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
+                Pangrams ({pangrams.length})
+              </h2>
+              <div class="flex flex-wrap gap-2">
+                {pangrams.map(w => (
+                  <span class="pangram-chip">
+                    <span class="star">&#9733;</span>
+                    {w.word}
+                    <span class="text-xs text-amber-500 opacity-70">{w.length}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <!-- Words by Length -->
+          <div>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">All Words ({words.length})</h2>
+            <div class="card-elevated divide-y divide-gray-50 max-h-[600px] overflow-y-auto custom-scroll">
+              {sortedLengths.map(len => (
+                <div class="px-5 py-4">
+                  <p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">{len}-Letter Words ({wordsByLength[len].length})</p>
+                  <div class="flex flex-wrap gap-2">
+                    {wordsByLength[len].map(w => (
+                      <span class="word-chip">{w.word}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- Show Counts by First Letter -->
+          <div class="mt-8 card-elevated p-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Words by First Letter</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {sortedFirstLetters.map(letter => {
+                const info = wordsByFirstLetter[letter];
+                const barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
+                return (
+                  <div class:list={['p-3 rounded-xl border', info.isPangram ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white']}>
+                    <div class="flex items-center justify-between mb-2">
+                      <span class:list={['text-lg font-black', info.isPangram ? 'text-amber-600' : 'text-gray-700']}>{letter}</span>
+                      <span class="text-sm font-bold text-gray-500">{info.count}</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                      <div class:list={['h-2 rounded-full', info.isPangram ? 'bg-amber-400' : 'bg-gray-300']} style={`width: ${barWidth}%`}></div>
+                    </div>
+                    {info.isPangram && <span class="text-[10px] text-amber-600 font-bold mt-1 block">HAS PANGRAM</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <!-- SEO Content Section -->
+        <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
+          <h2 class="text-lg font-bold text-gray-800 mb-3">Today's Spelling Bee Puzzle Breakdown</h2>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">The New York Times Spelling Bee for <strong>{puzzle.date}</strong> uses <strong>{center}</strong> as the mandatory center letter with outer letters <strong>{outerLetters.join(', ')}</strong>. Players need to find as many words as possible that include the center letter and are at least four letters long. Each letter can be used multiple times within a word.</p>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">Today's puzzle contains <strong>{puzzle.word_count} valid words</strong> and <strong>{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</strong>. A pangram is a word that uses all seven available letters at least once. {hasPerfectPangram ? `This puzzle features a perfect pangram — a word that uses each letter exactly once, making it exactly 7 letters long. The perfect pangram${perfectPangrams.length > 1 ? 's are' : ' is'} <strong>${perfectPangrams.join(', ').toUpperCase()}</strong>.` : 'There are no perfect pangrams in today\'s puzzle, meaning no 7-letter word uses each letter exactly once.'}</p>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">The maximum possible score for this puzzle is <strong>{totalPoints} points</strong>. Four-letter words earn 1 point each, while longer words earn points equal to their letter count. Pangrams receive a bonus 7 points on top of their letter-count score. To reach Genius level, you need <strong>{geniusThreshold} points</strong> (70% of the total).</p>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">Word lengths in today's Bee range from 4 to {sortedLengths[0] || '?'} letters. {sortedLengths.length > 0 ? `The most common word length is ${sortedLengths.reduce((a, b) => wordsByLength[a].length >= wordsByLength[b].length ? a : b)}-letter words with ${wordsByLength[sortedLengths.reduce((a, b) => wordsByLength[a].length >= wordsByLength[b].length ? a : b)].length} entries.` : ''} The center letter {center} appears in every single word, while the outer letters each appear in a varying number of answers.</p>
+          <p class="text-gray-600 leading-relaxed text-sm">SbSolver provides the complete word list, pangram details, and scoring breakdown for every daily Spelling Bee puzzle. Whether you're stuck on a few words or want to verify your progress, our tool gives you instant access to today's full solution set without any subscription or paywall.</p>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="mt-8">
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
+          <div class="space-y-3">
+            <details class="card-elevated p-5 group" open>
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What are the NYT Spelling Bee answers for {puzzle.date}?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">The Spelling Bee for {puzzle.date} has {puzzle.word_count} words and {puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}. The center letter is {center} and the available letters are {allLetters.split('').join(', ')}. Click "Show All Answers" above to see the complete word list.</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What score do I need for Genius today?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">You need {geniusThreshold} points out of {totalPoints} total to reach Genius. That's 70% of the maximum score. {puzzle.pangrams_count > 0 ? `Finding the pangram${puzzle.pangrams_count > 1 ? 's' : ''} helps a lot since each one is worth at least 14 points (7-letter word = 7 points + 7 bonus).` : ''}</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Does today's puzzle have a perfect pangram?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">{hasPerfectPangram ? `Yes! Today's puzzle has a perfect pangram: <strong>${perfectPangrams.join(', ').toUpperCase()}</strong>. A perfect pangram uses all seven letters exactly once, making it exactly 7 letters long.` : 'No, today\'s puzzle does not have a perfect pangram. A perfect pangram would be a 7-letter word that uses each of the seven available letters exactly once.'}</p>
+            </details>
+            <details class="card-elevated p-5 group">
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How does the NYT Spelling Bee scoring work?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">Four-letter words are worth 1 point each. Words with five or more letters earn points equal to their length. Pangrams (words using all seven letters) get a 7-point bonus on top of their base score. The progress levels are: Beginner (0%), Starting (2%), Solid (5%), Nice (8%), Good (15%), Great (25%), Amazing (40%), Genius (70%), and Queen Bee (100%).</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <aside class="w-full lg:w-72 flex-shrink-0 space-y-4">
+        <div class="card-elevated p-5">
+          <h3 class="font-bold text-gray-800 mb-4 text-sm">Recent Puzzles</h3>
+          <div class="space-y-1">
+            {recentPuzzles.map(p => {
+              const slug = p.date.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+              return (
+                <a href={`/answer-for-${slug}`} class="block p-2.5 rounded-lg hover:bg-amber-50 transition-colors group">
+                  <p class="text-sm font-medium text-gray-700 group-hover:text-amber-700">{p.date}</p>
+                  <p class="text-xs text-gray-400">Center: {p.letters} &middot; {p.word_count} words</p>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        <div class="card-elevated p-5 space-y-2">
+          <a href="/solver" class="btn-primary w-full text-sm !py-3">
+            <svg width="16" height="18" viewBox="0 0 100 110"><polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="white" stroke="white" stroke-width="3"/></svg>
+            Use Solver
+          </a>
+          <a href="/yesterday" class="btn-secondary w-full text-sm !py-3">Yesterday's Answers</a>
+          <a href="/archive" class="btn-secondary w-full text-sm !py-3">Puzzle Archive</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('reveal-answers-btn')?.addEventListener('click', function() {
+      const container = document.getElementById('answers-container');
+      if (container) {
+        container.classList.remove('hidden');
+        this.style.display = 'none';
+      }
+    });
+  </script>
+</BaseLayout>

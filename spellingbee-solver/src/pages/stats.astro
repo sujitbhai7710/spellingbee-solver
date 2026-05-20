@@ -1,0 +1,253 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { API_BASE } from '../lib/utils';
+
+// Safely fetch with fallback
+let stats = { overview: {}, averages: {}, extremes: {} };
+let centerFreq = [];
+let letterFreq = [];
+let wordDist = [];
+
+try {
+  const statsRes = await fetch(`${API_BASE}/api/statistics`);
+  const statsData = await statsRes.json();
+  stats = statsData || stats;
+  centerFreq = (await (await fetch(`${API_BASE}/api/mostCommonCenterLetters?limit=10`)).json()).centerLetterFrequency || [];
+  letterFreq = (await (await fetch(`${API_BASE}/api/allLettersFrequency`)).json()).allLettersFrequency || [];
+  wordDist = (await (await fetch(`${API_BASE}/api/wordLengthDistribution`)).json()).wordLengthDistribution || [];
+} catch (e) {
+  console.error('Stats fetch error:', e);
+}
+
+const overview = stats.overview || {};
+const averages = stats.averages || {};
+const extremes = stats.extremes || {};
+
+const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLocaleString() : (val != null ? String(val) : '—');
+const safeNum = (val, def = 0) => (val != null && !isNaN(Number(val))) ? Number(val) : def;
+
+const maxCenterCount = Math.max(...centerFreq.map(c => c.count), 1);
+const maxLetterCount = Math.max(...letterFreq.map(l => l.totalAppearances), 1);
+const maxDistCount = Math.max(...wordDist.map(d => d.count), 1);
+
+const faqSchema = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the most common center letter in the Spelling Bee?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": centerFreq.length > 0 ? `The most common center letter is ${centerFreq[0].letter}, appearing as the center letter in ${centerFreq[0].count} puzzles (${centerFreq[0].percentage}% of all puzzles).` : "Check our statistics page for the latest center letter frequency data."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many words does the average Spelling Bee puzzle have?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `The average Spelling Bee puzzle contains approximately ${safeNum(averages.wordsPerPuzzle).toFixed(1)} words, with an average of ${safeNum(averages.pangramsPerPuzzle).toFixed(1)} pangrams per puzzle.`
+      }
+    }
+  ]
+});
+---
+
+<BaseLayout title="Spelling Bee Statistics & Insights" description={`Comprehensive statistics across ${safeLocale(overview.totalPuzzles)} NYT Spelling Bee puzzles. Letter frequencies, word distributions, and puzzle data.`} schema={faqSchema}>
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Spelling Bee Statistics</h1>
+      <p class="text-gray-500">Data analysis across {safeLocale(overview.totalPuzzles)} puzzles</p>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+      <div class="bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl p-5 text-white shadow-lg shadow-amber-200/50">
+        <p class="text-3xl font-black">{safeLocale(overview.totalPuzzles)}</p>
+        <p class="text-amber-100 text-sm font-medium mt-1">Total Puzzles</p>
+      </div>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{safeLocale(overview.totalWords)}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Total Words</p>
+      </div>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{safeLocale(overview.totalPangrams)}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Total Pangrams</p>
+      </div>
+      <div class="card p-5">
+        <p class="text-3xl font-black text-gray-800">{safeLocale(overview.totalPerfectPangrams)}</p>
+        <p class="text-gray-500 text-sm font-medium mt-1">Perfect Pangrams</p>
+      </div>
+    </div>
+
+    <!-- Averages & Extremes -->
+    <div class="grid md:grid-cols-2 gap-6 mb-10">
+      <div class="card-elevated p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5">Averages</h2>
+        <div class="space-y-5">
+          <div>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Words per puzzle</span>
+              <span class="font-bold text-gray-800">{safeNum(averages.wordsPerPuzzle).toFixed(1)}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((safeNum(averages.wordsPerPuzzle) / 81) * 100, 100)}%`}></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Pangrams per puzzle</span>
+              <span class="font-bold text-gray-800">{safeNum(averages.pangramsPerPuzzle).toFixed(1)}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((safeNum(averages.pangramsPerPuzzle) / 8) * 100, 100)}%`}></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-gray-600 font-medium">Average word length</span>
+              <span class="font-bold text-gray-800">{safeNum(averages.averageWordLength).toFixed(1)}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill bg-amber-400" style={`width: ${Math.min((safeNum(averages.averageWordLength) / 10) * 100, 100)}%`}></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-elevated p-6">
+        <h2 class="text-lg font-bold text-gray-800 mb-5">Extremes</h2>
+        <div class="space-y-3">
+          {extremes.puzzleWithMostWords && (
+            <div class="flex justify-between items-center p-3 bg-emerald-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Most words</span>
+              <span class="font-bold text-emerald-700 text-sm">{safeLocale(extremes.puzzleWithMostWords.word_count)} words</span>
+            </div>
+          )}
+          {extremes.puzzleWithFewestWords && (
+            <div class="flex justify-between items-center p-3 bg-red-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Fewest words</span>
+              <span class="font-bold text-red-700 text-sm">{safeLocale(extremes.puzzleWithFewestWords.word_count)} words</span>
+            </div>
+          )}
+          {extremes.puzzleWithMostPangrams && (
+            <div class="flex justify-between items-center p-3 bg-amber-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Most pangrams</span>
+              <span class="font-bold text-amber-700 text-sm">{safeLocale(extremes.puzzleWithMostPangrams.pangrams_count)} pangrams</span>
+            </div>
+          )}
+          {extremes.longestWordLength && (
+            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-xl">
+              <span class="text-gray-600 text-sm font-medium">Longest word</span>
+              <span class="font-bold text-blue-700 text-sm">{safeLocale(extremes.longestWordLength)} letters</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Letter Frequency -->
+    <div class="card-elevated p-6 mb-10">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">Most Common Center Letters</h2>
+      <div class="space-y-3">
+        {centerFreq.map(item => (
+          <div class="flex items-center gap-3">
+            <span class="letter-circle letter-circle-center !w-9 !h-9 !text-sm flex-shrink-0">{item.letter}</span>
+            <div class="flex-1">
+              <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
+                <div class="bg-gradient-to-r from-amber-300 to-amber-500 h-7 rounded-full flex items-center pl-3 text-xs text-white font-bold" style={`width: ${Math.max((item.count / maxCenterCount) * 100, 3)}%`}>
+                  {item.count}
+                </div>
+              </div>
+            </div>
+            <span class="text-xs text-gray-400 font-medium w-12 text-right">{item.percentage}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Letter Frequency -->
+    <div class="card-elevated p-6 mb-10">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">All Letters Frequency</h2>
+      <div class="grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
+        {letterFreq.map(item => (
+          <div class="flex items-center gap-3 py-1">
+            <span class="letter-circle letter-circle-outer !w-8 !h-8 !text-xs flex-shrink-0">{item.letter}</span>
+            <div class="flex-1">
+              <div class="progress-bar !h-3">
+                <div class="progress-fill bg-amber-400" style={`width: ${(item.totalAppearances / maxLetterCount) * 100}%`}></div>
+              </div>
+            </div>
+            <span class="text-xs text-gray-500 font-medium w-16 text-right">{item.totalAppearances} <span class="text-gray-300">({item.asCenter}c)</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- Word Length Distribution -->
+    <div class="card-elevated p-6 mb-10">
+      <h2 class="text-lg font-bold text-gray-800 mb-5">Word Length Distribution</h2>
+      <div class="space-y-2.5">
+        {wordDist.map(item => (
+          <div class="flex items-center gap-3">
+            <span class="w-10 text-sm font-bold text-gray-600 text-right">{item.length}-L</span>
+            <div class="flex-1">
+              <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
+                <div class:list={[
+                  'h-7 rounded-full flex items-center pl-3 text-xs font-bold',
+                  item.pangram_count > 0
+                    ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                ]} style={`width: ${Math.max((item.count / maxDistCount) * 100, 2)}%`}>
+                  {safeLocale(item.count)}
+                </div>
+              </div>
+            </div>
+            {item.pangram_count > 0 && (
+              <span class="text-xs text-amber-600 font-bold flex items-center gap-0.5">
+                <svg width="10" height="10" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
+                {item.pangram_count}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <!-- SEO Content -->
+    <div class="p-6 bg-gray-50 rounded-2xl">
+      <h2 class="text-lg font-bold text-gray-800 mb-3">Understanding Spelling Bee Statistics</h2>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Our database covers {safeLocale(overview.totalPuzzles)} Spelling Bee puzzles spanning years of daily gameplay. These statistics reveal consistent patterns in how the New York Times constructs each puzzle. The average puzzle contains roughly {safeNum(averages.wordsPerPuzzle).toFixed(0)} words, though this number swings significantly — some puzzles have as few as 15 words while others push past 60.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Center letter selection isn't random. The data shows certain letters appear as the center letter far more frequently than others. {centerFreq.length > 0 ? `<strong>${centerFreq[0].letter}</strong> leads with ${centerFreq[0].count} appearances (${centerFreq[0].percentage}%), making it the most common center letter in the puzzle's history.` : ''} This matters because the center letter constrains every single answer — a rare center letter typically means fewer findable words.</p>
+      <p class="text-gray-600 leading-relaxed text-sm mb-3">Pangrams appear in nearly every puzzle, but perfect pangrams (7-letter words using each letter exactly once) are genuinely rare. Out of {safeLocale(overview.totalPuzzles)} puzzles, only {safeLocale(overview.totalPerfectPangrams)} contain a perfect pangram. When one shows up, it's usually a major scoring opportunity since the 14-point payout (7 for the word + 7 bonus) can represent a substantial chunk of the total available points.</p>
+      <p class="text-gray-600 leading-relaxed text-sm">Word length distribution skews heavily toward shorter words. Four-letter words dominate the answer pool, followed by 5-letter words. Longer words become progressively rarer, though they carry more points per word. This is why finding the pangrams and longer words early in your solving session pays off disproportionately — they account for a large share of total available points despite being a small fraction of the word count.</p>
+    </div>
+
+    <!-- FAQ -->
+    <div class="mt-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
+      <div class="space-y-3">
+        <details class="card-elevated p-5 group" open>
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What is the most common center letter in the Spelling Bee?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">{centerFreq.length > 0 ? `The most common center letter is <strong>${centerFreq[0].letter}</strong>, appearing in ${centerFreq[0].count} puzzles (${centerFreq[0].percentage}%). The top 5 center letters are ${centerFreq.slice(0, 5).map(c => c.letter).join(', ')}.` : 'Data not available at this time.'}</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How many words does the average Spelling Bee puzzle have?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">The average puzzle has about {safeNum(averages.wordsPerPuzzle).toFixed(0)} words, with an average of {safeNum(averages.pangramsPerPuzzle).toFixed(1)} pangrams. Puzzles with more pangrams tend to have higher total point values.</p>
+        </details>
+        <details class="card-elevated p-5 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How rare is a perfect pangram?
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <p class="text-sm text-gray-600 mt-3 leading-relaxed">Perfect pangrams are uncommon. Out of {safeLocale(overview.totalPuzzles)} puzzles in our database, only {safeLocale(overview.totalPerfectPangrams)} contain one. That's roughly {overview.totalPuzzles > 0 ? ((overview.totalPerfectPangrams / overview.totalPuzzles) * 100).toFixed(1) : '0'}% of all puzzles.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

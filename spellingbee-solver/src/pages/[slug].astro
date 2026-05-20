@@ -1,0 +1,155 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  const paths = [];
+  const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const today = new Date();
+  for (let i = 0; i < 100; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const month = months[d.getMonth()];
+    const day = d.getDate();
+    const year = d.getFullYear();
+    paths.push({
+      params: { slug: `answer-for-${month}-${day}-${year}` },
+    });
+  }
+  return paths;
+}
+---
+
+<BaseLayout title="Spelling Bee Answers" description="Find answers for any NYT Spelling Bee puzzle by date.">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <div class="mb-6">
+      <a href="/archive" class="text-sm font-semibold text-amber-600 hover:text-amber-700 mb-3 inline-flex items-center gap-1">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.5 12.5L5 8l4.5-4.5L10.5 5 7.5 8l3 3z"/></svg>
+        Back to Archive
+      </a>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers</h1>
+    </div>
+
+    <div id="answer-content">
+      <div class="text-center py-12">
+        <div class="inline-block w-10 h-10 border-[3px] border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-gray-500 mt-3 font-medium">Loading puzzle...</p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+  function parseSlug() {
+    var path = window.location.pathname;
+    var slug = path.replace(/^\//, '').replace(/\/$/, '');
+    var parts = slug.replace(/^answer-for-/, '').split('-');
+    var months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    if (parts.length >= 3) {
+      var monthName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      var day = parseInt(parts[1]);
+      var year = parts[2];
+      if (months.includes(parts[0].toLowerCase()) && day > 0 && year.length === 4) {
+        return monthName + ' ' + day + ', ' + year;
+      }
+    }
+    return null;
+  }
+
+  function buildHoneycombHTML(center, outer) {
+    var html = '<div class="honeycomb honeycomb-md mx-auto" style="margin-bottom:1.5rem;">';
+
+    // Outer hexagons
+    outer.forEach(function(letter, i) {
+      html += '<div class="hex-cell hex-outer hex-pos-' + i + '">';
+      html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+      html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+      html += '</svg>';
+      html += '<span class="hex-letter">' + letter + '</span>';
+      html += '</div>';
+    });
+
+    // Center hexagon
+    html += '<div class="hex-cell hex-center hex-pos-center">';
+    html += '<svg viewBox="0 -17 256 256" fill="none" class="hex-svg">';
+    html += '<path d="M0 111L64 0.148707L192 0.148707L256 111L192 221.851L64 221.851L0 111Z" fill="currentColor" />';
+    html += '</svg>';
+    html += '<span class="hex-letter hex-letter-center">' + center + '</span>';
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  async function loadPuzzle() {
+    var dateStr = parseSlug();
+    if (!dateStr) {
+      window.location.href = '/archive';
+      return;
+    }
+    try {
+      // Use the date search API endpoint for efficient lookup
+      var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
+      var data = await res.json();
+      var results = data.results || [];
+
+      // Fallback: try the puzzle list with search param
+      if (results.length === 0) {
+        res = await fetch(API_BASE + '/api/puzzles/list?limit=1&search=' + encodeURIComponent(dateStr));
+        data = await res.json();
+        results = data.puzzles || [];
+      }
+
+      if (results.length === 0) {
+        document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-gray-500 text-lg font-medium">No puzzle found for ' + dateStr + '</p><a href="/archive" class="btn-primary mt-4 inline-flex">Browse Archive</a></div>';
+        return;
+      }
+
+      var p = results[0];
+      var puzzleRes = await fetch(API_BASE + '/api/puzzle/' + p.puzzle_id);
+      var puzzleData = await puzzleRes.json();
+      var puzzle = puzzleData.puzzle || p;
+      var words = puzzleData.words || [];
+      var totalPoints = puzzleData.totalPoints || 0;
+      var hasPerfectPangram = puzzleData.hasPerfectPangram || false;
+      var center = puzzle.letters || '';
+      var allLetters = puzzle.all_letters || '';
+      var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
+      var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
+      var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
+
+      document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SbSolver';
+
+      var honeycombHtml = '<div class="flex justify-center mb-6">' + buildHoneycombHTML(center, outerLetters) + '</div>';
+
+      var statsHtml = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">' +
+        '<div class="stat-card"><p class="stat-value">' + puzzle.word_count + '</p><p class="stat-label">Words</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + puzzle.pangrams_count + '</p><p class="stat-label">Pangrams</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + totalPoints + '</p><p class="stat-label">Points</p></div>' +
+        '<div class="stat-card"><p class="stat-value">' + (hasPerfectPangram ? 'Yes' : '\u2014') + '</p><p class="stat-label">Perfect Pangram</p></div>' +
+        '</div>';
+
+      var pangramsHtml = pangrams.length > 0 ? '<div class="mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg> Pangrams (' + pangrams.length + ')</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-chip"><span class="star">&#9733;</span>' + w.word + ' <span class="text-xs text-amber-500 opacity-70">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';
+
+      var byLen = {};
+      for (var w of regularWords) {
+        var l = w.length;
+        if (!byLen[l]) byLen[l] = [];
+        byLen[l].push(w);
+      }
+      var wordsHtml = Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
+        return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-2">' + byLen[len].map(function(w) { return '<span class="word-chip">' + w.word + '</span>'; }).join('') + '</div></div>';
+      }).join('');
+
+      document.getElementById('answer-content').innerHTML =
+        '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
+        honeycombHtml +
+        statsHtml +
+        pangramsHtml +
+        '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
+        '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>.</p></div>';
+    } catch (error) {
+      document.getElementById('answer-content').innerHTML = '<div class="text-center py-12"><p class="text-red-500 font-medium">Failed to load puzzle data</p><a href="/archive" class="btn-primary mt-4 inline-flex">Browse Archive</a></div>';
+    }
+  }
+  loadPuzzle();
+</script>
