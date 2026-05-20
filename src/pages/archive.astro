@@ -144,6 +144,9 @@ const faqSchema = JSON.stringify({
     const puzzleDetailContent = document.getElementById('puzzle-detail-content');
     const puzzleListView = document.getElementById('puzzle-list-view');
     const backBtn = document.getElementById('back-to-list-btn');
+    const allLettersAZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    var allLettersFrequencyCachePromise = null;
+    var dictionaryWordsCachePromise = null;
 
     function parseSlugToDate(slug) {
       var parts = slug.split('-');
@@ -176,6 +179,139 @@ const faqSchema = JSON.stringify({
       html += '</div>';
       html += '</div>';
       return html;
+    }
+
+    function safeNum(value, fallback) {
+      var parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : (fallback || 0);
+    }
+
+    function roundTo(value, decimals) {
+      var factor = Math.pow(10, decimals || 1);
+      return Math.round(Number(value || 0) * factor) / factor;
+    }
+
+    function safeLocale(value) {
+      return typeof value === 'number' ? value.toLocaleString() : (value ?? '--');
+    }
+
+    function formatOrdinal(value) {
+      var number = safeNum(value, 0);
+      var mod100 = number % 100;
+      if (mod100 >= 11 && mod100 <= 13) return number + 'th';
+      switch (number % 10) {
+        case 1: return number + 'st';
+        case 2: return number + 'nd';
+        case 3: return number + 'rd';
+        default: return number + 'th';
+      }
+    }
+
+    function histogramPeak(bins) {
+      return Math.max.apply(null, (bins || []).map(function(bin) { return safeNum(bin.percentage, 0); }).concat([1]));
+    }
+
+    function formatHistogramRange(bin, decimals) {
+      if (!bin) return '--';
+      if ((decimals || 0) > 0) {
+        var startDec = roundTo(bin.start, decimals).toFixed(decimals);
+        var endDec = roundTo(bin.end, decimals).toFixed(decimals);
+        return startDec === endDec ? startDec : startDec + '-' + endDec;
+      }
+      var start = Math.round(bin.start);
+      var end = Math.round(bin.end);
+      return start === end ? String(start) : start + '-' + end;
+    }
+
+    function archiveHref(date) {
+      return '/archive?date=' + String(date || '').toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderHistogramRows(bins, peak, currentTheme, decimals) {
+      return (bins || []).map(function(bin) {
+        var barWidth = Math.max((safeNum(bin.percentage, 0) / peak) * 100, bin.isCurrent ? 3 : 1);
+        var rowBg = bin.isCurrent ? currentTheme.rowBg : '';
+        var labelColor = bin.isCurrent ? currentTheme.labelColor : 'text-gray-400';
+        var barClass = bin.isCurrent ? currentTheme.barClass : 'bg-gray-300 text-gray-600';
+        return '<div class="flex items-center gap-3 ' + rowBg + '">' +
+          '<span class="w-20 text-xs font-bold text-right flex-shrink-0 ' + labelColor + '">' + formatHistogramRange(bin, decimals || 0) + '</span>' +
+          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">' +
+          '<div class="h-5 rounded-full flex items-center pl-2 text-[10px] font-bold ' + barClass + '" style="width:' + barWidth + '%;">' +
+          (bin.isCurrent ? 'Current' : roundTo(safeNum(bin.percentage, 0), 1) + '%') +
+          '</div></div></div></div>';
+      }).join('');
+    }
+
+    function renderDiscreteHistogramRows(items, peak, currentTheme, labelSuffix) {
+      return (items || []).map(function(item) {
+        var barWidth = Math.max((safeNum(item.percentage, 0) / peak) * 100, item.isCurrent ? 3 : 1);
+        var rowBg = item.isCurrent ? currentTheme.rowBg : '';
+        var labelColor = item.isCurrent ? currentTheme.labelColor : 'text-gray-400';
+        var barClass = item.isCurrent ? currentTheme.barClass : 'bg-gray-300 text-gray-600';
+        return '<div class="flex items-center gap-3 ' + rowBg + '">' +
+          '<span class="w-20 text-xs font-bold text-right flex-shrink-0 ' + labelColor + '">' + item.value + labelSuffix + '</span>' +
+          '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">' +
+          '<div class="h-5 rounded-full flex items-center pl-2 text-[10px] font-bold ' + barClass + '" style="width:' + barWidth + '%;">' +
+          (item.isCurrent ? 'Current' : roundTo(safeNum(item.percentage, 0), 1) + '%') +
+          '</div></div></div></div>';
+      }).join('');
+    }
+
+    function getWordPoints(word) {
+      var length = safeNum(word && word.length, String(word && word.word || '').length);
+      if (length <= 0) return 0;
+      return length === 4 ? 1 : length + (word && word.is_pangram === 1 ? 7 : 0);
+    }
+
+    async function loadAllLettersFrequency() {
+      if (!allLettersFrequencyCachePromise) {
+        allLettersFrequencyCachePromise = fetch(API_BASE + '/api/allLettersFrequency')
+          .then(function(response) {
+            if (!response.ok) {
+              throw new Error('Failed to load all letters frequency');
+            }
+            return response.json();
+          })
+          .catch(function() {
+            return { allLettersFrequency: [] };
+          });
+      }
+
+      return allLettersFrequencyCachePromise;
+    }
+
+    async function loadDictionaryWords() {
+      if (!dictionaryWordsCachePromise) {
+        dictionaryWordsCachePromise = fetch('/twl06.txt')
+          .then(function(response) {
+            if (!response.ok) {
+              throw new Error('Failed to load TWL dictionary');
+            }
+            return response.text();
+          })
+          .then(function(text) {
+            return Array.from(new Set(
+              text
+                .split(/\r?\n/)
+                .map(function(word) { return word.trim().toLowerCase(); })
+                .filter(Boolean)
+            ));
+          })
+          .catch(function() {
+            return [];
+          });
+      }
+
+      return dictionaryWordsCachePromise;
     }
 
     function showListView() {
@@ -222,19 +358,119 @@ const faqSchema = JSON.stringify({
         }
 
         var p = results[0];
-        var puzzleRes = await fetch(API_BASE + '/api/puzzle/' + p.puzzle_id);
-        var puzzleData = await puzzleRes.json();
+        var detailResults = await Promise.all([
+          fetch(API_BASE + '/api/puzzle/' + p.puzzle_id).then(function(response) { return response.json(); }),
+          fetch(API_BASE + '/api/puzzleAnalysis/' + p.puzzle_id).then(function(response) { return response.json(); }),
+          loadAllLettersFrequency(),
+          loadDictionaryWords(),
+        ]);
+        var puzzleData = detailResults[0] || {};
+        var analysisData = detailResults[1] || {};
+        var allLettersFrequencyData = detailResults[2] || { allLettersFrequency: [] };
+        var dictionaryWords = detailResults[3] || [];
         var puzzle = puzzleData.puzzle || p;
         var words = puzzleData.words || [];
+        var definitionsByWord = puzzleData.definitionsByWord || {};
         var totalPoints = puzzleData.totalPoints || 0;
         var hasPerfectPangram = puzzleData.hasPerfectPangram || false;
         var perfectPangrams = puzzleData.perfectPangrams || [];
+        var analysis = analysisData.analysis || {
+          score: { percentile: 0, highestScore: totalPoints, highestScoreDate: null, lowestScore: totalPoints, lowestScoreDate: null, lastTimeAtOrAboveDate: null, histogram: [] },
+          wordCount: { percentile: 0, highestWordCount: puzzle.word_count || 0, highestWordCountDate: null, lowestWordCount: puzzle.word_count || 0, lowestWordCountDate: null, lastTimeAboveDate: null, histogram: [] },
+          genius: { requiredLength: 0, lastTimeSameLengthDate: null, histogram: [] },
+          averageWordLength: { value: 0, globalAverage: 0, histogram: [] },
+          commonWords: [],
+          allAnswerLengthDistribution: [],
+          uniqueAnswerLengthDistribution: [],
+          totalHistoricalAnswers: 0,
+          totalUniqueHistoricalWords: 0,
+          sameCenterPuzzles: [],
+          pangramHistoryCombined: [],
+        };
         var geniusThreshold = Math.round(totalPoints * 0.70);
         var center = puzzle.letters || '';
         var allLetters = puzzle.all_letters || '';
         var outerLetters = allLetters.split('').filter(function(l) { return l !== center; });
         var pangrams = words.filter(function(w) { return w.is_pangram === 1; });
         var regularWords = words.filter(function(w) { return w.is_pangram !== 1; });
+        var pangramHistoryCombined = analysis.pangramHistoryCombined || [];
+        var letterFreq = allLettersFrequencyData.allLettersFrequency || [];
+        var letterFreqMap = {};
+        letterFreq.forEach(function(item) {
+          letterFreqMap[item.letter] = item;
+        });
+        var wordsWithDefinitions = words.map(function(word) {
+          return {
+            word: word.word,
+            is_pangram: word.is_pangram,
+            definitionMeta: definitionsByWord[word.word] || definitionsByWord[word.word.toLowerCase()] || null,
+          };
+        }).filter(function(word) { return word.definitionMeta; });
+        var wordsByLengthAll = {};
+        var wordsByLengthRegular = {};
+        var pointsByLength = {};
+        var byFirst = {};
+
+        words.forEach(function(word) {
+          var length = safeNum(word.length, String(word.word || '').length);
+          if (!wordsByLengthAll[length]) wordsByLengthAll[length] = [];
+          wordsByLengthAll[length].push(word);
+          pointsByLength[length] = (pointsByLength[length] || 0) + getWordPoints(word);
+
+          var first = word.word && word.word[0] ? word.word[0].toUpperCase() : '';
+          if (first) {
+            if (!byFirst[first]) byFirst[first] = { count: 0, isPangram: false };
+            byFirst[first].count += 1;
+            if (word.is_pangram === 1) byFirst[first].isPangram = true;
+          }
+        });
+
+        regularWords.forEach(function(word) {
+          var length = safeNum(word.length, String(word.word || '').length);
+          if (!wordsByLengthRegular[length]) wordsByLengthRegular[length] = [];
+          wordsByLengthRegular[length].push(word);
+        });
+
+        var sortedLengths = Object.keys(wordsByLengthAll).map(Number).sort(function(a, b) { return a - b; });
+        var sortedFirsts = Object.keys(byFirst).sort();
+        var maxWordsByLength = Math.max.apply(null, sortedLengths.map(function(length) { return wordsByLengthAll[length].length; }).concat([1]));
+        var maxPointsByLength = Math.max.apply(null, sortedLengths.map(function(length) { return pointsByLength[length] || 0; }).concat([1]));
+        var maxFirst = Math.max.apply(null, sortedFirsts.map(function(letter) { return byFirst[letter].count; }).concat([1]));
+        var scoreHistogramPeak = histogramPeak(analysis.score && analysis.score.histogram || []);
+        var wordCountHistogramPeak = histogramPeak(analysis.wordCount && analysis.wordCount.histogram || []);
+        var geniusHistogramPeak = histogramPeak(analysis.genius && analysis.genius.histogram || []);
+        var averageLengthHistogramPeak = histogramPeak(analysis.averageWordLength && analysis.averageWordLength.histogram || []);
+        var maxCenterCount = Math.max.apply(null, allLettersAZ.map(function(letter) {
+          return safeNum(letterFreqMap[letter] && letterFreqMap[letter].asCenter, 0);
+        }).concat([1]));
+        var maxValidLetterCount = Math.max.apply(null, allLettersAZ.map(function(letter) {
+          return safeNum(letterFreqMap[letter] && letterFreqMap[letter].totalAppearances, 0);
+        }).concat([1]));
+        var sameCenterPuzzles = analysis.sameCenterPuzzles || [];
+        var currentCenterUsage = safeNum(letterFreqMap[center] && letterFreqMap[center].asCenter, 0);
+        var commonWords = analysis.commonWords || [];
+        var maxCommonWordCount = Math.max.apply(null, commonWords.map(function(item) { return safeNum(item.count, 0); }).concat([1]));
+        var allAnswerLengthDistribution = analysis.allAnswerLengthDistribution || [];
+        var uniqueAnswerLengthDistribution = analysis.uniqueAnswerLengthDistribution || [];
+        var maxAllAnswerLengthCount = Math.max.apply(null, allAnswerLengthDistribution.map(function(item) { return safeNum(item.count, 0); }).concat([1]));
+        var maxUniqueAnswerLengthCount = Math.max.apply(null, uniqueAnswerLengthDistribution.map(function(item) { return safeNum(item.count, 0); }).concat([1]));
+        var totalHistoricalAnswers = safeNum(analysis.totalHistoricalAnswers, allAnswerLengthDistribution.reduce(function(sum, item) {
+          return sum + safeNum(item.count, 0);
+        }, 0));
+        var totalUniqueHistoricalWords = safeNum(analysis.totalUniqueHistoricalWords, uniqueAnswerLengthDistribution.reduce(function(sum, item) {
+          return sum + safeNum(item.count, 0);
+        }, 0));
+        var officialWordSet = new Set(words.map(function(word) { return String(word.word || '').toLowerCase(); }));
+        var validLetters = new Set(allLetters.toLowerCase().split(''));
+        var centerLower = center.toLowerCase();
+        var nonOfficialWords = dictionaryWords.filter(function(word) {
+          if (word.length < 4) return false;
+          if (!word.includes(centerLower)) return false;
+          if (officialWordSet.has(word)) return false;
+          return Array.from(word).every(function(letter) { return validLetters.has(letter); });
+        }).sort(function(a, b) { return a.localeCompare(b); });
+        var scorePercentileText = formatOrdinal(safeNum(analysis.score && analysis.score.percentile, 0));
+        var wordCountPercentileText = formatOrdinal(safeNum(analysis.wordCount && analysis.wordCount.percentile, 0));
 
         document.title = 'Spelling Bee Answers for ' + puzzle.date + ' | SpellingBee Solver';
 
@@ -256,27 +492,33 @@ const faqSchema = JSON.stringify({
 
         var pangramsHtml = pangrams.length > 0 ? '<div class="mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg> Pangrams (' + pangrams.length + ')</h2><div class="flex flex-wrap gap-2">' + pangrams.map(function(w) { return '<span class="pangram-chip"><span class="star">&#9733;</span>' + w.word + ' <span class="text-xs text-amber-500 opacity-70">' + w.length + '</span></span>'; }).join('') + '</div></div>' : '';
 
-        var byLen = {};
-        for (var w of regularWords) {
-          var l = w.length;
-          if (!byLen[l]) byLen[l] = [];
-          byLen[l].push(w);
-        }
-        var wordsHtml = Object.keys(byLen).sort(function(a,b) { return +b - +a; }).map(function(len) {
-          return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p><div class="flex flex-wrap gap-2">' + byLen[len].map(function(w) { return '<span class="word-chip">' + w.word + '</span>'; }).join('') + '</div></div>';
-        }).join('');
+        var wordLengthHtml = '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">Length of Words in This Puzzle</h2><div class="space-y-2.5">' + sortedLengths.map(function(length) {
+          var count = wordsByLengthAll[length].length;
+          var percentage = words.length > 0 ? roundTo((count / words.length) * 100, 1) : 0;
+          var barWidth = Math.max((count / maxWordsByLength) * 100, 3);
+          var hasPangramAtLength = wordsByLengthAll[length].some(function(word) { return word.is_pangram === 1; });
+          return '<div class="flex items-center gap-3">' +
+            '<span class="w-16 text-sm font-bold text-gray-600 text-right flex-shrink-0">' + length + '-letter</span>' +
+            '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">' +
+            '<div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' + (hasPangramAtLength ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700') + '" style="width:' + barWidth + '%;">' + count + '</div>' +
+            '</div></div><span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">' + percentage + '%</span></div>';
+        }).join('') + '</div></div>';
 
-        // Words by First Letter
-        var byFirst = {};
-        for (var w of words) {
-          var first = w.word[0] ? w.word[0].toUpperCase() : '';
-          if (!first) continue;
-          if (!byFirst[first]) byFirst[first] = { count: 0, isPangram: false };
-          byFirst[first].count++;
-          if (w.is_pangram === 1) byFirst[first].isPangram = true;
-        }
-        var sortedFirsts = Object.keys(byFirst).sort();
-        var maxFirst = Math.max.apply(null, sortedFirsts.map(function(k) { return byFirst[k].count; }).concat([1]));
+        var pointsByLengthHtml = '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">Points Available by Length</h2><div class="space-y-2.5">' + sortedLengths.map(function(length) {
+          var points = pointsByLength[length] || 0;
+          var percentage = totalPoints > 0 ? roundTo((points / totalPoints) * 100, 1) : 0;
+          var barWidth = Math.max((points / maxPointsByLength) * 100, 3);
+          var hasPangramAtLength = wordsByLengthAll[length].some(function(word) { return word.is_pangram === 1; });
+          return '<div class="flex items-center gap-3">' +
+            '<span class="w-16 text-sm font-bold text-gray-600 text-right flex-shrink-0">' + length + '-letter</span>' +
+            '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">' +
+            '<div class="h-7 rounded-full flex items-center pl-3 text-xs font-bold ' + (hasPangramAtLength ? 'bg-gradient-to-r from-emerald-300 to-emerald-500 text-white' : 'bg-emerald-200 text-emerald-800') + '" style="width:' + barWidth + '%;">' + points + ' pts</div>' +
+            '</div></div><span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">' + percentage + '%</span></div>';
+        }).join('') + '</div></div>';
+
+        var wordsHtml = Object.keys(wordsByLengthRegular).sort(function(a,b) { return +b - +a; }).map(function(len) {
+          return '<div class="px-5 py-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">' + len + '-Letter Words (' + wordsByLengthRegular[len].length + ')</p><div class="flex flex-wrap gap-2">' + wordsByLengthRegular[len].map(function(word) { return '<span class="word-chip">' + word.word + '</span>'; }).join('') + '</div></div>';
+        }).join('');
 
         var firstLetterHtml = '<div class="mt-8 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-4">Words by First Letter</h2><div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' + sortedFirsts.map(function(letter) {
           var info = byFirst[letter];
@@ -290,15 +532,151 @@ const faqSchema = JSON.stringify({
             '</div>';
         }).join('') + '</div></div>';
 
+        var definitionsHtml = wordsWithDefinitions.length > 0
+          ? '<details class="mt-8 card-elevated p-6 group"><summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Show Word Meanings' +
+            '<svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg></summary><div class="mt-5">' +
+            '<div class="space-y-3">' + wordsWithDefinitions.map(function(word) {
+              return '<div class="rounded-xl border border-gray-100 bg-white p-4">' +
+                '<div class="flex flex-wrap items-center gap-2 mb-2">' +
+                '<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold uppercase ' + (word.is_pangram === 1 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800') + '">' + escapeHtml(word.word) + '</span>' +
+                (word.definitionMeta.partOfSpeech ? '<span class="text-xs font-semibold uppercase tracking-wide text-gray-400">' + escapeHtml(word.definitionMeta.partOfSpeech) + '</span>' : '') +
+                '</div>' +
+                '<p class="text-sm text-gray-700 leading-relaxed">' + escapeHtml(word.definitionMeta.definition) + '</p>' +
+                (word.definitionMeta.synonyms && word.definitionMeta.synonyms.length > 0 ? '<p class="text-xs text-gray-500 mt-2"><strong>Synonyms:</strong> ' + escapeHtml(word.definitionMeta.synonyms.join(', ')) + '</p>' : '') +
+                (word.definitionMeta.antonyms && word.definitionMeta.antonyms.length > 0 ? '<p class="text-xs text-gray-500 mt-1"><strong>Antonyms:</strong> ' + escapeHtml(word.definitionMeta.antonyms.join(', ')) + '</p>' : '') +
+                '</div>';
+            }).join('') + '</div></div></details>'
+          : '';
+
+        var pangramHistoryHtml = '';
+        if (pangrams.length > 0) {
+          pangramHistoryHtml = '<div class="mt-8 card-elevated p-6"><h2 class="text-lg font-bold text-gray-800 mb-4">Other Days With This Pangram</h2>' +
+            (pangramHistoryCombined.length > 0
+              ? '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + pangramHistoryCombined.map(function(item) {
+                return '<a href="' + archiveHref(item.date) + '" class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">' +
+                  '<div class="flex items-center justify-between mb-2 gap-3"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">' + escapeHtml(item.date) + '</span><span class="font-mono text-xs text-gray-400">' + escapeHtml(item.all_letters) + '</span></div>' +
+                  '<div class="flex flex-wrap items-center gap-2 text-xs mb-2"><span class="text-gray-500">' + safeNum(item.word_count, 0) + ' answers</span><span class="text-amber-600 font-semibold">' + safeNum(item.pangrams_count, 0) + ' pangram' + (safeNum(item.pangrams_count, 0) !== 1 ? 's' : '') + '</span></div>' +
+                  (item.matchingWords && item.matchingWords.length > 0 ? '<p class="text-xs text-gray-500">Matching pangrams: ' + escapeHtml(item.matchingWords.join(', ')) + '</p>' : '') +
+                  '</a>';
+              }).join('') + '</div>'
+              : '<div class="space-y-3">' + pangrams.map(function(word) {
+                return '<div><p class="font-semibold text-amber-700 mb-1">' + escapeHtml(word.word.toUpperCase()) + '</p><p class="text-sm text-gray-400 italic">No earlier puzzles found with this pangram.</p></div>';
+              }).join('') + '</div>') +
+            '</div>';
+        }
+
+        var lettersHistoryHtml = '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">Haven\'t I Seen These Letters Before?</h2>' +
+          '<p class="text-sm text-gray-500 mb-4">Historical letter frequency across all ' + safeLocale(safeNum(allLettersFrequencyData.totalPuzzles, 0)) + ' puzzles. Letters in this puzzle are highlighted.</p>' +
+          '<div class="grid grid-cols-1 md:grid-cols-2 gap-8">' +
+          '<div><h3 class="text-sm font-bold text-gray-700 mb-3">As Center Letter</h3><div class="space-y-1.5">' + allLettersAZ.map(function(letter) {
+            var count = safeNum(letterFreqMap[letter] && letterFreqMap[letter].asCenter, 0);
+            var isCurrentCenter = letter === center;
+            var isCurrentLetter = allLetters.includes(letter);
+            var barWidth = Math.max((count / maxCenterCount) * 100, isCurrentCenter ? 2 : 0);
+            return '<div class="flex items-center gap-2 ' + (isCurrentCenter ? 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5' : '') + '">' +
+              '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ' + (isCurrentCenter ? 'bg-amber-400 text-white' : isCurrentLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300') + '">' + letter + '</span>' +
+              '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden"><div class="h-4 rounded-full ' + (isCurrentCenter ? 'bg-amber-400' : 'bg-gray-300') + '" style="width:' + barWidth + '%;"></div></div></div>' +
+              '<span class="text-[10px] font-bold w-10 text-right flex-shrink-0 ' + (isCurrentCenter ? 'text-amber-700' : 'text-gray-400') + '">' + count + '</span></div>';
+          }).join('') + '</div></div>' +
+          '<div><h3 class="text-sm font-bold text-gray-700 mb-3">As Valid Letter</h3><div class="space-y-1.5">' + allLettersAZ.map(function(letter) {
+            var count = safeNum(letterFreqMap[letter] && letterFreqMap[letter].totalAppearances, 0);
+            var isCurrentCenter = letter === center;
+            var isCurrentLetter = allLetters.includes(letter);
+            var rowClass = isCurrentCenter ? 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5' : isCurrentLetter ? 'bg-gray-50 -mx-2 px-2 rounded-lg py-0.5' : '';
+            var barWidth = Math.max((count / maxValidLetterCount) * 100, isCurrentLetter ? 2 : 0);
+            return '<div class="flex items-center gap-2 ' + rowClass + '">' +
+              '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ' + (isCurrentCenter ? 'bg-amber-400 text-white' : isCurrentLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300') + '">' + letter + '</span>' +
+              '<div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden"><div class="h-4 rounded-full ' + (isCurrentCenter ? 'bg-amber-400' : isCurrentLetter ? 'bg-gray-400' : 'bg-gray-200') + '" style="width:' + barWidth + '%;"></div></div></div>' +
+              '<span class="text-[10px] font-bold w-10 text-right flex-shrink-0 ' + (isCurrentLetter ? 'text-gray-600' : 'text-gray-300') + '">' + count + '</span></div>';
+          }).join('') + '</div></div></div>' +
+          '<p class="text-sm text-gray-500 mt-4">Center letter <strong>' + escapeHtml(center) + '</strong> has appeared in the center <strong>' + safeLocale(currentCenterUsage) + '</strong> times across the full archive.</p>' +
+          (sameCenterPuzzles.length > 0
+            ? '<div class="mt-6 border-t border-gray-100 pt-6"><h3 class="text-sm font-bold text-gray-700 mb-3">Other Days With Center Letter ' + escapeHtml(center) + '</h3><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + sameCenterPuzzles.map(function(item) {
+              return '<a href="' + archiveHref(item.date) + '" class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">' +
+                '<div class="flex items-center justify-between mb-2"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">' + escapeHtml(item.date) + '</span><span class="font-mono text-xs text-gray-400">' + escapeHtml(item.all_letters) + '</span></div>' +
+                '<div class="flex items-center gap-3 text-xs"><span class="text-gray-500">' + safeNum(item.word_count, 0) + ' answers</span><span class="text-amber-600 font-semibold">' + safeNum(item.score, 0) + ' pts</span></div>' +
+                '</a>';
+            }).join('') + '</div></div>'
+            : '') +
+          '</div>';
+
+        var commonWordsHtml = commonWords.length > 0
+          ? '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">Haven\'t I Seen These Words Before?</h2><p class="text-sm text-gray-500 mb-4">The most common words in the Bee are:</p><div class="grid sm:grid-cols-2 gap-2">' + commonWords.map(function(item) {
+            return '<div class="flex items-center gap-3"><span class="w-20 text-sm font-semibold text-gray-700 truncate">' + escapeHtml(item.word) + '</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden"><div class="h-4 rounded-full bg-sky-400" style="width:' + Math.max((safeNum(item.count, 0) / maxCommonWordCount) * 100, 3) + '%;"></div></div></div><span class="text-xs font-bold text-gray-500 w-10 text-right">' + safeNum(item.count, 0) + '</span></div>';
+          }).join('') + '</div></div>'
+          : '';
+
+        var historicalLengthHtml = (allAnswerLengthDistribution.length > 0 || uniqueAnswerLengthDistribution.length > 0)
+          ? '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">How Long Are Words in the Bee?</h2><p class="text-sm text-gray-500 mb-6">There have been <strong>' + safeLocale(totalHistoricalAnswers) + '</strong> accepted answers in the Bee, with <strong>' + safeLocale(totalUniqueHistoricalWords) + '</strong> unique words.</p>' +
+            '<div class="mb-8"><h3 class="text-sm font-bold text-gray-700 mb-3">Length of All Answers</h3><div class="space-y-2">' + allAnswerLengthDistribution.map(function(item) {
+              return '<div class="flex items-center gap-3"><span class="w-16 text-sm font-bold text-right text-gray-600 flex-shrink-0">' + item.length + '-letter</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden"><div class="h-6 rounded-full bg-amber-300 text-amber-900 text-xs font-bold flex items-center pl-3" style="width:' + Math.max((safeNum(item.count, 0) / maxAllAnswerLengthCount) * 100, 2) + '%;">' + safeLocale(safeNum(item.count, 0)) + '</div></div></div><span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">' + safeNum(item.percentage, 0) + '%</span></div>';
+            }).join('') + '</div></div>' +
+            '<div><h3 class="text-sm font-bold text-gray-700 mb-3">Length of Unique Answers</h3><div class="space-y-2">' + uniqueAnswerLengthDistribution.map(function(item) {
+              return '<div class="flex items-center gap-3"><span class="w-16 text-sm font-bold text-right text-gray-600 flex-shrink-0">' + item.length + '-letter</span><div class="flex-1"><div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden"><div class="h-6 rounded-full bg-emerald-300 text-emerald-900 text-xs font-bold flex items-center pl-3" style="width:' + Math.max((safeNum(item.count, 0) / maxUniqueAnswerLengthCount) * 100, 2) + '%;">' + safeLocale(safeNum(item.count, 0)) + '</div></div></div><span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">' + safeNum(item.percentage, 0) + '%</span></div>';
+            }).join('') + '</div></div></div>'
+          : '';
+
+        var nonOfficialWordsHtml = '<div class="card-elevated p-6 mb-8"><h2 class="text-lg font-bold text-gray-800 mb-4">Valid Dictionary Words Not in This Puzzle\'s Official Answers</h2><p class="text-sm text-gray-500 mb-4">These are dictionary-valid words that fit this letter set but are not in the official NYT answer list.</p>' +
+          (nonOfficialWords.length > 0
+            ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">' + nonOfficialWords.map(function(word) {
+              return '<span class="text-sm text-gray-700">' + escapeHtml(word) + '</span>';
+            }).join('') + '</div><p class="text-xs text-gray-400 mt-4">The New York Times likely excludes some of these as too obscure or otherwise out of scope.</p>'
+            : '<p class="text-sm text-gray-400 italic">No additional dictionary words found for these letters.</p>') +
+          '</div>';
+
+        var compareHtml = '<div class="mt-8 card-elevated p-6">' +
+          '<h2 class="text-lg font-bold text-gray-800 mb-4">How Does This Puzzle Compare?</h2>' +
+          '<div class="mb-8"><h3 class="text-sm font-bold text-gray-700 mb-3">Score Percentile</h3>' +
+          '<p class="text-sm text-gray-600 leading-relaxed mb-2">This puzzle\'s score of <strong>' + totalPoints + '</strong> was in the <strong>' + formatOrdinal(safeNum(analysis.score && analysis.score.percentile, 0)) + '</strong> percentile of all puzzles available through ' + escapeHtml(puzzle.date) + '.</p>' +
+          (analysis.score && analysis.score.lastTimeAtOrAboveDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-2">The last time there was a score this high was on <strong>' + escapeHtml(analysis.score.lastTimeAtOrAboveDate) + '</strong>.</p>' : '') +
+          (analysis.score && analysis.score.highestScoreDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-2">The highest score ever was <strong>' + safeNum(analysis.score.highestScore, 0) + '</strong> on <strong>' + escapeHtml(analysis.score.highestScoreDate) + '</strong>.</p>' : '') +
+          (analysis.score && analysis.score.lowestScoreDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-4">The lowest score ever was <strong>' + safeNum(analysis.score.lowestScore, 0) + '</strong> on <strong>' + escapeHtml(analysis.score.lowestScoreDate) + '</strong>.</p>' : '') +
+          '<div class="space-y-1.5">' + renderHistogramRows(analysis.score && analysis.score.histogram || [], scoreHistogramPeak, { rowBg: 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5', labelColor: 'text-amber-700', barClass: 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' }, 0) + '</div>' +
+          '<p class="text-xs text-gray-400 mt-2">Max score in all puzzles</p></div>' +
+          '<hr class="border-gray-100 my-6" />' +
+          '<div class="mb-8"><h3 class="text-sm font-bold text-gray-700 mb-3">Word Count Percentile</h3>' +
+          '<p class="text-sm text-gray-600 leading-relaxed mb-2">This puzzle\'s <strong>' + safeNum(puzzle.word_count, 0) + ' possible answers</strong> rank it in the <strong>' + formatOrdinal(safeNum(analysis.wordCount && analysis.wordCount.percentile, 0)) + '</strong> percentile of all puzzles available through ' + escapeHtml(puzzle.date) + '.</p>' +
+          (analysis.wordCount && analysis.wordCount.lastTimeAboveDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-2">The last time there were more answers than this was on <strong>' + escapeHtml(analysis.wordCount.lastTimeAboveDate) + '</strong>.</p>' : '') +
+          (analysis.wordCount && analysis.wordCount.highestWordCountDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-2">The highest number of answers was <strong>' + safeNum(analysis.wordCount.highestWordCount, 0) + '</strong> on <strong>' + escapeHtml(analysis.wordCount.highestWordCountDate) + '</strong>.</p>' : '') +
+          (analysis.wordCount && analysis.wordCount.lowestWordCountDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-4">The lowest number of answers was <strong>' + safeNum(analysis.wordCount.lowestWordCount, 0) + '</strong> on <strong>' + escapeHtml(analysis.wordCount.lowestWordCountDate) + '</strong>.</p>' : '') +
+          '<div class="space-y-1.5">' + renderHistogramRows(analysis.wordCount && analysis.wordCount.histogram || [], wordCountHistogramPeak, { rowBg: 'bg-violet-50 -mx-2 px-2 rounded-lg py-0.5', labelColor: 'text-violet-700', barClass: 'bg-gradient-to-r from-violet-400 to-violet-500 text-white' }, 0) + '</div>' +
+          '<p class="text-xs text-gray-400 mt-2">Number of answers in all puzzles</p></div>' +
+          '<hr class="border-gray-100 my-6" />' +
+          '<div class="mb-8"><h3 class="text-sm font-bold text-gray-700 mb-3">Length for Genius</h3>' +
+          '<p class="text-sm text-gray-600 leading-relaxed mb-2">It takes a <strong>' + safeNum(analysis.genius && analysis.genius.requiredLength, 0) + '-letter word</strong> for genius.</p>' +
+          (analysis.genius && analysis.genius.lastTimeSameLengthDate ? '<p class="text-sm text-gray-600 leading-relaxed mb-4">The last time this happened was on <strong>' + escapeHtml(analysis.genius.lastTimeSameLengthDate) + '</strong>.</p>' : '') +
+          '<div class="space-y-1.5">' + renderDiscreteHistogramRows(analysis.genius && analysis.genius.histogram || [], geniusHistogramPeak, { rowBg: 'bg-purple-50 -mx-2 px-2 rounded-lg py-0.5', labelColor: 'text-purple-700', barClass: 'bg-gradient-to-r from-purple-400 to-purple-500 text-white' }, '-letter') + '</div>' +
+          '<p class="text-xs text-gray-400 mt-2">Length for Genius in all puzzles</p></div>' +
+          '<hr class="border-gray-100 my-6" />' +
+          '<div><h3 class="text-sm font-bold text-gray-700 mb-3">Average Word Length</h3>' +
+          '<p class="text-sm text-gray-600 leading-relaxed mb-2">This puzzle has an average word length of <strong>' + roundTo(safeNum(analysis.averageWordLength && analysis.averageWordLength.value, 0), 1).toFixed(1) + '</strong>.</p>' +
+          '<p class="text-sm text-gray-600 leading-relaxed mb-4">For all Bees up to that date, the average word length had been <strong>' + roundTo(safeNum(analysis.averageWordLength && analysis.averageWordLength.globalAverage, 0), 1).toFixed(1) + '</strong>.</p>' +
+          '<div class="space-y-1.5">' + renderHistogramRows(analysis.averageWordLength && analysis.averageWordLength.histogram || [], averageLengthHistogramPeak, { rowBg: 'bg-emerald-50 -mx-2 px-2 rounded-lg py-0.5', labelColor: 'text-emerald-700', barClass: 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-white' }, 1) + '</div>' +
+          '<p class="text-xs text-gray-400 mt-2">Average word length in all puzzles</p></div></div>';
+
+        var aboutHtml = '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2>' +
+          '<p class="text-gray-600 leading-relaxed text-sm mb-3">The NYT Spelling Bee for <strong>' + escapeHtml(puzzle.date) + '</strong> uses <strong>' + escapeHtml(center) + '</strong> as the mandatory center letter with outer letters <strong>' + escapeHtml(outerLetters.join(', ')) + '</strong>. This puzzle contains <strong>' + safeNum(puzzle.word_count, 0) + ' answers</strong>, <strong>' + safeNum(puzzle.pangrams_count, 0) + ' pangram' + (safeNum(puzzle.pangrams_count, 0) !== 1 ? 's' : '') + '</strong>, and a maximum score of <strong>' + totalPoints + '</strong>.</p>' +
+          '<p class="text-gray-600 leading-relaxed text-sm">Historically, it ranks in the <strong>' + wordCountPercentileText + '</strong> percentile for answer count and the <strong>' + scorePercentileText + '</strong> percentile for score. The archive detail view now uses the same analysis source as the today page, so these charts and history sections stay aligned.</p>' +
+          '</div>';
+
         puzzleDetailContent.innerHTML =
           '<p class="text-gray-500 font-medium mb-6">' + puzzle.date + '</p>' +
           honeycombHtml +
           statsHtml +
           perfectPangramsHtml +
           pangramsHtml +
-          '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
+          wordLengthHtml +
+          pointsByLengthHtml +
           firstLetterHtml +
-          '<div class="mt-10 p-6 bg-gray-50 rounded-2xl"><h2 class="text-lg font-bold text-gray-800 mb-3">About This Puzzle</h2><p class="text-gray-600 leading-relaxed text-sm">The NYT Spelling Bee for <strong>' + puzzle.date + '</strong> features center letter <strong>' + center + '</strong> with outer letters <strong>' + outerLetters.join(', ') + '</strong>. Players can find <strong>' + puzzle.word_count + ' words</strong> including <strong>' + puzzle.pangrams_count + ' pangram' + (puzzle.pangrams_count !== 1 ? 's' : '') + '</strong>, earning up to <strong>' + totalPoints + ' points</strong>.</p></div>';
+          pangramHistoryHtml +
+          compareHtml +
+          lettersHistoryHtml +
+          commonWordsHtml +
+          historicalLengthHtml +
+          nonOfficialWordsHtml +
+          '<div><h2 class="text-lg font-bold text-gray-800 mb-4">All Words (' + words.length + ')</h2><div class="card-elevated max-h-[600px] overflow-y-auto custom-scroll divide-y divide-gray-50">' + wordsHtml + '</div></div>' +
+          definitionsHtml +
+          aboutHtml;
 
       } catch (error) {
         puzzleDetailContent.innerHTML = '<div class="text-center py-12"><p class="text-red-500 font-medium">Failed to load puzzle data</p><button onclick="showListView()" class="btn-primary mt-4 inline-flex">Back to Archive</button></div>';

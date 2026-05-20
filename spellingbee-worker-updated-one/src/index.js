@@ -41,7 +41,7 @@
 // ============================================================
 
 const API_VERSION = '2.1.0';
-const BASE_URL = 'https://sbsolver.online';
+const BASE_URL = 'https://spellingbeesolver.dev';
 const MAX_PAGINATION_LIMIT = 100;
 const DEFAULT_PAGINATION_LIMIT = 20;
 const CACHE_TTL_READONLY = 300;   // 5 min cache for read endpoints
@@ -50,11 +50,16 @@ const RATE_LIMIT_WINDOW = 60;     // 1 minute window
 const RATE_LIMIT_MAX = 60;        // 60 requests per minute for public
 const RATE_LIMIT_MAX_AUTH = 120;  // 120 for authenticated
 const HISTORICAL_ANALYTICS_CACHE_TTL_MS = 5 * 60 * 1000;
+const ANALYSIS_CACHE_VERSION = 'v8';
+const ANALYSIS_KV_WRITE_LIMIT_PER_DAY = 1000;
+const SITE_TIMEZONE = 'Asia/Kolkata';
 
 let historicalAnalyticsCache = {
   expiresAt: 0,
   value: null,
 };
+
+let auxTablesReadyPromise = null;
 
 // ============================================================
 // CORS HEADERS
@@ -224,6 +229,253 @@ function sanitizeInt(value, min = 1, max = 100, defaultVal = 20) {
 function sanitizeLetter(value) {
   if (!value || !/^[A-Za-z]$/.test(value)) return null;
   return value.toUpperCase();
+}
+
+function normalizeWord(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeIsoDate(value) {
+  if (!value) return null;
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function getCurrentSiteDateISO() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SITE_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function toSortedUniqueList(values) {
+  return [...new Set((values || []).map(item => String(item || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function dedupePuzzleWords(words) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const word of words || []) {
+    const normalized = normalizeWord(word.word);
+    if (!normalized) continue;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push({
+      ...word,
+      word: normalized,
+      length: Number(word.length) || normalized.length,
+      is_pangram: Number(word.is_pangram) === 1 ? 1 : 0,
+    });
+  }
+
+  deduped.sort((a, b) => (
+    Number(b.is_pangram) - Number(a.is_pangram)
+    || b.length - a.length
+    || a.word.localeCompare(b.word)
+  ));
+
+  return deduped;
+}
+
+async function ensureAuxTables(env) {
+  if (!auxTablesReadyPromise) {
+    auxTablesReadyPromise = env.DB.batch([
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS word_definitions (
+          word TEXT PRIMARY KEY,
+          definition TEXT NOT NULL,
+          part_of_speech TEXT,
+          synonyms_json TEXT,
+          antonyms_json TEXT,
+          usage_notes TEXT,
+          source_provider TEXT,
+          source_model TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS kv_cache_budget (
+          budget_date TEXT PRIMARY KEY,
+          writes INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL
+        )
+      `),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_word_definitions_updated_at ON word_definitions(updated_at)`),
+    ]).catch((error) => {
+      auxTablesReadyPromise = null;
+      throw error;
+    });
+  }
+
+  return auxTablesReadyPromise;
+}
+
+function parseJSONList(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return toSortedUniqueList(parsed);
+  } catch {
+    return [];
+  }
+}
+
+async function getDefinitionsMap(env, words) {
+  const normalizedWords = toSortedUniqueList(words.map(word => normalizeWord(word.word || word)));
+  if (normalizedWords.length === 0) return {};
+
+  await ensureAuxTables(env);
+
+  const placeholders = normalizedWords.map(() => '?').join(', ');
+  const result = await env.DB.prepare(`
+    SELECT word, definition, part_of_speech, synonyms_json, antonyms_json, usage_notes, source_provider, source_model, updated_at
+    FROM word_definitions
+    WHERE word IN (${placeholders})
+  `).bind(...normalizedWords).all();
+
+  const definitions = {};
+  for (const row of result.results || []) {
+    definitions[row.word] = {
+      word: row.word,
+      definition: row.definition,
+      partOfSpeech: row.part_of_speech || null,
+      synonyms: parseJSONList(row.synonyms_json),
+      antonyms: parseJSONList(row.antonyms_json),
+      usageNotes: row.usage_notes || null,
+      sourceProvider: row.source_provider || null,
+      sourceModel: row.source_model || null,
+      updatedAt: row.updated_at || null,
+    };
+  }
+
+  return definitions;
+}
+
+async function upsertWordDefinitions(env, definitions) {
+  const cleaned = (definitions || [])
+    .map((item) => {
+      const word = normalizeWord(item.word);
+      const definition = String(item.definition || '').trim();
+      if (!word || !definition) return null;
+      return {
+        word,
+        definition,
+        partOfSpeech: item.partOfSpeech ? String(item.partOfSpeech).trim() : null,
+        synonyms: JSON.stringify(toSortedUniqueList(item.synonyms)),
+        antonyms: JSON.stringify(toSortedUniqueList(item.antonyms)),
+        usageNotes: item.usageNotes ? String(item.usageNotes).trim() : null,
+        sourceProvider: item.sourceProvider ? String(item.sourceProvider).trim() : 'nvidia-nim',
+        sourceModel: item.sourceModel ? String(item.sourceModel).trim() : null,
+      };
+    })
+    .filter(Boolean);
+
+  if (cleaned.length === 0) {
+    return { upserted: 0 };
+  }
+
+  await ensureAuxTables(env);
+  const updatedAt = new Date().toISOString();
+  const statements = cleaned.map((item) => env.DB.prepare(`
+    INSERT INTO word_definitions (
+      word,
+      definition,
+      part_of_speech,
+      synonyms_json,
+      antonyms_json,
+      usage_notes,
+      source_provider,
+      source_model,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(word) DO UPDATE SET
+      definition = excluded.definition,
+      part_of_speech = excluded.part_of_speech,
+      synonyms_json = excluded.synonyms_json,
+      antonyms_json = excluded.antonyms_json,
+      usage_notes = excluded.usage_notes,
+      source_provider = excluded.source_provider,
+      source_model = excluded.source_model,
+      updated_at = excluded.updated_at
+  `).bind(
+    item.word,
+    item.definition,
+    item.partOfSpeech,
+    item.synonyms,
+    item.antonyms,
+    item.usageNotes,
+    item.sourceProvider,
+    item.sourceModel,
+    updatedAt,
+  ));
+
+  await env.DB.batch(statements);
+  return { upserted: cleaned.length };
+}
+
+async function reserveAnalysisCacheWrite(env) {
+  if (!env.ANALYTICS_CACHE) return false;
+
+  await ensureAuxTables(env);
+  const todayUtc = new Date().toISOString().split('T')[0];
+  const updatedAt = new Date().toISOString();
+  const result = await env.DB.prepare(`
+    INSERT INTO kv_cache_budget (budget_date, writes, updated_at)
+    VALUES (?, 1, ?)
+    ON CONFLICT(budget_date) DO UPDATE SET
+      writes = kv_cache_budget.writes + 1,
+      updated_at = excluded.updated_at
+    WHERE kv_cache_budget.writes < ?
+    RETURNING writes
+  `).bind(todayUtc, updatedAt, ANALYSIS_KV_WRITE_LIMIT_PER_DAY).first();
+
+  return Boolean(result);
+}
+
+function buildAnalysisCacheKey(puzzleId) {
+  return `puzzle-analysis:${ANALYSIS_CACHE_VERSION}:${puzzleId}`;
+}
+
+async function getCachedPuzzleAnalysis(env, puzzleId) {
+  if (!env.ANALYTICS_CACHE) return null;
+  try {
+    const cached = await env.ANALYTICS_CACHE.get(buildAnalysisCacheKey(puzzleId), { type: 'json' });
+    return cached || null;
+  } catch (error) {
+    console.error('Failed to read analysis cache:', error);
+    return null;
+  }
+}
+
+async function cachePuzzleAnalysis(env, puzzleId, analysis) {
+  if (!env.ANALYTICS_CACHE || !analysis) return;
+  try {
+    const reserved = await reserveAnalysisCacheWrite(env);
+    if (!reserved) return;
+    await env.ANALYTICS_CACHE.put(
+      buildAnalysisCacheKey(puzzleId),
+      JSON.stringify(analysis),
+      { expirationTtl: 60 * 60 * 24 * 30 },
+    );
+  } catch (error) {
+    console.error('Failed to write analysis cache:', error);
+  }
+}
+
+function computeMidrankPercentile(lowerCount, equalCount, totalCount) {
+  if (!totalCount) return 0;
+  return Math.round(((lowerCount + (equalCount * 0.5)) / totalCount) * 100);
 }
 
 // ============================================================
@@ -556,6 +808,11 @@ async function storePuzzleData(env, puzzleData) {
       await env.DB.batch(batch);
     }
 
+    historicalAnalyticsCache = {
+      expiresAt: 0,
+      value: null,
+    };
+
     return {
       success: true,
       puzzleId: nextPuzzleId,
@@ -784,43 +1041,73 @@ async function loadHistoricalAnalytics(env) {
     `).all(),
   ]);
 
-  const puzzles = puzzlesResult.results || [];
-  const words = wordsResult.results || [];
+  const puzzles = (puzzlesResult.results || [])
+    .map((puzzle) => ({
+      ...puzzle,
+      date_iso: normalizeIsoDate(puzzle.date_iso),
+    }))
+    .filter((puzzle) => puzzle.date_iso)
+    .sort((a, b) => a.date_iso.localeCompare(b.date_iso));
+  const rawWords = wordsResult.results || [];
   const wordsByPuzzle = new Map();
   const pangramHistoryMap = new Map();
   const commonWordCounts = new Map();
   const uniqueWordLengths = new Map();
   const allAnswerLengths = new Map();
+  const pangramCountByLength = new Map();
   const uniqueWords = new Set();
+  const seenPuzzleWords = new Set();
+  let totalAnswerCount = 0;
+  let totalPangramCount = 0;
+  let totalPerfectPangramCount = 0;
 
-  for (const word of words) {
-    if (!wordsByPuzzle.has(word.puzzle_id)) {
-      wordsByPuzzle.set(word.puzzle_id, []);
+  for (const word of rawWords) {
+    const normalizedWord = normalizeWord(word.word);
+    if (!normalizedWord) continue;
+
+    const dedupeKey = `${word.puzzle_id}:${normalizedWord}`;
+    if (seenPuzzleWords.has(dedupeKey)) continue;
+    seenPuzzleWords.add(dedupeKey);
+
+    const cleanedWord = {
+      puzzle_id: word.puzzle_id,
+      word: normalizedWord,
+      length: Number(word.length) || normalizedWord.length,
+      is_pangram: Number(word.is_pangram) === 1 ? 1 : 0,
+    };
+
+    if (!wordsByPuzzle.has(cleanedWord.puzzle_id)) {
+      wordsByPuzzle.set(cleanedWord.puzzle_id, []);
     }
-    wordsByPuzzle.get(word.puzzle_id).push(word);
+    wordsByPuzzle.get(cleanedWord.puzzle_id).push(cleanedWord);
 
-    allAnswerLengths.set(word.length, (allAnswerLengths.get(word.length) || 0) + 1);
-    commonWordCounts.set(word.word, (commonWordCounts.get(word.word) || 0) + 1);
+    totalAnswerCount += 1;
+    allAnswerLengths.set(cleanedWord.length, (allAnswerLengths.get(cleanedWord.length) || 0) + 1);
+    commonWordCounts.set(cleanedWord.word, (commonWordCounts.get(cleanedWord.word) || 0) + 1);
 
-    if (!uniqueWords.has(word.word)) {
-      uniqueWords.add(word.word);
-      uniqueWordLengths.set(word.length, (uniqueWordLengths.get(word.length) || 0) + 1);
+    if (!uniqueWords.has(cleanedWord.word)) {
+      uniqueWords.add(cleanedWord.word);
+      uniqueWordLengths.set(cleanedWord.length, (uniqueWordLengths.get(cleanedWord.length) || 0) + 1);
     }
 
-    if (word.is_pangram === 1) {
-      if (!pangramHistoryMap.has(word.word)) {
-        pangramHistoryMap.set(word.word, []);
+    if (cleanedWord.is_pangram === 1) {
+      totalPangramCount += 1;
+      pangramCountByLength.set(cleanedWord.length, (pangramCountByLength.get(cleanedWord.length) || 0) + 1);
+      if (cleanedWord.length === 7) {
+        totalPerfectPangramCount += 1;
       }
-      pangramHistoryMap.get(word.word).push(word.puzzle_id);
+      if (!pangramHistoryMap.has(cleanedWord.word)) {
+        pangramHistoryMap.set(cleanedWord.word, []);
+      }
+      pangramHistoryMap.get(cleanedWord.word).push(cleanedWord.puzzle_id);
     }
   }
 
   const puzzleMetrics = puzzles.map((puzzle) => {
-    const puzzleWords = wordsByPuzzle.get(puzzle.puzzle_id) || [];
+    const puzzleWords = dedupePuzzleWords(wordsByPuzzle.get(puzzle.puzzle_id) || []);
     const totalPoints = puzzleWords.reduce((sum, word) => sum + getWordPoints(word), 0);
-    const pangramPoints = puzzleWords
-      .filter(word => word.is_pangram === 1)
-      .reduce((sum, word) => sum + getWordPoints(word), 0);
+    const pangramWords = puzzleWords.filter(word => word.is_pangram === 1);
+    const pangramPoints = pangramWords.reduce((sum, word) => sum + getWordPoints(word), 0);
     const geniusThreshold = Math.round(totalPoints * 0.7);
     const averageWordLength = puzzleWords.length > 0
       ? puzzleWords.reduce((sum, word) => sum + word.length, 0) / puzzleWords.length
@@ -834,8 +1121,8 @@ async function loadHistoricalAnalytics(env) {
       date_iso: puzzle.date_iso,
       letters: puzzle.letters,
       all_letters: puzzle.all_letters,
-      word_count: puzzle.word_count,
-      pangrams_count: puzzle.pangrams_count,
+      word_count: puzzleWords.length,
+      pangrams_count: pangramWords.length,
       words: puzzleWords,
       score: totalPoints,
       pangramPoints,
@@ -844,21 +1131,15 @@ async function loadHistoricalAnalytics(env) {
       maxWordsForGenius: geniusWords.maxWords,
       requiredGeniusLength,
       averageWordLength,
-      pointsPerWord: puzzle.word_count > 0 ? totalPoints / puzzle.word_count : 0,
+      pointsPerWord: puzzleWords.length > 0 ? totalPoints / puzzleWords.length : 0,
     };
   });
 
-  const pointsPerWordValues = puzzleMetrics
-    .filter(metric => metric.word_count > 0)
-    .map(metric => metric.pointsPerWord);
-  const { mean: pointsPerWordMean, stddev: pointsPerWordStddev } = computeMeanAndStd(pointsPerWordValues);
-  const scoreOutlierThreshold = pointsPerWordMean + (3 * pointsPerWordStddev);
-
   for (const metric of puzzleMetrics) {
-    metric.isScoreOutlier = metric.pointsPerWord > scoreOutlierThreshold;
+    metric.isScoreOutlier = false;
   }
 
-  const cleanScoreMetrics = puzzleMetrics.filter(metric => !metric.isScoreOutlier);
+  const cleanScoreMetrics = puzzleMetrics;
   const byPuzzleId = new Map(puzzleMetrics.map(metric => [metric.puzzle_id, metric]));
   const pangramHistory = new Map(
     [...pangramHistoryMap.entries()].map(([word, puzzleIds]) => [
@@ -882,30 +1163,43 @@ async function loadHistoricalAnalytics(env) {
     ]),
   );
 
-  const commonWordsTop = [...commonWordCounts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 60)
-    .map(([word, count]) => ({ word, count }));
-
   const analytics = {
     generatedAt: now,
-    scoreOutlierThreshold: roundTo(scoreOutlierThreshold, 4),
-    excludedScoreOutliers: puzzleMetrics.length - cleanScoreMetrics.length,
+    scoreOutlierThreshold: null,
+    excludedScoreOutliers: 0,
     puzzleMetrics,
     cleanScoreMetrics,
     byPuzzleId,
     pangramHistory,
-    commonWordsTop,
-    scoreHistogram: buildHistogram(cleanScoreMetrics.map(metric => metric.score)),
-    wordCountHistogram: buildHistogram(puzzleMetrics.map(metric => metric.word_count)),
-    geniusLengthHistogram: buildDiscreteHistogram(puzzleMetrics.map(metric => metric.requiredGeniusLength)),
-    averageWordLengthHistogram: buildHistogram(puzzleMetrics.map(metric => metric.averageWordLength)),
+    totalAnswerCount,
+    totalPangramCount,
+    totalPerfectPangramCount,
+    totalUniqueWords: uniqueWords.size,
+    averageWordLengthOverall: totalAnswerCount > 0
+      ? roundTo(
+        [...allAnswerLengths.entries()].reduce((sum, [length, count]) => sum + (length * count), 0) / totalAnswerCount,
+        2,
+      )
+      : 0,
+    fullHistoryCommonWordsTop: [...commonWordCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 60)
+      .map(([word, count]) => ({ word, count })),
+    fullHistoryWordLengthDistribution: [...allAnswerLengths.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => ({
+        length,
+        count,
+        pangram_count: pangramCountByLength.get(length) || 0,
+        percentage: roundTo((count / totalAnswerCount) * 100, 2),
+      })),
     allAnswerLengthDistribution: [...allAnswerLengths.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([length, count]) => ({
         length,
         count,
-        percentage: roundTo((count / words.length) * 100, 2),
+        pangram_count: pangramCountByLength.get(length) || 0,
+        percentage: roundTo((count / totalAnswerCount) * 100, 2),
       })),
     uniqueAnswerLengthDistribution: [...uniqueWordLengths.entries()]
       .sort((a, b) => a[0] - b[0])
@@ -924,39 +1218,134 @@ async function loadHistoricalAnalytics(env) {
   return analytics;
 }
 
+function buildWindowAnalytics(analytics, metric) {
+  const historyMetrics = analytics.puzzleMetrics.filter(item => item.date_iso <= metric.date_iso);
+  const scoreMetrics = historyMetrics.filter(item => !item.isScoreOutlier);
+  const allAnswerLengths = new Map();
+  const uniqueWordLengths = new Map();
+  const commonWordCounts = new Map();
+  const uniqueWords = new Set();
+  const pangramCountByLength = new Map();
+  let totalHistoricalAnswers = 0;
+
+  for (const puzzle of historyMetrics) {
+    for (const word of puzzle.words) {
+      totalHistoricalAnswers += 1;
+      allAnswerLengths.set(word.length, (allAnswerLengths.get(word.length) || 0) + 1);
+      commonWordCounts.set(word.word, (commonWordCounts.get(word.word) || 0) + 1);
+      if (!uniqueWords.has(word.word)) {
+        uniqueWords.add(word.word);
+        uniqueWordLengths.set(word.length, (uniqueWordLengths.get(word.length) || 0) + 1);
+      }
+      if (word.is_pangram === 1) {
+        pangramCountByLength.set(word.length, (pangramCountByLength.get(word.length) || 0) + 1);
+      }
+    }
+  }
+
+  return {
+    historyMetrics,
+    scoreMetrics,
+    totalHistoricalAnswers,
+    totalUniqueHistoricalWords: uniqueWords.size,
+    scoreHistogram: buildHistogram(scoreMetrics.map(item => item.score)),
+    wordCountHistogram: buildHistogram(historyMetrics.map(item => item.word_count)),
+    geniusLengthHistogram: buildDiscreteHistogram(historyMetrics.map(item => item.requiredGeniusLength)),
+    averageWordLengthHistogram: buildHistogram(historyMetrics.map(item => item.averageWordLength)),
+    globalAverageWordLength: historyMetrics.length > 0
+      ? roundTo(historyMetrics.reduce((sum, item) => sum + item.averageWordLength, 0) / historyMetrics.length, 1)
+      : 0,
+    commonWordsTop: [...commonWordCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 60)
+      .map(([word, count]) => ({ word, count })),
+    allAnswerLengthDistribution: [...allAnswerLengths.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => ({
+        length,
+        count,
+        pangram_count: pangramCountByLength.get(length) || 0,
+        percentage: totalHistoricalAnswers > 0 ? roundTo((count / totalHistoricalAnswers) * 100, 2) : 0,
+      })),
+    uniqueAnswerLengthDistribution: [...uniqueWordLengths.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => ({
+        length,
+        count,
+        percentage: uniqueWords.size > 0 ? roundTo((count / uniqueWords.size) * 100, 2) : 0,
+      })),
+  };
+}
+
+function buildPangramHistory(metric, analytics) {
+  const byWord = {};
+  const combinedMap = new Map();
+
+  for (const word of metric.words.filter(item => item.is_pangram === 1)) {
+    const history = (analytics.pangramHistory.get(normalizeWord(word.word)) || [])
+      .filter(item => item.date_iso < metric.date_iso);
+    byWord[word.word] = history.slice(0, 8);
+
+    for (const item of history) {
+      const existing = combinedMap.get(item.puzzle_id) || {
+        ...item,
+        matchingWords: [],
+      };
+      existing.matchingWords.push(word.word);
+      combinedMap.set(item.puzzle_id, existing);
+    }
+  }
+
+  const combined = [...combinedMap.values()]
+    .map((item) => ({
+      ...item,
+      matchingWords: toSortedUniqueList(item.matchingWords),
+    }))
+    .sort((a, b) => b.date_iso.localeCompare(a.date_iso));
+
+  return { byWord, combined };
+}
+
 async function getPuzzleAnalysis(env, puzzleId) {
+  const cached = await getCachedPuzzleAnalysis(env, puzzleId);
+  if (cached) {
+    return cached;
+  }
+
   const analytics = await loadHistoricalAnalytics(env);
   const metric = analytics.byPuzzleId.get(puzzleId);
   if (!metric) return null;
 
-  const scoreMetrics = analytics.cleanScoreMetrics;
-  const scoreLowerCount = scoreMetrics.filter(item => item.score < metric.score).length;
-  const wordCountLowerCount = analytics.puzzleMetrics.filter(item => item.word_count < metric.word_count).length;
+  const windowAnalytics = buildWindowAnalytics(analytics, metric);
+  const scoreLowerCount = windowAnalytics.scoreMetrics.filter(item => item.score < metric.score).length;
+  const scoreEqualCount = windowAnalytics.scoreMetrics.filter(item => item.score === metric.score).length;
+  const wordCountLowerCount = windowAnalytics.historyMetrics.filter(item => item.word_count < metric.word_count).length;
+  const wordCountEqualCount = windowAnalytics.historyMetrics.filter(item => item.word_count === metric.word_count).length;
 
-  const highestScorePuzzle = scoreMetrics.reduce((best, item) => (!best || item.score > best.score ? item : best), null);
-  const lowestScorePuzzle = scoreMetrics.reduce((best, item) => (!best || item.score < best.score ? item : best), null);
-  const highestWordCountPuzzle = analytics.puzzleMetrics.reduce((best, item) => (!best || item.word_count > best.word_count ? item : best), null);
-  const lowestWordCountPuzzle = analytics.puzzleMetrics.reduce((best, item) => (!best || item.word_count < best.word_count ? item : best), null);
+  const highestScorePuzzle = windowAnalytics.scoreMetrics.reduce((best, item) => (!best || item.score > best.score ? item : best), null);
+  const lowestScorePuzzle = windowAnalytics.scoreMetrics.reduce((best, item) => (!best || item.score < best.score ? item : best), null);
+  const highestWordCountPuzzle = windowAnalytics.historyMetrics.reduce((best, item) => (!best || item.word_count > best.word_count ? item : best), null);
+  const lowestWordCountPuzzle = windowAnalytics.historyMetrics.reduce((best, item) => (!best || item.word_count < best.word_count ? item : best), null);
 
-  const lastScoreAtLeastCurrent = [...scoreMetrics]
+  const lastScoreAtLeastCurrent = [...windowAnalytics.scoreMetrics]
     .reverse()
     .find(item => item.date_iso < metric.date_iso && item.score >= metric.score) || null;
-  const lastWordCountAboveCurrent = [...analytics.puzzleMetrics]
+  const lastWordCountAboveCurrent = [...windowAnalytics.historyMetrics]
     .reverse()
-    .find(item => item.date_iso < metric.date_iso && item.word_count > metric.word_count) || null;
-  const lastSameGeniusLength = [...analytics.puzzleMetrics]
+    .find(item => item.date_iso < metric.date_iso && item.word_count >= metric.word_count) || null;
+  const lastSameGeniusLength = [...windowAnalytics.historyMetrics]
     .reverse()
     .find(item => item.date_iso < metric.date_iso && item.requiredGeniusLength === metric.requiredGeniusLength) || null;
 
   const nonPangramPoints = metric.score - metric.pangramPoints;
-  const scoreHistogram = markHistogramCurrentBucket(analytics.scoreHistogram, metric.score);
-  const wordCountHistogram = markHistogramCurrentBucket(analytics.wordCountHistogram, metric.word_count);
-  const averageWordLengthHistogram = markHistogramCurrentBucket(analytics.averageWordLengthHistogram, metric.averageWordLength);
-  const geniusLengthHistogram = analytics.geniusLengthHistogram.map(item => ({
+  const scoreHistogram = markHistogramCurrentBucket(windowAnalytics.scoreHistogram, metric.score);
+  const wordCountHistogram = markHistogramCurrentBucket(windowAnalytics.wordCountHistogram, metric.word_count);
+  const averageWordLengthHistogram = markHistogramCurrentBucket(windowAnalytics.averageWordLengthHistogram, metric.averageWordLength);
+  const geniusLengthHistogram = windowAnalytics.geniusLengthHistogram.map(item => ({
     ...item,
     isCurrent: item.value === metric.requiredGeniusLength,
   }));
-  const sameCenterPuzzles = [...analytics.puzzleMetrics]
+  const sameCenterPuzzles = [...windowAnalytics.historyMetrics]
     .filter(item => item.letters === metric.letters && item.puzzle_id !== metric.puzzle_id)
     .reverse()
     .slice(0, 6)
@@ -968,23 +1357,18 @@ async function getPuzzleAnalysis(env, puzzleId) {
       pangrams_count: item.pangrams_count,
       score: item.score,
     }));
+  const pangramHistory = buildPangramHistory(metric, analytics);
 
-  const pangramHistoryByWord = {};
-  for (const word of metric.words.filter(item => item.is_pangram === 1)) {
-    pangramHistoryByWord[word.word] = (analytics.pangramHistory.get(word.word) || [])
-      .filter(item => item.puzzle_id !== metric.puzzle_id)
-      .slice(0, 8);
-  }
-
-  return {
+  const analysis = {
     puzzleId: metric.puzzle_id,
+    generatedFromDate: metric.date_iso,
     dataQuality: {
       scoreOutlierThreshold: analytics.scoreOutlierThreshold,
       excludedScoreOutliers: analytics.excludedScoreOutliers,
     },
     score: {
       value: metric.score,
-      percentile: Math.round((scoreLowerCount / scoreMetrics.length) * 100),
+      percentile: computeMidrankPercentile(scoreLowerCount, scoreEqualCount, windowAnalytics.scoreMetrics.length),
       highestScore: highestScorePuzzle?.score || 0,
       highestScoreDate: highestScorePuzzle?.date || null,
       lowestScore: lowestScorePuzzle?.score || 0,
@@ -994,7 +1378,7 @@ async function getPuzzleAnalysis(env, puzzleId) {
     },
     wordCount: {
       value: metric.word_count,
-      percentile: Math.round((wordCountLowerCount / analytics.puzzleMetrics.length) * 100),
+      percentile: computeMidrankPercentile(wordCountLowerCount, wordCountEqualCount, windowAnalytics.historyMetrics.length),
       highestWordCount: highestWordCountPuzzle?.word_count || 0,
       highestWordCountDate: highestWordCountPuzzle?.date || null,
       lowestWordCount: lowestWordCountPuzzle?.word_count || 0,
@@ -1018,18 +1402,21 @@ async function getPuzzleAnalysis(env, puzzleId) {
     },
     averageWordLength: {
       value: roundTo(metric.averageWordLength, 1),
-      globalAverage: roundTo(
-        analytics.puzzleMetrics.reduce((sum, item) => sum + item.averageWordLength, 0) / analytics.puzzleMetrics.length,
-        1,
-      ),
+      globalAverage: windowAnalytics.globalAverageWordLength,
       histogram: averageWordLengthHistogram,
     },
-    commonWords: analytics.commonWordsTop,
-    allAnswerLengthDistribution: analytics.allAnswerLengthDistribution,
-    uniqueAnswerLengthDistribution: analytics.uniqueAnswerLengthDistribution,
+    commonWords: windowAnalytics.commonWordsTop,
+    allAnswerLengthDistribution: windowAnalytics.allAnswerLengthDistribution,
+    uniqueAnswerLengthDistribution: windowAnalytics.uniqueAnswerLengthDistribution,
+    totalHistoricalAnswers: windowAnalytics.totalHistoricalAnswers,
+    totalUniqueHistoricalWords: windowAnalytics.totalUniqueHistoricalWords,
     sameCenterPuzzles,
-    pangramHistoryByWord,
+    pangramHistoryByWord: pangramHistory.byWord,
+    pangramHistoryCombined: pangramHistory.combined.slice(0, 8),
   };
+
+  await cachePuzzleAnalysis(env, puzzleId, analysis);
+  return analysis;
 }
 
 // ============================================================
@@ -1039,9 +1426,8 @@ async function getPuzzleAnalysis(env, puzzleId) {
 // PERF FIX: Get latest puzzle by date using SQL, not fetching ALL puzzles
 // DATE FIX: Only return puzzles with date <= today (prevents future puzzles from showing)
 async function getLatestPuzzle(env, offset = 0) {
-  // Get today's date in ISO format for filtering
-  const now = new Date();
-  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Use the site timezone so "today" flips at local midnight, not UTC midnight.
+  const todayISO = getCurrentSiteDateISO();
 
   // Get the puzzle at position (offset from latest) by date
   // CRITICAL FIX: Use date_iso for sorting AND filter out future puzzles
@@ -1064,12 +1450,14 @@ async function getLatestPuzzle(env, offset = 0) {
   `).bind(puzzle.puzzle_id);
 
   const wordsResult = await wordsStmt.all();
-  const words = wordsResult.results || [];
+  const words = dedupePuzzleWords(wordsResult.results || []);
+  const definitionsByWord = await getDefinitionsMap(env, words);
   const enrichments = calculatePuzzleEnrichments(words);
 
   return {
     puzzle,
     words,
+    definitionsByWord,
     totalPoints: enrichments.totalPoints,
     hasPerfectPangram: enrichments.hasPerfectPangram,
     perfectPangrams: enrichments.perfectPangrams,
@@ -1088,12 +1476,14 @@ async function getPuzzleById(env, puzzleId) {
     `SELECT word, is_pangram, length FROM words WHERE puzzle_id = ? ORDER BY is_pangram DESC, length DESC, word`
   ).bind(puzzleId).all();
 
-  const words = wordsResult.results || [];
+  const words = dedupePuzzleWords(wordsResult.results || []);
+  const definitionsByWord = await getDefinitionsMap(env, words);
   const enrichments = calculatePuzzleEnrichments(words);
 
   return {
     puzzle,
     words,
+    definitionsByWord,
     totalPoints: enrichments.totalPoints,
     hasPerfectPangram: enrichments.hasPerfectPangram,
     perfectPangrams: enrichments.perfectPangrams,
@@ -1104,10 +1494,64 @@ async function getPuzzleById(env, puzzleId) {
 // GITHUB SYNC
 // ============================================================
 
+function getGithubRepoConfig(env) {
+  const parseRepoSlug = (value) => {
+    const trimmed = String(value || '').trim().replace(/\.git$/i, '').replace(/^\/+|\/+$/g, '');
+    const match = trimmed.match(/^([^/\s]+)\/([^/\s]+)$/);
+    if (!match) return null;
+
+    const owner = match[1];
+    const repo = match[2];
+    return {
+      owner,
+      repo,
+      repoUrl: `https://github.com/${owner}/${repo}`,
+    };
+  };
+
+  const parseRepoUrl = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return null;
+
+    const slugConfig = parseRepoSlug(trimmed);
+    if (slugConfig) return slugConfig;
+
+    try {
+      const url = new URL(trimmed);
+      if (!/github\.com$/i.test(url.hostname)) {
+        return null;
+      }
+      return parseRepoSlug(url.pathname);
+    } catch {
+      return null;
+    }
+  };
+
+  const repoUrlConfig = parseRepoUrl(env.GITHUB_REPO_URL);
+  if (repoUrlConfig) {
+    return repoUrlConfig;
+  }
+
+  const owner = String(env.GITHUB_REPO_OWNER || '').trim();
+  const repo = String(env.GITHUB_REPO_NAME || '').trim();
+  if (owner && repo) {
+    return {
+      owner,
+      repo,
+      repoUrl: `https://github.com/${owner}/${repo}`,
+    };
+  }
+
+  return {
+    owner: 'gogibeta',
+    repo: 'spellingbee-solver',
+    repoUrl: 'https://github.com/gogibeta/spellingbee-solver',
+  };
+}
+
 async function commitToGithub(env, puzzleData) {
   try {
-    const owner = '0xSatwik';
-    const repo = 'spellingbee-solver';
+    const { owner, repo } = getGithubRepoConfig(env);
     const path = 'public/today.json';
     const token = env.GITHUB_TOKEN;
 
@@ -1157,6 +1601,35 @@ async function commitToGithub(env, puzzleData) {
     console.log('Successfully committed today.json to GitHub');
   } catch (error) {
     console.error('Error committing to GitHub:', error);
+  }
+}
+
+async function triggerGithubRepositoryDispatch(env, payload = {}) {
+  const token = env.GITHUB_TOKEN;
+  const { owner, repo } = getGithubRepoConfig(env);
+
+  if (!token || !owner || !repo) {
+    console.warn('Skipping GitHub repository_dispatch because GitHub credentials are incomplete.');
+    return;
+  }
+
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/dispatches`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'User-Agent': 'SpellingBee-Worker',
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      event_type: 'spellingbee-refresh',
+      client_payload: payload,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GitHub repository_dispatch failed: ${response.status} ${errorText}`);
   }
 }
 
@@ -1314,6 +1787,7 @@ router.get('/', async (request, env) => {
         centerLetterCombo: { method: 'GET', path: '/api/centerLetterCombo/:letter', description: 'All puzzles where a letter was center' },
         puzzleAnalysis: { method: 'GET', path: '/api/puzzleAnalysis/:id', description: 'Detailed comparison metrics and chart data for a puzzle' },
         pangramHistory: { method: 'GET', path: '/api/pangramHistory/:word', description: 'Historical pangram appearances for a word' },
+        definitions: { method: 'GET', path: '/api/definitions/:word', description: 'Definition metadata for a single word' },
         rarestLetters: { method: 'GET', path: '/api/rarestLetters', description: 'Least frequently used letters' },
         wordLengthDistribution: { method: 'GET', path: '/api/wordLengthDistribution', description: 'Distribution of word lengths' },
       },
@@ -1322,6 +1796,8 @@ router.get('/', async (request, env) => {
         addById: { method: 'POST', path: '/api/add/id/:id', auth: true, description: 'Add puzzle from SBSolver by ID' },
         deleteById: { method: 'POST', path: '/api/delete/:id', auth: true, description: 'Delete puzzle by ID' },
         deleteByDate: { method: 'POST', path: '/api/delete/date/:date', auth: true, description: 'Delete puzzle by date' },
+        missingDefinitions: { method: 'GET', path: '/api/admin/definitions/missing/puzzle/:id', auth: true, description: 'List words in a puzzle that still need definitions' },
+        upsertDefinitions: { method: 'POST', path: '/api/admin/definitions/upsert', auth: true, description: 'Insert or update generated word definitions' },
       },
       feeds: {
         sitemap: { method: 'GET', path: '/sitemap.xml', description: 'XML Sitemap' },
@@ -1465,9 +1941,8 @@ router.get('/api/last/([0-9]+)', async (request, env, params) => {
   }
   const count = Math.min(rawCount, 10); // Cap at 10 for performance
 
-  // DATE FIX: Filter out future puzzles
-  const now = new Date();
-  const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // DATE FIX: Filter out future puzzles using the site timezone.
+  const todayISO = getCurrentSiteDateISO();
 
   // Get the last N puzzles ordered by date (FIX: use date_iso for correct sorting, filter future)
   const puzzlesStmt = env.DB.prepare(`
@@ -1492,7 +1967,7 @@ router.get('/api/last/([0-9]+)', async (request, env, params) => {
     `).bind(puzzle.puzzle_id);
 
     const wordsResult = await wordsStmt.all();
-    const words = wordsResult.results || [];
+    const words = dedupePuzzleWords(wordsResult.results || []);
     const enrichments = calculatePuzzleEnrichments(words);
 
     puzzlesWithWords.push({
@@ -1660,6 +2135,20 @@ router.get('/api/pangramHistory/([A-Za-z]+)', async (request, env, params) => {
   }, {}, CACHE_TTL_READONLY));
 });
 
+// Public definitions lookup
+router.get('/api/definitions/([^/]+)', async (request, env, params) => {
+  const word = normalizeWord(decodeURIComponent(params[0]));
+  if (!word) {
+    return jsonResponse(errorResponse('Invalid word parameter', 400), 400);
+  }
+
+  const definitionsByWord = await getDefinitionsMap(env, [word]);
+  return jsonResponse(successResponse({
+    word,
+    definition: definitionsByWord[word] || null,
+  }, {}, CACHE_TTL_READONLY));
+});
+
 // Longest Pangrams
 router.get('/api/longestPangrams', async (request, env) => {
   const url = new URL(request.url);
@@ -1796,18 +2285,10 @@ router.get('/api/rarestLetters', async (request, env) => {
 
 // NEW: Word Length Distribution
 router.get('/api/wordLengthDistribution', async (request, env) => {
-  const stmt = env.DB.prepare(`
-    SELECT length, COUNT(*) as count, 
-           SUM(CASE WHEN is_pangram = 1 THEN 1 ELSE 0 END) as pangram_count
-    FROM words
-    GROUP BY length
-    ORDER BY length ASC
-  `);
-
-  const result = await stmt.all();
+  const analytics = await loadHistoricalAnalytics(env);
 
   return jsonResponse(successResponse({
-    wordLengthDistribution: result.results,
+    wordLengthDistribution: analytics.fullHistoryWordLengthDistribution,
   }, {}, CACHE_TTL_READONLY));
 });
 
@@ -1818,34 +2299,24 @@ router.get('/api/statistics', async (request, env) => {
   // Combine multiple stats into fewer queries
   const [
     analytics,
-    puzzleCount,
-    wordCount,
-    pangramCount,
     avgStats,
     maxWords,
     minWords,
     maxPangrams,
     minPangrams,
-    perfectPangramCount,
-    longestWord,
-    shortestWord,
+    longestWordResult,
+    shortestWordResult,
   ] = await Promise.all([
     analyticsPromise,
-    env.DB.prepare(`SELECT COUNT(*) as total FROM puzzles`).first(),
-    env.DB.prepare(`SELECT COUNT(*) as total FROM words`).first(),
-    env.DB.prepare(`SELECT COUNT(*) as total FROM words WHERE is_pangram = 1`).first(),
     env.DB.prepare(`SELECT AVG(word_count) as avg_words, AVG(pangrams_count) as avg_pangrams, MAX(word_count) as max_wc, MIN(word_count) as min_wc FROM puzzles`).first(),
     env.DB.prepare(`SELECT puzzle_id, date, letters, word_count FROM puzzles ORDER BY word_count DESC LIMIT 1`).first(),
     env.DB.prepare(`SELECT puzzle_id, date, letters, word_count FROM puzzles ORDER BY word_count ASC LIMIT 1`).first(),
     env.DB.prepare(`SELECT puzzle_id, date, letters, pangrams_count FROM puzzles ORDER BY pangrams_count DESC LIMIT 1`).first(),
     env.DB.prepare(`SELECT puzzle_id, date, letters, pangrams_count FROM puzzles ORDER BY pangrams_count ASC LIMIT 1`).first(),
-    env.DB.prepare(`SELECT COUNT(*) as total FROM words WHERE is_pangram = 1 AND length = 7`).first(),
     env.DB.prepare(`SELECT MAX(length) as max_len FROM words`).first(),
     env.DB.prepare(`SELECT MIN(length) as min_len FROM words`).first(),
   ]);
 
-  // Calculate average word length
-  const avgWordLengthResult = await env.DB.prepare(`SELECT AVG(length) as avg_length FROM words`).first();
   const highestScorePuzzle = analytics.cleanScoreMetrics.reduce((best, item) => (
     !best || item.score > best.score ? item : best
   ), null);
@@ -1855,15 +2326,15 @@ router.get('/api/statistics', async (request, env) => {
 
   return jsonResponse(successResponse({
     overview: {
-      totalPuzzles: puzzleCount?.total || 0,
-      totalWords: wordCount?.total || 0,
-      totalPangrams: pangramCount?.total || 0,
-      totalPerfectPangrams: perfectPangramCount?.total || 0,
+      totalPuzzles: analytics.puzzleMetrics.length,
+      totalWords: analytics.totalAnswerCount,
+      totalPangrams: analytics.totalPangramCount,
+      totalPerfectPangrams: analytics.totalPerfectPangramCount,
     },
     averages: {
       wordsPerPuzzle: Math.round((avgStats?.avg_words || 0) * 100) / 100,
       pangramsPerPuzzle: Math.round((avgStats?.avg_pangrams || 0) * 100) / 100,
-      averageWordLength: Math.round((avgWordLengthResult?.avg_length || 0) * 100) / 100,
+      averageWordLength: analytics.averageWordLengthOverall,
     },
     extremes: {
       puzzleWithMostWords: maxWords,
@@ -1882,8 +2353,8 @@ router.get('/api/statistics', async (request, env) => {
         letters: lowestScorePuzzle.letters,
         max_score: lowestScorePuzzle.score,
       } : null,
-      longestWordLength: longestWord?.max_len || 0,
-      shortestWordLength: shortestWord?.min_len || 0,
+      longestWordLength: longestWordResult?.max_len || 0,
+      shortestWordLength: shortestWordResult?.min_len || 0,
     },
   }, {}, CACHE_TTL_READONLY));
 });
@@ -2111,6 +2582,49 @@ router.post('/api/admin/migrate-date-iso', async (request, env) => {
   }
 });
 
+// Admin: list missing definitions for a puzzle
+router.get('/api/admin/definitions/missing/puzzle/([0-9]+)', async (request, env, params) => {
+  if (!isAuthenticated(request, env)) {
+    return jsonResponse(errorResponse('Unauthorized', 401), 401);
+  }
+
+  const puzzleId = parseInt(params[0], 10);
+  const puzzleData = await getPuzzleById(env, puzzleId);
+  if (!puzzleData) {
+    return jsonResponse(errorResponse(`Puzzle #${puzzleId} not found`, 404), 404);
+  }
+
+  const missingWords = puzzleData.words
+    .map(word => normalizeWord(word.word))
+    .filter(word => !puzzleData.definitionsByWord[word]);
+
+  return jsonResponse(successResponse({
+    puzzleId,
+    date: puzzleData.puzzle.date,
+    totalWords: puzzleData.words.length,
+    definedWords: puzzleData.words.length - missingWords.length,
+    missingWords,
+  }));
+});
+
+// Admin: upsert generated definitions
+router.post('/api/admin/definitions/upsert', async (request, env) => {
+  if (!isAuthenticated(request, env)) {
+    return jsonResponse(errorResponse('Unauthorized', 401), 401);
+  }
+
+  try {
+    const body = await request.json();
+    const result = await upsertWordDefinitions(env, body.definitions || []);
+    return jsonResponse(successResponse({
+      message: 'Definitions upserted successfully',
+      ...result,
+    }));
+  } catch (error) {
+    return jsonResponse(errorResponse(error.message, 500), 500);
+  }
+});
+
 // Manual update - trigger NYT scrape
 router.post('/api/update/nyt', async (request, env, params, ctx) => {
   if (!isAuthenticated(request, env)) {
@@ -2125,6 +2639,11 @@ router.post('/api/update/nyt', async (request, env, params, ctx) => {
     const todayData = await getLatestPuzzle(env, 0);
     if (todayData) {
       ctx.waitUntil(commitToGithub(env, todayData));
+      ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+        source: 'manual-update',
+        puzzleId: todayData.puzzle?.puzzle_id || null,
+        date: todayData.puzzle?.date || null,
+      }));
     }
 
     return jsonResponse(result);
@@ -2146,6 +2665,11 @@ router.get('/api/update/nyt', async (request, env, params, ctx) => {
     const todayData = await getLatestPuzzle(env, 0);
     if (todayData) {
       ctx.waitUntil(commitToGithub(env, todayData));
+      ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+        source: 'manual-update-get',
+        puzzleId: todayData.puzzle?.puzzle_id || null,
+        date: todayData.puzzle?.date || null,
+      }));
     }
 
     return jsonResponse({
@@ -2259,6 +2783,11 @@ router.post('/api/delete/([0-9]+)', async (request, env, params) => {
       env.DB.prepare(`DELETE FROM puzzles WHERE puzzle_id = ?`).bind(puzzleId),
     ]);
 
+    historicalAnalyticsCache = {
+      expiresAt: 0,
+      value: null,
+    };
+
     return jsonResponse({
       success: true,
       message: `Puzzle #${puzzleId} (${existingPuzzle.date}) and all its words have been deleted`,
@@ -2292,6 +2821,11 @@ router.get('/api/delete/([0-9]+)', async (request, env, params) => {
       env.DB.prepare(`DELETE FROM words WHERE puzzle_id = ?`).bind(puzzleId),
       env.DB.prepare(`DELETE FROM puzzles WHERE puzzle_id = ?`).bind(puzzleId),
     ]);
+
+    historicalAnalyticsCache = {
+      expiresAt: 0,
+      value: null,
+    };
 
     return jsonResponse({
       success: true,
@@ -2331,6 +2865,11 @@ router.post('/api/delete/date/(.+)', async (request, env, params) => {
       env.DB.prepare(`DELETE FROM puzzles WHERE puzzle_id = ?`).bind(puzzleId),
     ]);
 
+    historicalAnalyticsCache = {
+      expiresAt: 0,
+      value: null,
+    };
+
     return jsonResponse({
       success: true,
       message: `Puzzle for date ${date} (ID #${puzzleId}) has been deleted`,
@@ -2367,6 +2906,11 @@ router.get('/api/delete/date/(.+)', async (request, env, params) => {
       env.DB.prepare(`DELETE FROM words WHERE puzzle_id = ?`).bind(puzzleId),
       env.DB.prepare(`DELETE FROM puzzles WHERE puzzle_id = ?`).bind(puzzleId),
     ]);
+
+    historicalAnalyticsCache = {
+      expiresAt: 0,
+      value: null,
+    };
 
     return jsonResponse({
       success: true,
@@ -2408,6 +2952,11 @@ export default {
       const todayData = await getLatestPuzzle(env, 0);
       if (todayData) {
         ctx.waitUntil(commitToGithub(env, todayData));
+        ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+          source: 'scheduled-cron',
+          puzzleId: todayData.puzzle?.puzzle_id || null,
+          date: todayData.puzzle?.date || null,
+        }));
       }
 
       console.log('Scheduled update result:', result);

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "audit:nytbee": "node scripts/audit-nytbee-parity.mjs",
+    "definitions:backfill": "node scripts/backfill-definitions.mjs"
   },
   "dependencies": {
     "@astrojs/svelte": "^8.1.1",

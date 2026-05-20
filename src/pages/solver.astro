@@ -347,17 +347,20 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
   let dictLoaded = false;
 
   async function loadDictionary() {
-    if (dictLoaded) return;
-    try {
-      // Load TWL06 dictionary from our own static file (CDN-cached, fast, works offline)
-      const res = await fetch('/twl06.txt');
-      if (!res.ok) throw new Error('Failed to fetch dictionary');
-      const text = await res.text();
-      dictionary = text.split('\n').filter(w => w.trim().length > 0);
-      dictLoaded = true;
-    } catch (e) {
-      console.error('Failed to load dictionary:', e);
-    }
+    if (dictLoaded) return dictionary;
+
+    // Normalize line endings so CRLF-hosted dictionary files still solve correctly.
+    const res = await fetch('/twl06.txt');
+    if (!res.ok) throw new Error('Failed to fetch dictionary');
+
+    const text = await res.text();
+    dictionary = text
+      .split(/\r?\n/)
+      .map(word => word.trim().toLowerCase())
+      .filter(Boolean);
+    dictLoaded = true;
+
+    return dictionary;
   }
 
   function solveSpellingBee(centerLetter, outerLetters, dict) {
@@ -546,7 +549,7 @@ const combinedSchema = JSON.stringify([JSON.parse(howToSchema), JSON.parse(faqSc
       console.error('Solve failed:', e);
       loadingDiv.classList.add('hidden');
       emptyDiv.classList.remove('hidden');
-      emptyDiv.querySelector('p').textContent = 'Failed to solve. Please try again.';
+      emptyDiv.querySelector('p').textContent = 'Failed to load the solver dictionary. Please refresh and try again.';
     }
   }
 

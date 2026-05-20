@@ -8,8 +8,14 @@ binding = "DB"
 database_name = "spelling_bee"
 database_id = "07d50185-619d-40f9-bcd9-bb46ae5bd142"
 
+[[kv_namespaces]]
+binding = "ANALYTICS_CACHE"
+id = "e6864ed6da3349ac9433374e6b372ca2"
 
 
-# Scheduled Trigger - Runs at 8:01, 8:05, and 8:30 UTC every day
+# Scheduled trigger for 12:00am IST with two retry windows.
+# Cloudflare cron expressions run in UTC, so:
+# - 12:00am IST = 18:30 UTC
+# - retries at 12:05am IST and 12:15am IST
 [triggers]
-crons = ["1 8 * * *", "5 8 * * *", "44 8 * * *"] 
+crons = ["30 18 * * *", "35 18 * * *", "45 18 * * *"]

@@ -1,4 +1,14 @@
 ---
-// Permanent redirect from /yesterday to /archive
-return Astro.redirect('/archive');
+const target = '/archive';
 ---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <link rel="canonical" href={target} />
+    <script is:inline>{`window.location.replace('${target}');`}</script>
+  </head>
+  <body></body>
+</html>

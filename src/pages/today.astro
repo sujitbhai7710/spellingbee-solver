@@ -81,6 +81,7 @@ const dictionaryWords = (() => {
 const todayData = await safeFetchJSON(`${API_BASE}/today`, { puzzle: {}, words: [] });
 const puzzle = todayData.puzzle || {};
 const words = todayData.words || [];
+const definitionsByWord = todayData.definitionsByWord || {};
 const totalPoints = safeNum(todayData.totalPoints);
 const center = puzzle.letters || '';
 const allLetters = puzzle.all_letters || '';
@@ -133,8 +134,11 @@ const analysis = analysisData.analysis || {
   commonWords: [],
   allAnswerLengthDistribution: [],
   uniqueAnswerLengthDistribution: [],
+  totalHistoricalAnswers: 0,
+  totalUniqueHistoricalWords: 0,
   sameCenterPuzzles: [],
   pangramHistoryByWord: {},
+  pangramHistoryCombined: [],
 };
 
 const statsData = await safeFetchJSON(`${API_BASE}/api/statistics`, {
@@ -218,8 +222,14 @@ const allAnswerLengthDistribution = analysis.allAnswerLengthDistribution || [];
 const uniqueAnswerLengthDistribution = analysis.uniqueAnswerLengthDistribution || [];
 const maxAllAnswerLengthCount = Math.max(...allAnswerLengthDistribution.map((item) => item.count), 1);
 const maxUniqueAnswerLengthCount = Math.max(...uniqueAnswerLengthDistribution.map((item) => item.count), 1);
-const totalHistoricalAnswers = allAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0);
-const totalUniqueHistoricalWords = uniqueAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0);
+const totalHistoricalAnswers = safeNum(
+  analysis.totalHistoricalAnswers,
+  allAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0),
+);
+const totalUniqueHistoricalWords = safeNum(
+  analysis.totalUniqueHistoricalWords,
+  uniqueAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0),
+);
 
 const centerFreqMap = Object.fromEntries(centerFreq.map((item) => [item.letter, item]));
 const letterFreqMap = Object.fromEntries(letterFreq.map((item) => [item.letter, item]));
@@ -229,6 +239,13 @@ const maxValidLetterCount = Math.max(...allLettersAZ.map((letter) => safeNum(let
 
 const sameCenterPuzzles = analysis.sameCenterPuzzles || [];
 const pangramHistoryByWord = analysis.pangramHistoryByWord || {};
+const pangramHistoryCombined = analysis.pangramHistoryCombined || [];
+const wordsWithDefinitions = words
+  .map((word) => ({
+    ...word,
+    definitionMeta: definitionsByWord[word.word?.toLowerCase()] || null,
+  }))
+  .filter((word) => word.definitionMeta);
 
 const officialWordSet = new Set(words.map((word) => word.word.toLowerCase()));
 const validLetters = new Set(allLetters.toLowerCase().split(''));
@@ -393,6 +410,41 @@ const faqSchema = JSON.stringify({
           </div>
         </details>
 
+        {wordsWithDefinitions.length > 0 && (
+          <details class="card-elevated p-6 mb-8 group">
+            <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+              Show Word Meanings
+              <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div class="mt-5">
+              <div class="space-y-3">
+                {wordsWithDefinitions.map((word) => (
+                  <div class="rounded-xl border border-gray-100 bg-white p-4">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                      <span class:list={[
+                        'inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold uppercase',
+                        word.is_pangram === 1 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-800',
+                      ]}>{word.word}</span>
+                      {word.definitionMeta?.partOfSpeech && (
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">{word.definitionMeta.partOfSpeech}</span>
+                      )}
+                    </div>
+                    <p class="text-sm text-gray-700 leading-relaxed">{word.definitionMeta?.definition}</p>
+                    {word.definitionMeta?.synonyms?.length > 0 && (
+                      <p class="text-xs text-gray-500 mt-2"><strong>Synonyms:</strong> {word.definitionMeta.synonyms.join(', ')}</p>
+                    )}
+                    {word.definitionMeta?.antonyms?.length > 0 && (
+                      <p class="text-xs text-gray-500 mt-1"><strong>Antonyms:</strong> {word.definitionMeta.antonyms.join(', ')}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
+        )}
+
         <div class="card-elevated p-6 mb-8">
           <h2 class="text-lg font-bold text-gray-800 mb-4">Puzzle Statistics</h2>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
@@ -510,34 +562,34 @@ const faqSchema = JSON.stringify({
         {pangrams.length > 0 && (
           <div class="card-elevated p-6 mb-8">
             <h2 class="text-lg font-bold text-gray-800 mb-4">Other Days With This Pangram</h2>
-            <div class="space-y-5">
-              {pangrams.map((word) => {
-                const history = pangramHistoryByWord[word.word] || [];
-                return (
-                  <div>
-                    <p class="font-semibold text-amber-700 mb-2">{word.word.toUpperCase()}</p>
-                    {history.length > 0 ? (
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {history.slice(0, 6).map((item) => (
-                          <a href={archiveHref(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">
-                            <div class="flex items-center justify-between mb-2">
-                              <span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">{item.date}</span>
-                              <span class="font-mono text-xs text-gray-400">{item.all_letters}</span>
-                            </div>
-                            <div class="flex items-center gap-3 text-xs">
-                              <span class="text-gray-500">{item.word_count} answers</span>
-                              <span class="text-amber-600 font-semibold">{item.pangrams_count} pangram{item.pangrams_count !== 1 ? 's' : ''}</span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    ) : (
-                      <p class="text-sm text-gray-400 italic">No earlier puzzles found with this pangram.</p>
+            {pangramHistoryCombined.length > 0 ? (
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {pangramHistoryCombined.map((item) => (
+                  <a href={archiveHref(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">
+                    <div class="flex items-center justify-between mb-2 gap-3">
+                      <span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">{item.date}</span>
+                      <span class="font-mono text-xs text-gray-400">{item.all_letters}</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs mb-2">
+                      <span class="text-gray-500">{item.word_count} answers</span>
+                      <span class="text-amber-600 font-semibold">{item.pangrams_count} pangram{item.pangrams_count !== 1 ? 's' : ''}</span>
+                    </div>
+                    {item.matchingWords?.length > 0 && (
+                      <p class="text-xs text-gray-500">Matching pangrams: {item.matchingWords.join(', ')}</p>
                     )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div class="space-y-3">
+                {pangrams.map((word) => (
+                  <div>
+                    <p class="font-semibold text-amber-700 mb-1">{word.word.toUpperCase()}</p>
+                    <p class="text-sm text-gray-400 italic">No earlier puzzles found with this pangram.</p>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -960,7 +1012,6 @@ const faqSchema = JSON.stringify({
             <svg width="16" height="18" viewBox="0 0 100 110"><polygon points="50,3 95,27.5 95,72.5 50,97 5,72.5 5,27.5" fill="white" stroke="white" stroke-width="3"/></svg>
             Use Solver
           </a>
-          <a href="/yesterday" class="btn-secondary w-full text-sm !py-3">Yesterday's Answers</a>
           <a href="/archive" class="btn-secondary w-full text-sm !py-3">Puzzle Archive</a>
         </div>
 

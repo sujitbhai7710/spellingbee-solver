@@ -2,3 +2,8 @@ node_modules/
 dist/
 .wrangler/
 .astro/
+cf-pages-dist/
+.env
+.env.local
+.env.*.local
+cloudflare.local.env

@@ -1,0 +1,71 @@
+name: Daily Rebuild
+
+on:
+  workflow_dispatch:
+    inputs:
+      puzzle_id:
+        description: Optional puzzle id for definition backfill
+        required: false
+        type: string
+      date:
+        description: Optional date for definition backfill (YYYY-MM-DD or Month Day, Year)
+        required: false
+        type: string
+      skip_definitions:
+        description: Skip NVIDIA definition generation
+        required: false
+        default: false
+        type: boolean
+      skip_deploy:
+        description: Skip Cloudflare Pages deploy
+        required: false
+        default: false
+        type: boolean
+  repository_dispatch:
+    types:
+      - spellingbee-refresh
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE: https://spelling-bee-api.sbsolver.workers.dev
+      WORKER_ADMIN_API_KEY: ${{ secrets.WORKER_ADMIN_API_KEY }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      NVIDIA_NIM_MODEL: qwen/qwen3-next-80b-a3b-instruct
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Backfill Missing Definitions
+        if: ${{ !inputs.skip_definitions }}
+        run: |
+          args=()
+          if [ -n "${{ inputs.puzzle_id }}" ]; then
+            args+=(--puzzle-id "${{ inputs.puzzle_id }}")
+          fi
+          if [ -n "${{ inputs.date }}" ]; then
+            args+=(--date "${{ inputs.date }}")
+          fi
+          node scripts/backfill-definitions.mjs "${args[@]}"
+
+      - name: Build Site
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        if: ${{ !inputs.skip_deploy }}
+        run: npx wrangler pages deploy dist --project-name spellingbee-solver

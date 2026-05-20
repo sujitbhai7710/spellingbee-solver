@@ -232,3 +232,194 @@ Next Best Follow-Up:
   - all answer-length totals
   - unique-word totals
   - score and word-count percentiles for exact nytbee parity
+
+---
+Task ID: parity-kv-archive-definitions-2026-05-21
+Agent: Main Agent
+Task: Push the analytics closer to nytbee parity, add KV caching, archive parity improvements, GitHub rebuild automation, and definition storage/generation plumbing
+
+Work Log:
+- Confirmed the live root cause for broken pangram history:
+  - older archive rows used uppercase words
+  - newer rows use lowercase
+  - the historical pangram map was case-sensitive
+  - result: `BACKBOARD`, `BACKDOOR`, and `CORKBOARD` incorrectly showed "No earlier puzzles found"
+- Confirmed the archive also contained duplicate `(puzzle_id, lower(word))` rows from older imports.
+- Added normalized and deduped historical analytics in the worker:
+  - all historical words now normalize to lowercase
+  - duplicate puzzle-word rows are ignored in analytics
+  - pangram history now keys on normalized words
+- Changed puzzle analysis to be date-scoped:
+  - archive pages now compare a puzzle against history available up to that puzzle's date
+  - this matches saved historical nytbee pages much more closely than comparing against the full future archive
+- Added KV-backed cached per-puzzle analysis:
+  - created KV namespace binding `ANALYTICS_CACHE`
+  - worker cache key versioning now controls analytics invalidation
+  - D1 table `kv_cache_budget` was added lazily by the worker to track daily cache writes
+- Added lazy D1 support tables through the worker:
+  - `word_definitions`
+  - `kv_cache_budget`
+- Added worker definition helpers:
+  - fetch definitions for puzzle words
+  - upsert generated definitions
+  - list missing definitions for a puzzle
+- Added new worker routes:
+  - `GET /api/definitions/:word`
+  - `GET /api/admin/definitions/missing/puzzle/:id`
+  - `POST /api/admin/definitions/upsert`
+- Updated existing worker routes:
+  - `/today` and `/api/puzzle/:id` now include `definitionsByWord`
+  - `/api/wordLengthDistribution` now uses deduped analytics instead of raw duplicated rows
+  - `/api/statistics` now uses deduped totals and the correct 537-point historical max again
+  - `BASE_URL` switched to `https://spellingbeesolver.dev`
+- Removed the old score-outlier suppression from live analytics after verifying deduped D1 scores directly:
+  - `January 22, 2021` really is `537`
+  - after deduping, the top score list is sane without the heuristic filter
+- Confirmed from D1 that the deduped top score list begins:
+  - `537` on `January 22, 2021`
+  - `506` on `September 24, 2023`
+  - `496` on `June 5, 2022`
+- Switched the worker's "today" filter to site timezone `Asia/Kolkata`:
+  - this aligns latest-puzzle behavior with the requested midnight IST rollout
+- Updated Cloudflare cron schedule in `wrangler.toml`:
+  - `30 18 * * *`
+  - `35 18 * * *`
+  - `45 18 * * *`
+  - those are `12:00am`, `12:05am`, and `12:15am` IST
+- Created the Cloudflare KV namespace and wired it into `wrangler.toml`:
+  - binding: `ANALYTICS_CACHE`
+  - id: `e6864ed6da3349ac9433374e6b372ca2`
+- Added a GitHub Actions rebuild pipeline:
+  - file: `.github/workflows/daily-rebuild.yml`
+  - triggers:
+    - `workflow_dispatch`
+    - `repository_dispatch` with event type `spellingbee-refresh`
+  - pipeline:
+    - install deps
+    - backfill missing definitions via NVIDIA NIM
+    - build Astro site
+    - deploy to Cloudflare Pages
+- Added worker-side GitHub repository_dispatch trigger:
+  - scheduled scrape now pings GitHub after storing the latest puzzle
+  - manual `/api/update/nyt` also pings GitHub
+- Added definition generation/backfill script:
+  - `scripts/backfill-definitions.mjs`
+  - fetches missing words for a puzzle
+  - calls NVIDIA NIM
+  - upserts deduped word definitions into D1
+- Added parity audit script:
+  - `scripts/audit-nytbee-parity.mjs`
+  - compares our worker analytics to live `nytbee.com/Bee_YYYYMMDD.html`
+  - used to check two sets of 10 dates
+- Updated the frontend today page:
+  - added a `Show Word Meanings` section powered by `definitionsByWord`
+  - replaced the broken per-word pangram-history display with a combined earlier-puzzles section
+  - today page now shows live earlier pangram dates again
+- Updated the archive page:
+  - archive detail view now fetches `puzzleAnalysis`
+  - added archive-side comparison sections with histogram bars
+  - added archive-side word meanings section
+  - added archive-side pangram-history section
+  - archive detail is now much closer to the today-page analysis experience
+- Added `PROJECT_STRUCTURE.txt` to explain:
+  - current active frontend
+  - active worker
+  - scripts
+  - workflow
+  - legacy nested frontend
+  - nytbee reference folder
+  - other loose reference artifacts
+
+Deployments Completed:
+- Worker deployed multiple times to:
+  - `https://spelling-bee-api.sbsolver.workers.dev`
+- Pages deployed multiple times to the Cloudflare Pages project:
+  - `spellingbee-solver`
+  - latest successful direct-upload preview during this pass:
+    - `https://92367cce.spellingbee-solver.pages.dev`
+
+Important Cloudflare / GitHub Secret Placement:
+- Add these as Cloudflare Worker secrets or plain env vars for the worker:
+  - `APIKEY`
+  - `GITHUB_TOKEN`
+  - `GITHUB_REPO_URL`
+- Add these as GitHub repository secrets for the workflow:
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
+  - `WORKER_ADMIN_API_KEY`
+  - `NVIDIA_NIM_API_KEY`
+- The NVIDIA key belongs in GitHub Actions, not in the worker, because the workflow is what calls NIM.
+- The GitHub PAT belongs in Cloudflare Worker secrets, because the worker is what triggers `repository_dispatch`.
+
+## 2026-05-21 GitHub Repo URL Config
+- Replaced the split `GITHUB_REPO_OWNER` + `GITHUB_REPO_NAME` setup with a simpler `GITHUB_REPO_URL` flow for local Cloudflare secret sync and worker GitHub API calls.
+- The worker now accepts either `https://github.com/owner/repo` or `owner/repo`, normalizes it internally, and still falls back to the old owner/name env vars for backward compatibility.
+- `scripts/sync-worker-secrets.ps1` now validates and normalizes `GITHUB_REPO_URL` before uploading secrets to Cloudflare, so the same value works locally and in production.
+- `cloudflare.local.env.example` now documents the simpler repo URL setup and recommends a fine-grained GitHub token with repository-scoped `Contents` write access.
+
+Audit Results After Fixes:
+- The worker/page stack now matches live nytbee exactly for many recent dates that previously failed, including:
+  - `2026-05-19`
+  - `2026-05-18`
+  - `2026-05-16`
+  - `2026-05-13`
+  - `2026-05-11`
+  - `2026-05-10`
+  - `2026-05-08`
+  - `2026-05-06`
+  - `2026-05-05`
+  - `2026-05-04`
+  - `2026-05-02`
+- Remaining recent mismatches after the final sweep are small and data-corpus-driven, not large frontend math failures:
+  - score percentile off by `1` on a few dates such as:
+    - `2026-05-20`
+    - `2026-05-15`
+    - `2026-05-12`
+    - `2026-05-07`
+    - `2026-05-01`
+  - one pangram-history date remains extra for `2026-05-17`
+  - one word-count percentile off-by-one remains on `2026-05-14`
+- The remaining drift is consistent with the broader historical corpus issue already identified earlier:
+  - our archive still contains some historical answer/pangram data that differs slightly from the exact `nytbee` corpus
+  - fixing those last mismatches requires historical data cleanup/re-ingestion, not more frontend hardcoding
+
+Final State of the Big Questions:
+- Pangram history bug:
+  - fixed for the original current-page failure case
+  - current live today page now shows earlier pangram dates again
+- Highest/lowest score dates:
+  - fixed live and no longer hardcoded
+- Archive detail analysis parity:
+  - substantially improved and now uses the same worker analysis source
+- Daily rebuild flow:
+  - added
+- NVIDIA definition architecture:
+  - added
+- KV + D1 optimization path:
+  - added
+
+Next Best Follow-Up:
+- Rebuild the historical archive from the exact official NYT answer corpus to remove the last off-by-one percentile and extra pangram-history differences.
+- Once that corpus cleanup is done, re-run:
+  - `node scripts/audit-nytbee-parity.mjs --recent 10`
+  - `node scripts/audit-nytbee-parity.mjs --recent 10 --offset 10`
+
+## 2026-05-21 Solver Fix
+- Root cause: \\public/twl06.txt\\ is served with CRLF line endings, and the client solver was splitting only on \\\\n\\, leaving a hidden \\\\r\\ on every word. That made every candidate fail the letter-set validation loop and caused the UI to always show 'No words found for these letters'.
+- Fix: normalized dictionary loading in \\src/pages/solver.astro\\ with \\.split(/\\r?\\n/)\\ and \\.trim()\\, and changed dictionary-load failures to surface an explicit error message instead of silently solving against an empty list.
+- Verification: local build now returns real solver results for the live today letters instead of zero matches.
+
+
+## 2026-05-21 Archive + Redirect Cleanup
+- Hid the word-meanings section entirely on /today and /archive when no definitions exist. The old fallback text about backfilling definitions is removed from the UI.
+- Removed Yesterday from the main header/mobile nav and footer answer links because the route is now just a redirect target.
+- Added public/_redirects with /yesterday -> /archive and changed src/pages/yesterday.astro to a minimal window.location.replace('/archive') fallback, so the redirect is fast on Pages and still works in static previews.
+- Extended the archive detail renderer to include the major analysis sections that were missing compared with /today: word-length bars, points-by-length bars, letter-history charts, common-word history, full answer-length history, and non-official dictionary words for the selected archive puzzle.
+- Added local Cloudflare admin scripts:
+  - scripts/sync-worker-secrets.ps1 reads cloudflare.local.env and uploads Worker secrets with Wrangler.
+  - scripts/purge-analysis-cache.ps1 deletes KV analysis cache keys by prefix.
+- Added cloudflare.local.env.example and ignored the real local secret file in .gitignore.
+- Bumped ANALYSIS_CACHE_VERSION to 8 so stale cached archive analytics are ignored after deploy.
+
+- Removed the last stray Yesterday's Answers CTA from the /today sidebar so /yesterday no longer appears in the active UI.
+
