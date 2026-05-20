@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Honeycomb from '../components/Honeycomb.astro';
-import { API_BASE } from '../lib/utils';
+import { API_BASE, formatDateURL } from '../lib/utils';
 
 // Get latest puzzle for the homepage
 const todayRes = await fetch(`${API_BASE}/today`);
@@ -29,6 +29,7 @@ const statsRes = await fetch(`${API_BASE}/api/statistics`);
 const statsData = await statsRes.json();
 const totalPuzzles = statsData.overview?.totalPuzzles || 0;
 const totalWords = statsData.overview?.totalWords || 0;
+const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
 
 const websiteSchema = JSON.stringify({
   "@context": "https://schema.org",
@@ -205,7 +206,7 @@ const websiteSchema = JSON.stringify({
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {recentPuzzles.map(p => (
-            <a href="/archive" class="card p-5 group hover:border-amber-300">
+            <a href={archiveHref(p.date)} class="card p-5 group hover:border-amber-300">
               <div class="flex items-center gap-3 mb-3">
                 <span class="letter-circle letter-circle-center">{p.letters}</span>
                 <div>

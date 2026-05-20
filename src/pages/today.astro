@@ -1,291 +1,261 @@
 ---
+import { readFileSync } from 'node:fs';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Honeycomb from '../components/Honeycomb.astro';
-import { API_BASE, getProgressLevel } from '../lib/utils';
+import { API_BASE, formatDateURL } from '../lib/utils';
 
-// ==================== FETCH PRIMARY DATA ====================
-// Determine "today" in Eastern Time (NYT resets at midnight ET)
-const now = new Date();
-const etOffset = -5; // EST = UTC-5 (EDT = UTC-4, but approximate)
-const etNow = new Date(now.getTime() + (etOffset * 60 + now.getTimezoneOffset()) * 60000);
-// Check if DST (rough: 2nd Sunday March to 1st Sunday November)
-const marchSecondSunday = new Date(etNow.getFullYear(), 2, 8 + (7 - new Date(etNow.getFullYear(), 2, 1).getDay()) % 7);
-const novFirstSunday = new Date(etNow.getFullYear(), 10, 1 + (7 - new Date(etNow.getFullYear(), 10, 1).getDay()) % 7);
-const isDST = etNow >= marchSecondSunday && etNow < novFirstSunday;
-const actualOffset = isDST ? -4 : -5;
-const etDate = new Date(now.getTime() + (actualOffset * 60 + now.getTimezoneOffset()) * 60000);
+const safeFetchJSON = async (url, fallback) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return fallback;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Failed to fetch ${url}:`, error);
+    return fallback;
+  }
+};
 
-const res = await fetch(`${API_BASE}/today`);
-const data = await res.json();
-const puzzle = data.puzzle || {};
-const words = data.words || [];
+const safeNum = (value, fallback = 0) => (
+  value != null && !Number.isNaN(Number(value)) ? Number(value) : fallback
+);
 
-const center = puzzle.letters || '';
-const allLetters = puzzle.all_letters || '';
-const outerLetters = allLetters.split('').filter(l => l !== center);
-const pangrams = words.filter(w => w.is_pangram === 1);
-const regularWords = words.filter(w => w.is_pangram !== 1);
-const totalPoints = data.totalPoints || 0;
-const hasPerfectPangram = data.hasPerfectPangram || false;
-const perfectPangrams = data.perfectPangrams || [];
-const geniusThreshold = Math.round(totalPoints * 0.70);
+const safeLocale = (value) => (
+  typeof value === 'number' ? value.toLocaleString() : (value ?? '--')
+);
 
-// ==================== COMPUTE PUZZLE STATS ====================
+const roundTo = (value, decimals = 1) => {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+};
 
-// Group words by length (including pangrams for chart data)
-const wordsByLengthAll = {};
-for (const w of words) {
-  const l = w.length;
-  if (!wordsByLengthAll[l]) wordsByLengthAll[l] = [];
-  wordsByLengthAll[l].push(w);
-}
-const sortedLengths = Object.keys(wordsByLengthAll).sort((a, b) => +a - +b);
+const formatOrdinal = (value) => {
+  const number = safeNum(value, 0);
+  const mod100 = number % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${number}th`;
+  switch (number % 10) {
+    case 1:
+      return `${number}st`;
+    case 2:
+      return `${number}nd`;
+    case 3:
+      return `${number}rd`;
+    default:
+      return `${number}th`;
+  }
+};
 
-// Group regular words by length (for display)
-const wordsByLength = {};
-for (const w of regularWords) {
-  const l = w.length;
-  if (!wordsByLength[l]) wordsByLength[l] = [];
-  wordsByLength[l].push(w);
-}
-const sortedLengthsRegular = Object.keys(wordsByLength).sort((a, b) => +a - +b);
-
-// Words by First Letter
-const wordsByFirstLetter = {};
-for (const w of words) {
-  const first = w.word[0]?.toUpperCase();
-  if (!first) continue;
-  if (!wordsByFirstLetter[first]) wordsByFirstLetter[first] = { count: 0, isPangram: false };
-  wordsByFirstLetter[first].count++;
-  if (w.is_pangram === 1) wordsByFirstLetter[first].isPangram = true;
-}
-const sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
-const maxFirstLetterCount = Math.max(...Object.values(wordsByFirstLetter).map(v => v.count), 1);
-
-// Calculate points by word length
-function getWordPoints(word) {
+const getWordPoints = (word) => {
+  if (!word) return 0;
   if (word.length === 4) return 1;
   return word.length + (word.is_pangram ? 7 : 0);
-}
+};
 
-const pointsByLength = {};
-for (const w of words) {
-  const l = w.length;
-  if (!pointsByLength[l]) pointsByLength[l] = 0;
-  pointsByLength[l] += getWordPoints(w);
-}
-const maxPointsByLength = Math.max(...Object.values(pointsByLength), 1);
-const maxWordsByLength = Math.max(...sortedLengths.map(l => wordsByLengthAll[l].length), 1);
+const histogramPeak = (bins) => Math.max(...(bins || []).map((bin) => safeNum(bin.percentage)), 1);
 
-// ==================== GENIUS REQUIREMENT ANALYSIS ====================
-// How many words (from shortest up) do you need to reach Genius?
-let geniusWordCount = 0;
-let geniusPointsAccum = 0;
-const sortedByPointsDesc = [...words].sort((a, b) => {
-  const pa = getWordPoints(a);
-  const pb = getWordPoints(b);
-  return pb - pa;
+const formatHistogramRange = (bin, decimals = 0) => {
+  if (!bin) return '--';
+  const start = decimals === 0 ? Math.round(bin.start) : roundTo(bin.start, decimals).toFixed(decimals);
+  const end = decimals === 0 ? Math.round(bin.end) : roundTo(bin.end, decimals).toFixed(decimals);
+  return start === end ? `${start}` : `${start}-${end}`;
+};
+
+const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
+
+const dictionaryPath = new URL('../../public/twl06.txt', import.meta.url);
+const dictionaryWords = (() => {
+  try {
+    return [...new Set(
+      readFileSync(dictionaryPath, 'utf8')
+        .split(/\r?\n/)
+        .map((word) => word.trim().toLowerCase())
+        .filter(Boolean),
+    )];
+  } catch (error) {
+    console.error('Failed to load TWL dictionary:', error);
+    return [];
+  }
+})();
+
+const todayData = await safeFetchJSON(`${API_BASE}/today`, { puzzle: {}, words: [] });
+const puzzle = todayData.puzzle || {};
+const words = todayData.words || [];
+const totalPoints = safeNum(todayData.totalPoints);
+const center = puzzle.letters || '';
+const allLetters = puzzle.all_letters || '';
+const outerLetters = allLetters.split('').filter((letter) => letter !== center);
+const pangrams = words.filter((word) => word.is_pangram === 1);
+const regularWords = words.filter((word) => word.is_pangram !== 1);
+const perfectPangrams = todayData.perfectPangrams || [];
+const hasPerfectPangram = todayData.hasPerfectPangram || false;
+const geniusThreshold = Math.round(totalPoints * 0.7);
+
+const analysisData = puzzle.puzzle_id
+  ? await safeFetchJSON(`${API_BASE}/api/puzzleAnalysis/${puzzle.puzzle_id}`, { analysis: null })
+  : { analysis: null };
+const analysis = analysisData.analysis || {
+  score: {
+    value: totalPoints,
+    percentile: 0,
+    highestScore: totalPoints,
+    highestScoreDate: null,
+    lowestScore: totalPoints,
+    lowestScoreDate: null,
+    lastTimeAtOrAboveDate: null,
+    histogram: [],
+  },
+  wordCount: {
+    value: safeNum(puzzle.word_count),
+    percentile: 0,
+    highestWordCount: safeNum(puzzle.word_count),
+    highestWordCountDate: null,
+    lowestWordCount: safeNum(puzzle.word_count),
+    lowestWordCountDate: null,
+    lastTimeAboveDate: null,
+    histogram: [],
+  },
+  genius: {
+    threshold: geniusThreshold,
+    minWords: 0,
+    maxWords: 0,
+    requiredLength: 0,
+    lastTimeSameLengthDate: null,
+    neededWithoutPangramsPct: 0,
+    neededAfterPangramsPct: 0,
+    histogram: [],
+  },
+  averageWordLength: {
+    value: words.length > 0 ? roundTo(words.reduce((sum, word) => sum + word.length, 0) / words.length, 1) : 0,
+    globalAverage: 0,
+    histogram: [],
+  },
+  commonWords: [],
+  allAnswerLengthDistribution: [],
+  uniqueAnswerLengthDistribution: [],
+  sameCenterPuzzles: [],
+  pangramHistoryByWord: {},
+};
+
+const statsData = await safeFetchJSON(`${API_BASE}/api/statistics`, {
+  overview: {},
+  averages: {},
+  extremes: {},
 });
-for (const w of sortedByPointsDesc) {
-  geniusPointsAccum += getWordPoints(w);
-  geniusWordCount++;
-  if (geniusPointsAccum >= geniusThreshold) break;
-}
-const geniusPctOfWords = ((geniusWordCount / words.length) * 100).toFixed(1);
-const geniusPctOfPoints = ((geniusThreshold / totalPoints) * 100).toFixed(1);
+const centerFrequencyData = await safeFetchJSON(`${API_BASE}/api/mostCommonCenterLetters`, {
+  centerLetterFrequency: [],
+});
+const letterFrequencyData = await safeFetchJSON(`${API_BASE}/api/allLettersFrequency`, {
+  allLettersFrequency: [],
+});
+const recentData = await safeFetchJSON(`${API_BASE}/api/last/8`, { puzzles: [] });
 
-// ==================== FETCH SECONDARY DATA ====================
-
-// Last 8 puzzles for sidebar
-const lastRes = await fetch(`${API_BASE}/api/last/8`);
-const lastData = await lastRes.json();
-const recentPuzzles = (lastData.puzzles || []).filter(p => p.puzzle_id !== puzzle.puzzle_id).slice(0, 6);
-
-// Global statistics
-let stats = { overview: {}, averages: {}, extremes: {} };
-let centerFreq = [];
-let letterFreq = [];
-let wordDist = [];
-let centerLetterCombos = [];
-
-try {
-  const statsRes = await fetch(`${API_BASE}/api/statistics`);
-  const statsData = await statsRes.json();
-  stats = statsData || stats;
-
-  const cfRes = await fetch(`${API_BASE}/api/mostCommonCenterLetters`);
-  centerFreq = (await cfRes.json()).centerLetterFrequency || [];
-
-  const lfRes = await fetch(`${API_BASE}/api/allLettersFrequency`);
-  letterFreq = (await lfRes.json()).allLettersFrequency || [];
-
-  const wdRes = await fetch(`${API_BASE}/api/wordLengthDistribution`);
-  const wdData = await wdRes.json();
-  wordDist = wdData.wordLengthDistribution || [];
-} catch (e) {
-  console.error('Secondary data fetch error:', e);
-}
-
+const stats = statsData || {};
 const overview = stats.overview || {};
 const averages = stats.averages || {};
-const extremes = stats.extremes || {};
-const totalPuzzles = overview.totalPuzzles || 2932;
+const centerFreq = centerFrequencyData.centerLetterFrequency || [];
+const letterFreq = letterFrequencyData.allLettersFrequency || [];
+const recentPuzzles = (recentData.puzzles || [])
+  .filter((item) => item.puzzle_id !== puzzle.puzzle_id)
+  .slice(0, 6);
 
-// Fetch center letter combo for "Other Days With This Pangram"
-try {
-  const clcRes = await fetch(`${API_BASE}/api/centerLetterCombo/${center}`);
-  const clcData = await clcRes.json();
-  centerLetterCombos = (clcData.puzzles || []).filter(p => p.puzzle_id !== puzzle.puzzle_id).slice(0, 8);
-} catch (e) {
-  console.error('Center letter combo fetch error:', e);
+const totalPuzzles = safeNum(overview.totalPuzzles);
+const totalWordsAcrossAllPuzzles = safeNum(overview.totalWords);
+
+const wordsByLengthAll = {};
+for (const word of words) {
+  if (!wordsByLengthAll[word.length]) wordsByLengthAll[word.length] = [];
+  wordsByLengthAll[word.length].push(word);
+}
+const sortedLengths = Object.keys(wordsByLengthAll).map(Number).sort((a, b) => a - b);
+
+const wordsByLengthRegular = {};
+for (const word of regularWords) {
+  if (!wordsByLengthRegular[word.length]) wordsByLengthRegular[word.length] = [];
+  wordsByLengthRegular[word.length].push(word);
+}
+const sortedRegularLengths = Object.keys(wordsByLengthRegular).map(Number).sort((a, b) => a - b);
+
+const pointsByLength = {};
+for (const word of words) {
+  pointsByLength[word.length] = (pointsByLength[word.length] || 0) + getWordPoints(word);
 }
 
-// ==================== COMPUTE COMPARISON DATA ====================
-
-// Letter frequency lookup
-const letterFreqMap = {};
-for (const item of letterFreq) {
-  letterFreqMap[item.letter] = item;
-}
-
-// Center letter frequency lookup
-const centerFreqMap = {};
-for (const item of centerFreq) {
-  centerFreqMap[item.letter] = item;
-}
-
-// A-Z letter data for full alphabet chart
-const allLettersAZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-const maxCenterCount = Math.max(...letterFreq.map(l => l.asCenter || 0), 1);
-const maxOuterCount = Math.max(...letterFreq.map(l => l.asOuter || 0), 1);
-const maxTotalAppearance = Math.max(...letterFreq.map(l => l.totalAppearances || 0), 1);
-
-// Global word length distribution map
-const globalWordDistMap = {};
-let globalTotalWords = 0;
-let maxGlobalDistCount = 0;
-for (const item of wordDist) {
-  globalWordDistMap[item.length] = item.count;
-  globalTotalWords += item.count;
-  if (item.count > maxGlobalDistCount) maxGlobalDistCount = item.count;
-}
-maxGlobalDistCount = Math.max(maxGlobalDistCount, 1);
-
-// Average word length for this puzzle
-const thisPuzzleAvgLen = words.length > 0
-  ? (words.reduce((sum, w) => sum + w.length, 0) / words.length).toFixed(1)
-  : '0';
-
-// ==================== PERCENTILE RANKINGS ====================
-// Compare this puzzle's metrics to global averages
-const wordCountPct = averages.wordsPerPuzzle > 0
-  ? Math.round((puzzle.word_count / averages.wordsPerPuzzle) * 100)
-  : 100;
-const pangramPct = averages.pangramsPerPuzzle > 0
-  ? Math.round((puzzle.pangrams_count / averages.pangramsPerPuzzle) * 100)
-  : 100;
-const avgPointsPerWord = words.length > 0 ? (totalPoints / words.length).toFixed(1) : '0';
-const globalAvgPointsPerWord = averages.wordsPerPuzzle > 0
-  ? ((averages.wordsPerPuzzle * averages.averageWordLength || 0) / averages.wordsPerPuzzle).toFixed(1)
-  : '0';
-
-// Word count percentile (rough estimate based on extremes)
-const minWords = extremes.puzzleWithFewestWords?.word_count || 16;
-const maxWords = extremes.puzzleWithMostWords?.word_count || 81;
-const wordRange = maxWords - minWords || 1;
-const wordPercentile = Math.min(99, Math.max(1, Math.round(((puzzle.word_count - minWords) / wordRange) * 100)));
-
-// Pre-compute FAQ strings that use < operator (Astro can't handle < in template expressions)
-const faqCompareText = wordPercentile >= 60
-  ? 'This makes it a larger-than-average puzzle with more scoring potential.'
-  : wordPercentile < 40
-    ? 'This makes it a smaller puzzle where every word matters more.'
-    : 'This is a fairly typical puzzle by Spelling Bee standards.';
-
-// ==================== COMPARISON DATA FOR "HOW DOES THIS PUZZLE COMPARE?" ====================
-
-// Score percentile (approximate based on extremes)
-const highestScore = extremes.highestScore?.max_score || 537;
-const lowestScore = extremes.lowestScore?.max_score || 47;
-const scoreRange = highestScore - lowestScore || 1;
-const scorePercentile = Math.min(99, Math.max(1, Math.round(((totalPoints - lowestScore) / scoreRange) * 100)));
-
-// "Last time" dates — use centerLetterCombos and recentPuzzles for approximation
-// Since we can't query all puzzles, use extremes dates as reference
-const highestScoreDate = extremes.highestScore?.date || 'January 22, 2021';
-const lowestScoreDate = extremes.lowestScore?.date || 'March 27, 2023';
-const maxWordsDate = extremes.puzzleWithMostWords?.date || 'June 08, 2019';
-const minWordsDate = extremes.puzzleWithFewestWords?.date || 'March 27, 2023';
-
-// For "last time there was a score this high" — use recent puzzles as approximation
-const lastHighScorePuzzle = recentPuzzles.find(p => {
-  const pScore = p.max_score || 0;
-  return pScore >= totalPoints;
-});
-const lastHighScoreDate = lastHighScorePuzzle?.date || null;
-
-const lastMoreAnswersPuzzle = recentPuzzles.find(p => (p.word_count || 0) > puzzle.word_count);
-const lastMoreAnswersDate = lastMoreAnswersPuzzle?.date || null;
-
-// Genius minimum word length analysis
-// Find the minimum word length needed to reach genius
-const sortedByPointsDesc2 = [...words].sort((a, b) => getWordPoints(b) - getWordPoints(a));
-let geniusMinLengthAccum = 0;
-let geniusMinLength = 0;
-for (const w of sortedByPointsDesc2) {
-  geniusMinLengthAccum += getWordPoints(w);
-  geniusMinLength = w.length;
-  if (geniusMinLengthAccum >= geniusThreshold) break;
-}
-
-// Find the last time the same genius minimum length happened (from recent puzzles)
-const lastGeniusLengthPuzzle = recentPuzzles.find(p => p.word_count > 0);
-const lastGeniusLengthDate = lastGeniusLengthPuzzle?.date || null;
-
-// Build score distribution buckets for bar chart (using extremes as reference)
-const scoreBuckets = [];
-const bucketSize = 50;
-for (let i = Math.floor(lowestScore / bucketSize) * bucketSize; i <= highestScore + bucketSize; i += bucketSize) {
-  scoreBuckets.push(i);
-}
-const todayScoreBucket = Math.floor(totalPoints / bucketSize) * bucketSize;
-
-// Build word count distribution buckets
-const wordBuckets = [];
-const wordBucketSize = 10;
-for (let i = Math.floor(minWords / wordBucketSize) * wordBucketSize; i <= maxWords + wordBucketSize; i += wordBucketSize) {
-  wordBuckets.push(i);
-}
-const todayWordBucket = Math.floor(puzzle.word_count / wordBucketSize) * wordBucketSize;
-
-// ==================== WORD FREQUENCY (from recent puzzles) ====================
-const recentWordFreq = {};
-for (const rp of (lastData.puzzles || [])) {
-  if (rp.puzzle_id === puzzle.puzzle_id) continue;
-  const rpWords = rp.words || [];
-  for (const w of rpWords) {
-    recentWordFreq[w.word] = (recentWordFreq[w.word] || 0) + 1;
+const wordsByFirstLetter = {};
+for (const word of words) {
+  const firstLetter = word.word[0]?.toUpperCase();
+  if (!firstLetter) continue;
+  if (!wordsByFirstLetter[firstLetter]) {
+    wordsByFirstLetter[firstLetter] = { count: 0, hasPangram: false };
+  }
+  wordsByFirstLetter[firstLetter].count += 1;
+  if (word.is_pangram === 1) {
+    wordsByFirstLetter[firstLetter].hasPangram = true;
   }
 }
 
-// Categorize words by rarity
-const wordRarity = words.map(w => {
-  const freq = recentWordFreq[w.word] || 0;
-  let rarity = 'common';
-  if (freq === 0) rarity = 'unique';
-  else if (freq === 1) rarity = 'uncommon';
-  else if (freq <= 3) rarity = 'occasional';
-  return { ...w, freq, rarity };
-});
+const sortedFirstLetters = Object.keys(wordsByFirstLetter).sort();
+const maxFirstLetterCount = Math.max(...sortedFirstLetters.map((letter) => wordsByFirstLetter[letter].count), 1);
+const maxWordsByLength = Math.max(...sortedLengths.map((length) => wordsByLengthAll[length].length), 1);
+const maxPointsByLength = Math.max(...sortedLengths.map((length) => pointsByLength[length] || 0), 1);
+const averageWordLengthValue = words.length > 0
+  ? roundTo(words.reduce((sum, word) => sum + word.length, 0) / words.length, 1)
+  : 0;
 
-const rarityColors = {
-  unique: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', label: 'Unique to this puzzle' },
-  uncommon: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', label: 'Uncommon' },
-  occasional: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', label: 'Occasional' },
-  common: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Common' },
-};
+const scoreHistogram = analysis.score?.histogram || [];
+const wordCountHistogram = analysis.wordCount?.histogram || [];
+const geniusHistogram = analysis.genius?.histogram || [];
+const averageLengthHistogram = analysis.averageWordLength?.histogram || [];
+const scoreHistogramPeak = histogramPeak(scoreHistogram);
+const wordCountHistogramPeak = histogramPeak(wordCountHistogram);
+const geniusHistogramPeak = histogramPeak(geniusHistogram);
+const averageLengthHistogramPeak = histogramPeak(averageLengthHistogram);
 
-// ==================== FAQ SCHEMA ====================
+const commonWords = (analysis.commonWords || []).slice(0, 50);
+const maxCommonWordCount = Math.max(...commonWords.map((item) => item.count), 1);
+
+const allAnswerLengthDistribution = analysis.allAnswerLengthDistribution || [];
+const uniqueAnswerLengthDistribution = analysis.uniqueAnswerLengthDistribution || [];
+const maxAllAnswerLengthCount = Math.max(...allAnswerLengthDistribution.map((item) => item.count), 1);
+const maxUniqueAnswerLengthCount = Math.max(...uniqueAnswerLengthDistribution.map((item) => item.count), 1);
+const totalHistoricalAnswers = allAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0);
+const totalUniqueHistoricalWords = uniqueAnswerLengthDistribution.reduce((sum, item) => sum + safeNum(item.count), 0);
+
+const centerFreqMap = Object.fromEntries(centerFreq.map((item) => [item.letter, item]));
+const letterFreqMap = Object.fromEntries(letterFreq.map((item) => [item.letter, item]));
+const allLettersAZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const maxCenterCount = Math.max(...allLettersAZ.map((letter) => safeNum(centerFreqMap[letter]?.count || letterFreqMap[letter]?.asCenter)), 1);
+const maxValidLetterCount = Math.max(...allLettersAZ.map((letter) => safeNum(letterFreqMap[letter]?.totalAppearances)), 1);
+
+const sameCenterPuzzles = analysis.sameCenterPuzzles || [];
+const pangramHistoryByWord = analysis.pangramHistoryByWord || {};
+
+const officialWordSet = new Set(words.map((word) => word.word.toLowerCase()));
+const validLetters = new Set(allLetters.toLowerCase().split(''));
+const centerLower = center.toLowerCase();
+const nonOfficialWords = dictionaryWords
+  .filter((word) => {
+    if (word.length < 4) return false;
+    if (!word.includes(centerLower)) return false;
+    if (officialWordSet.has(word)) return false;
+    return [...word].every((letter) => validLetters.has(letter));
+  })
+  .sort((a, b) => a.localeCompare(b));
+
+const wordCountPercentileText = formatOrdinal(safeNum(analysis.wordCount?.percentile));
+const scorePercentileText = formatOrdinal(safeNum(analysis.score?.percentile));
+const requiredLength = safeNum(analysis.genius?.requiredLength);
+const geniusMinWords = safeNum(analysis.genius?.minWords);
+const geniusMaxWords = safeNum(analysis.genius?.maxWords);
+const averageWordLengthGlobal = safeNum(analysis.averageWordLength?.globalAverage, safeNum(averages.averageWordLength));
+const currentCenterUsage = safeNum(centerFreqMap[center]?.count || letterFreqMap[center]?.asCenter);
+
+const faqCompareText = safeNum(analysis.wordCount?.percentile) >= 60
+  ? 'This is a larger-than-average puzzle with more total scoring chances.'
+  : safeNum(analysis.wordCount?.percentile) < 40
+    ? 'This is a tighter puzzle, so each answer carries more weight.'
+    : 'This one sits close to the middle of the historical pack.';
+
 const faqSchema = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -295,23 +265,7 @@ const faqSchema = JSON.stringify({
       "name": `What are the NYT Spelling Bee answers for ${puzzle.date}?`,
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": `The NYT Spelling Bee for ${puzzle.date} has ${puzzle.word_count} words and ${puzzle.pangrams_count} pangram${puzzle.pangrams_count !== 1 ? 's' : ''}. The center letter is ${center} and the outer letters are ${outerLetters.join(', ')}. The maximum score is ${totalPoints} points.`
-      }
-    },
-    {
-      "@type": "Question",
-      "name": `What is the center letter in today's Spelling Bee?`,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": `Today's center letter is ${center}. Every word must contain this letter. The full set of letters is ${allLetters.split('').join(', ')}.`
-      }
-    },
-    {
-      "@type": "Question",
-      "name": `How many pangrams are in today's Spelling Bee?`,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": `There ${puzzle.pangrams_count === 1 ? 'is' : 'are'} ${puzzle.pangrams_count} pangram${puzzle.pangrams_count !== 1 ? 's' : ''} in today's puzzle. ${hasPerfectPangram ? 'This puzzle has a perfect pangram (a 7-letter word using all letters exactly once).' : 'There are no perfect pangrams in today\'s puzzle.'}`
+        "text": `The NYT Spelling Bee for ${puzzle.date} has ${puzzle.word_count} answers, ${puzzle.pangrams_count} pangrams, and a maximum score of ${totalPoints}. The center letter is ${center} and the full set of letters is ${allLetters.split('').join(', ')}.`
       }
     },
     {
@@ -319,34 +273,34 @@ const faqSchema = JSON.stringify({
       "name": `What score do you need for Genius in today's Spelling Bee?`,
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": `You need at least ${geniusThreshold} points out of ${totalPoints} total points to reach Genius level in today's puzzle. That's 70% of the maximum score.`
+        "text": `You need ${geniusThreshold} points to reach Genius in today's puzzle. Historically, this puzzle requires between ${geniusMinWords} and ${geniusMaxWords} answers, and you need at least a ${requiredLength}-letter word to get there.`
+      }
+    },
+    {
+      "@type": "Question",
+      "name": `How does today's puzzle compare to other Spelling Bee puzzles?`,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": `Today's puzzle ranks in the ${wordCountPercentileText} percentile for answer count and the ${scorePercentileText} percentile for maximum score. ${faqCompareText}`
       }
     }
   ]
 });
-
-// ==================== HELPERS ====================
-const safeNum = (val, def = 0) => (val != null && !isNaN(Number(val))) ? Number(val) : def;
-const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLocaleString() : (val != null ? String(val) : '\u2014');
 ---
 
-<BaseLayout title="Spelling Bee Answers and Clue with Meaning" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, hints, and analysis. Center letter: ${center}.`} schema={faqSchema}>
+<BaseLayout title="Spelling Bee Answers and Clue with Meaning" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and full puzzle analysis.`} schema={faqSchema}>
   <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <div class="flex flex-col lg:flex-row gap-8">
-      <!-- ========== MAIN CONTENT ========== -->
       <div class="flex-1 min-w-0">
-
-        <!-- Header -->
         <div class="mb-8">
           <div class="flex items-center gap-3 mb-2">
             <span class="badge badge-gold">Today</span>
-            <span class="badge badge-slate">Official Answers</span>
+            <span class="badge badge-slate">Full Analysis</span>
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers and Clue with Meaning</h1>
           </div>
           <p class="text-gray-500 font-medium">{puzzle.date}</p>
         </div>
 
-        <!-- Honeycomb + Stats Row -->
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-8">
           <div class="flex-shrink-0">
             <Honeycomb center={center} outer={outerLetters} size="md" />
@@ -355,7 +309,7 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
             <div class="grid grid-cols-2 gap-3 mb-5">
               <div class="stat-card">
                 <p class="stat-value">{puzzle.word_count}</p>
-                <p class="stat-label">Words</p>
+                <p class="stat-label">Answers</p>
               </div>
               <div class="stat-card">
                 <p class="stat-value">{puzzle.pangrams_count}</p>
@@ -363,405 +317,268 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
               </div>
               <div class="stat-card">
                 <p class="stat-value">{totalPoints}</p>
-                <p class="stat-label">Max Points</p>
+                <p class="stat-label">Max Score</p>
               </div>
               <div class="stat-card">
-                <p class="stat-value">{hasPerfectPangram ? 'Yes' : '\u2014'}</p>
+                <p class="stat-value">{hasPerfectPangram ? 'Yes' : '--'}</p>
                 <p class="stat-label">Perfect Pangram</p>
               </div>
             </div>
-            <div class="text-sm text-gray-500 mb-3">
-              <span class="font-semibold text-purple-600">Genius threshold:</span> {geniusThreshold} points (70% of {totalPoints})
+            <div class="text-sm text-gray-500 mb-2">
+              <span class="font-semibold text-purple-600">Genius threshold:</span> {geniusThreshold} points
             </div>
             <div class="text-sm text-gray-500">
-              <span class="font-semibold text-gray-700">Center:</span> <span class="letter-circle letter-circle-center !w-7 !h-7 !text-xs inline-flex">{center}</span>
+              <span class="font-semibold text-gray-700">Center:</span>
+              <span class="letter-circle letter-circle-center !w-7 !h-7 !text-xs inline-flex">{center}</span>
               <span class="mx-2 text-gray-300">|</span>
-              <span class="font-semibold text-gray-700">Letters:</span> {allLetters.split('').map((l) => <span class:list={['inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold mx-0.5', l === center ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600']}>{l}</span>)}
+              <span class="font-semibold text-gray-700">Letters:</span>
+              {allLetters.split('').map((letter) => (
+                <span class:list={[
+                  'inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold mx-0.5',
+                  letter === center ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600',
+                ]}>{letter}</span>
+              ))}
             </div>
           </div>
         </div>
 
-        <!-- ===== SECTION 1: GENIUS REQUIREMENT ANALYSIS ===== -->
-        <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            Genius Requirement Analysis
-          </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-            <div class="p-4 bg-purple-50 rounded-xl border border-purple-100 text-center">
-              <p class="text-2xl font-black text-purple-700">{geniusThreshold}</p>
-              <p class="text-xs font-semibold text-purple-500 mt-1 uppercase tracking-wide">Points for Genius</p>
-            </div>
-            <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 text-center">
-              <p class="text-2xl font-black text-amber-700">{geniusWordCount} <span class="text-sm font-semibold">of {words.length}</span></p>
-              <p class="text-xs font-semibold text-amber-500 mt-1 uppercase tracking-wide">Words Needed</p>
-            </div>
-            <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 text-center">
-              <p class="text-2xl font-black text-gray-700">{geniusPctOfWords}%</p>
-              <p class="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">Of All Words</p>
-            </div>
-          </div>
-          <div class="mb-3">
-            <div class="flex justify-between text-xs text-gray-500 mb-1.5">
-              <span>0 pts</span>
-              <span>Genius: {geniusThreshold} pts ({geniusPctOfPoints}%)</span>
-              <span>{totalPoints} pts</span>
-            </div>
-            <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden relative">
-              <div class="bg-gradient-to-r from-amber-300 to-amber-500 h-4 rounded-full" style={`width: ${geniusPctOfPoints}%`}></div>
-              <div class="absolute top-0 h-full w-0.5 bg-purple-600" style={`left: ${geniusPctOfPoints}%`}></div>
-            </div>
-            <div class="flex justify-between text-xs text-gray-400 mt-1">
-              <span>Beginner</span>
-              <span>Genius</span>
-              <span>Queen Bee</span>
-            </div>
-          </div>
-          <p class="text-sm text-gray-600 leading-relaxed mt-3">
-            You need <strong>{geniusWordCount} out of {words.length} words</strong> ({geniusPctOfWords}% of the total) to reach Genius at {geniusThreshold} points.
-            {geniusWordCount < words.length * 0.5
-              ? ' Focus on the highest-value words — especially pangrams — since you don\'t need every word.'
-              : ' This puzzle requires finding most of the words to hit Genius, so thoroughness matters.'
-            }
-          </p>
-        </div>
-
-        <!-- Perfect Pangrams -->
-        {hasPerfectPangram && perfectPangrams.length > 0 && (
-          <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-            <h2 class="text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="#10B981"><circle cx="10" cy="10" r="9" fill="none" stroke="#10B981" stroke-width="2"/><path d="M6 10l3 3 5-5" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Perfect Pangram{perfectPangrams.length > 1 ? 's' : ''}!
-            </h2>
-            <div class="flex flex-wrap gap-2">
-              {perfectPangrams.map(w => (
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 border border-emerald-300 rounded-lg text-sm font-bold text-emerald-800 uppercase">{w}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <!-- Pangrams -->
-        {pangrams.length > 0 && (
-          <div class="mb-8">
-            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
-              Pangrams ({pangrams.length})
-            </h2>
-            <div class="flex flex-wrap gap-2">
-              {pangrams.map(w => (
-                <span class="pangram-chip">
-                  <span class="star">&#9733;</span>
-                  {w.word}
-                  <span class="text-xs text-amber-500 opacity-70">{w.length}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <!-- All Words by Length -->
-        <div class="mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4">All Words ({words.length})</h2>
-          <div class="card-elevated divide-y divide-gray-50 max-h-[600px] overflow-y-auto custom-scroll">
-            {sortedLengthsRegular.map(len => (
-              <div class="px-5 py-4">
-                <p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">{len}-Letter Words ({wordsByLength[len].length})</p>
+        <details class="card-elevated p-6 mb-8 group">
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+            Show Official Answers
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div class="mt-5">
+            {hasPerfectPangram && perfectPangrams.length > 0 && (
+              <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <h2 class="text-sm font-bold text-emerald-800 mb-2">Perfect Pangram{perfectPangrams.length > 1 ? 's' : ''}</h2>
                 <div class="flex flex-wrap gap-2">
-                  {wordsByLength[len].map(w => (
-                    <span class="word-chip">{w.word}</span>
+                  {perfectPangrams.map((word) => (
+                    <span class="inline-flex items-center px-3 py-1.5 bg-emerald-100 border border-emerald-300 rounded-lg text-sm font-bold text-emerald-800 uppercase">
+                      {word}
+                    </span>
                   ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {pangrams.length > 0 && (
+              <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-3">Pangrams ({pangrams.length})</h2>
+                <div class="flex flex-wrap gap-2">
+                  {pangrams.map((word) => (
+                    <span class="pangram-chip">
+                      <span class="star">&#9733;</span>
+                      {word.word}
+                      <span class="text-xs text-amber-500 opacity-70">{word.length}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div class="card-elevated divide-y divide-gray-50 max-h-[600px] overflow-y-auto custom-scroll">
+              {sortedRegularLengths.map((length) => (
+                <div class="px-5 py-4">
+                  <p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">{length}-Letter Words ({wordsByLengthRegular[length].length})</p>
+                  <div class="flex flex-wrap gap-2">
+                    {wordsByLengthRegular[length].map((word) => (
+                      <span class="word-chip">{word.word}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+        </details>
+
+        <div class="card-elevated p-6 mb-8">
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Puzzle Statistics</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Number of Pangrams</p>
+              <p class="text-2xl font-black text-gray-800 mt-1">{puzzle.pangrams_count}</p>
+            </div>
+            <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Maximum Puzzle Score</p>
+              <p class="text-2xl font-black text-gray-800 mt-1">{totalPoints}</p>
+            </div>
+            <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Number of Answers</p>
+              <p class="text-2xl font-black text-gray-800 mt-1">{puzzle.word_count}</p>
+            </div>
+            <div class="p-4 bg-purple-50 rounded-xl border border-purple-100">
+              <p class="text-xs font-semibold text-purple-500 uppercase tracking-wide">Points Needed for Genius</p>
+              <p class="text-2xl font-black text-purple-700 mt-1">{geniusThreshold}</p>
+            </div>
+          </div>
+          <p class="text-sm text-gray-600 leading-relaxed">
+            Genius requires between <strong>{geniusMinWords}</strong> and <strong>{geniusMaxWords}</strong> words.
+            You need at least a <strong>{requiredLength}-letter word</strong> to reach genius.
+            If you do not get the pangrams, you need <strong>{analysis.genius?.neededWithoutPangramsPct}%</strong> of the total points to reach genius.
+            If you do get the pangrams, you only need <strong>{analysis.genius?.neededAfterPangramsPct}%</strong> of the remaining points.
+          </p>
         </div>
 
-        <!-- ===== SECTION 2: LENGTH OF WORDS IN THIS PUZZLE ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
-            Length of Words in This Puzzle
-          </h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Length of Words in This Puzzle</h2>
           <div class="space-y-2.5">
-            {sortedLengths.map(len => {
-              const count = wordsByLengthAll[len].length;
-              const pctOfTotal = ((count / words.length) * 100).toFixed(1);
+            {sortedLengths.map((length) => {
+              const count = wordsByLengthAll[length].length;
+              const percentage = words.length > 0 ? roundTo((count / words.length) * 100, 1) : 0;
               const barWidth = Math.max((count / maxWordsByLength) * 100, 3);
-              const hasPangram = wordsByLengthAll[len].some(w => w.is_pangram === 1);
+              const hasPangramAtLength = wordsByLengthAll[length].some((word) => word.is_pangram === 1);
               return (
                 <div class="flex items-center gap-3">
-                  <span class="w-14 text-sm font-bold text-gray-600 text-right flex-shrink-0">{len}-letter</span>
+                  <span class="w-16 text-sm font-bold text-gray-600 text-right flex-shrink-0">{length}-letter</span>
                   <div class="flex-1">
                     <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
                       <div class:list={[
                         'h-7 rounded-full flex items-center pl-3 text-xs font-bold',
-                        hasPangram
-                          ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white'
-                          : 'bg-gray-300 text-gray-700'
+                        hasPangramAtLength ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white' : 'bg-gray-300 text-gray-700',
                       ]} style={`width: ${barWidth}%`}>
                         {count}
                       </div>
                     </div>
                   </div>
-                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{pctOfTotal}%</span>
-                  {hasPangram && (
-                    <svg width="12" height="12" viewBox="0 0 20 20" fill="#F59E0B" class="flex-shrink-0"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
-                  )}
+                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{percentage}%</span>
                 </div>
               );
             })}
           </div>
-          <p class="text-sm text-gray-500 mt-4">
-            The most common word length is <strong>{sortedLengths.reduce((a, b) => wordsByLengthAll[a].length >= wordsByLengthAll[b].length ? a : b)}-letter</strong> words with {wordsByLengthAll[sortedLengths.reduce((a, b) => wordsByLengthAll[a].length >= wordsByLengthAll[b].length ? a : b)]?.length || 0} entries.
-            Word lengths range from 4 to {sortedLengths[sortedLengths.length - 1] || '?'} letters.
-          </p>
         </div>
 
-        <!-- ===== SECTION 3: POINTS AVAILABLE BY LENGTH ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Points Available by Length
-          </h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Points Available by Length</h2>
           <div class="space-y-2.5">
-            {sortedLengths.map(len => {
-              const pts = pointsByLength[len] || 0;
-              const pctOfTotal = totalPoints > 0 ? ((pts / totalPoints) * 100).toFixed(1) : '0';
-              const barWidth = Math.max((pts / maxPointsByLength) * 100, 3);
-              const hasPangram = wordsByLengthAll[len].some(w => w.is_pangram === 1);
+            {sortedLengths.map((length) => {
+              const points = pointsByLength[length] || 0;
+              const percentage = totalPoints > 0 ? roundTo((points / totalPoints) * 100, 1) : 0;
+              const barWidth = Math.max((points / maxPointsByLength) * 100, 3);
+              const hasPangramAtLength = wordsByLengthAll[length].some((word) => word.is_pangram === 1);
               return (
                 <div class="flex items-center gap-3">
-                  <span class="w-14 text-sm font-bold text-gray-600 text-right flex-shrink-0">{len}-letter</span>
+                  <span class="w-16 text-sm font-bold text-gray-600 text-right flex-shrink-0">{length}-letter</span>
                   <div class="flex-1">
                     <div class="w-full bg-gray-100 rounded-full h-7 overflow-hidden">
                       <div class:list={[
                         'h-7 rounded-full flex items-center pl-3 text-xs font-bold',
-                        hasPangram
-                          ? 'bg-gradient-to-r from-emerald-300 to-emerald-500 text-white'
-                          : 'bg-emerald-200 text-emerald-800'
+                        hasPangramAtLength ? 'bg-gradient-to-r from-emerald-300 to-emerald-500 text-white' : 'bg-emerald-200 text-emerald-800',
                       ]} style={`width: ${barWidth}%`}>
-                        {pts} pts
+                        {points} pts
                       </div>
                     </div>
                   </div>
-                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{pctOfTotal}%</span>
+                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{percentage}%</span>
                 </div>
               );
             })}
           </div>
-          <p class="text-sm text-gray-500 mt-4">
-            {(() => {
-              const maxPtsLen = sortedLengths.reduce((a, b) => (pointsByLength[a] || 0) >= (pointsByLength[b] || 0) ? a : b);
-              return <span><strong>{maxPtsLen}-letter words</strong> contribute the most points with <strong>{pointsByLength[maxPtsLen] || 0} points</strong> ({totalPoints > 0 ? ((pointsByLength[maxPtsLen] / totalPoints) * 100).toFixed(1) : 0}% of the total). {pangrams.length > 0 ? 'Pangram bonuses add significant points to longer words.' : ''}</span>;
-            })()}
-          </p>
         </div>
 
-        <!-- ===== SECTION 4: HOW LONG ARE WORDS IN THE BEE? ===== -->
-        <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-10"/></svg>
-            How Long Are Words in the Bee?
-          </h2>
-          <p class="text-sm text-gray-500 mb-4">Comparing this puzzle's word length distribution to the average across all puzzles.</p>
+        <details class="card-elevated p-6 mb-8 group" open>
+          <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+            Show Counts by First Letter
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+            {sortedFirstLetters.map((letter) => {
+              const info = wordsByFirstLetter[letter];
+              const barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
+              return (
+                <div class:list={[
+                  'p-3 rounded-xl border',
+                  info.hasPangram ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white',
+                ]}>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class:list={['text-lg font-black', info.hasPangram ? 'text-amber-600' : 'text-gray-700']}>{letter}</span>
+                    <span class="text-sm font-bold text-gray-500">{info.count}</span>
+                  </div>
+                  <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class:list={['h-2 rounded-full', info.hasPangram ? 'bg-amber-400' : 'bg-gray-300']} style={`width: ${barWidth}%`}></div>
+                  </div>
+                  {info.hasPangram && <span class="text-[10px] text-amber-600 font-bold mt-1 block">HAS PANGRAM</span>}
+                </div>
+              );
+            })}
+          </div>
+        </details>
 
-          <!-- Bar chart: Length of all answers (global) -->
-          <div class="mb-8">
-            <h3 class="text-sm font-bold text-gray-700 mb-3">Length of All Answers (All Puzzles)</h3>
-            <div class="space-y-2">
-              {wordDist.map(item => {
-                const count = item.count || 0;
-                const barWidth = Math.max((count / maxGlobalDistCount) * 100, 2);
-                const isThisPuzzleLen = sortedLengths.includes(String(item.length));
+        {pangrams.length > 0 && (
+          <div class="card-elevated p-6 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-4">Other Days With This Pangram</h2>
+            <div class="space-y-5">
+              {pangrams.map((word) => {
+                const history = pangramHistoryByWord[word.word] || [];
                 return (
-                  <div class:list={['flex items-center gap-3', isThisPuzzleLen && 'bg-amber-50/50 -mx-2 px-2 rounded-lg py-0.5']}>
-                    <span class:list={['w-14 text-sm font-bold text-right flex-shrink-0', isThisPuzzleLen ? 'text-amber-700' : 'text-gray-400']}>{item.length}-letter</span>
-                    <div class="flex-1">
-                      <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
-                        <div class:list={[
-                          'h-6 rounded-full flex items-center pl-3 text-xs font-bold',
-                          item.pangram_count > 0
-                            ? 'bg-gradient-to-r from-amber-300 to-amber-500 text-white'
-                            : isThisPuzzleLen ? 'bg-amber-200 text-amber-800' : 'bg-gray-300 text-gray-700'
-                        ]} style={`width: ${barWidth}%`}>
-                          {safeLocale(count)}
-                        </div>
+                  <div>
+                    <p class="font-semibold text-amber-700 mb-2">{word.word.toUpperCase()}</p>
+                    {history.length > 0 ? (
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {history.slice(0, 6).map((item) => (
+                          <a href={archiveHref(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">
+                            <div class="flex items-center justify-between mb-2">
+                              <span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">{item.date}</span>
+                              <span class="font-mono text-xs text-gray-400">{item.all_letters}</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs">
+                              <span class="text-gray-500">{item.word_count} answers</span>
+                              <span class="text-amber-600 font-semibold">{item.pangrams_count} pangram{item.pangrams_count !== 1 ? 's' : ''}</span>
+                            </div>
+                          </a>
+                        ))}
                       </div>
-                    </div>
-                    {item.pangram_count > 0 && (
-                      <span class="text-xs text-amber-600 font-bold flex items-center gap-0.5 flex-shrink-0">
-                        <svg width="10" height="10" viewBox="0 0 20 20" fill="#F59E0B"><path d="M10 1l2.39 4.84 5.34.78-3.87 3.77.91 5.33L10 13.27l-4.77 2.51.91-5.33L2.27 6.62l5.34-.78z"/></svg>
-                        {item.pangram_count}
-                      </span>
+                    ) : (
+                      <p class="text-sm text-gray-400 italic">No earlier puzzles found with this pangram.</p>
                     )}
                   </div>
                 );
               })}
             </div>
-            <p class="text-xs text-gray-400 mt-2">Total word count by length across all {safeLocale(totalPuzzles)} puzzles</p>
-          </div>
-
-          <!-- Comparison table (existing) -->
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-gray-100">
-                  <th class="text-left py-2.5 pr-4 font-semibold text-gray-600">Length</th>
-                  <th class="text-center py-2.5 px-3 font-semibold text-amber-700 bg-amber-50 rounded-t-lg">This Puzzle</th>
-                  <th class="text-center py-2.5 px-3 font-semibold text-gray-600">All Puzzles (Avg)</th>
-                  <th class="text-center py-2.5 pl-3 font-semibold text-gray-600">Diff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedLengths.map(len => {
-                  const thisCount = wordsByLengthAll[len]?.length || 0;
-                  const globalCount = globalWordDistMap[len] || 0;
-                  const globalAvg = totalPuzzles > 0 ? (globalCount / totalPuzzles) : 0;
-                  const diff = thisCount - globalAvg;
-                  const diffStr = diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
-                  const diffColor = diff >= 0 ? 'text-emerald-600' : 'text-red-500';
-                  return (
-                    <tr class="border-b border-gray-50">
-                      <td class="py-2.5 pr-4 font-bold text-gray-700">{len}-letter</td>
-                      <td class="py-2.5 px-3 text-center font-bold text-amber-700 bg-amber-50/50">{thisCount}</td>
-                      <td class="py-2.5 px-3 text-center text-gray-600">{globalAvg.toFixed(1)}</td>
-                      <td class:list={['py-2.5 pl-3 text-center font-semibold', diffColor]}>{diffStr}</td>
-                    </tr>
-                  );
-                })}
-                <tr class="border-t-2 border-gray-200 font-bold">
-                  <td class="py-2.5 pr-4 text-gray-800">Average Length</td>
-                  <td class="py-2.5 px-3 text-center text-amber-700 bg-amber-50/50">{thisPuzzleAvgLen}</td>
-                  <td class="py-2.5 px-3 text-center text-gray-700">{safeNum(averages.averageWordLength).toFixed(1)}</td>
-                  <td class:list={['py-2.5 pl-3 text-center', parseFloat(thisPuzzleAvgLen) >= safeNum(averages.averageWordLength) ? 'text-emerald-600' : 'text-red-500']}>
-                    {(parseFloat(thisPuzzleAvgLen) - safeNum(averages.averageWordLength) >= 0 ? '+' : '') + (parseFloat(thisPuzzleAvgLen) - safeNum(averages.averageWordLength)).toFixed(1)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="text-sm text-gray-500 mt-4">
-            {parseFloat(thisPuzzleAvgLen) > safeNum(averages.averageWordLength)
-              ? `This puzzle's words are <strong>longer than average</strong> (${thisPuzzleAvgLen} vs ${safeNum(averages.averageWordLength).toFixed(1)}), meaning more points per word on average.`
-              : `This puzzle's words are <strong>shorter than average</strong> (${thisPuzzleAvgLen} vs ${safeNum(averages.averageWordLength).toFixed(1)}), so you'll need to find more words to rack up points.`
-            }
-          </p>
-        </div>
-
-        <!-- ===== SECTION 5: WORDS BY FIRST LETTER ===== -->
-        <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
-            Words by First Letter
-          </h2>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {sortedFirstLetters.map(letter => {
-              const info = wordsByFirstLetter[letter];
-              const barWidth = Math.max((info.count / maxFirstLetterCount) * 100, 8);
-              return (
-                <div class:list={['p-3 rounded-xl border', info.isPangram ? 'border-amber-200 bg-amber-50' : 'border-gray-100 bg-white']}>
-                  <div class="flex items-center justify-between mb-2">
-                    <span class:list={['text-lg font-black', info.isPangram ? 'text-amber-600' : 'text-gray-700']}>{letter}</span>
-                    <span class="text-sm font-bold text-gray-500">{info.count}</span>
-                  </div>
-                  <div class="w-full bg-gray-100 rounded-full h-2">
-                    <div class:list={['h-2 rounded-full', info.isPangram ? 'bg-amber-400' : 'bg-gray-300']} style={`width: ${barWidth}%`}></div>
-                  </div>
-                  {info.isPangram && <span class="text-[10px] text-amber-600 font-bold mt-1 block">HAS PANGRAM</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <!-- ===== SECTION 6: OTHER DAYS WITH THIS PANGRAM ===== -->
-        {centerLetterCombos.length > 0 && (
-          <div class="card-elevated p-6 mb-8">
-            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Other Days With Center Letter {center}
-            </h2>
-            <p class="text-sm text-gray-500 mb-4">Recent puzzles that also featured <strong>{center}</strong> as the center letter. Different outer letters mean different pangrams and word sets.</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {centerLetterCombos.slice(0, 6).map(p => (
-                <a href="/archive" class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">{p.date}</span>
-                    <span class="font-mono text-xs text-gray-400">{p.all_letters}</span>
-                  </div>
-                  <div class="flex items-center gap-3 text-xs">
-                    <span class="text-gray-500">{p.word_count} words</span>
-                    <span class="text-amber-600 font-semibold">{p.pangrams_count} pangram{p.pangrams_count !== 1 ? 's' : ''}</span>
-                  </div>
-                </a>
-              ))}
-            </div>
           </div>
         )}
 
-        <!-- ===== SECTION 6b: OTHER DAYS WITH THIS PANGRAM ===== -->
-        {pangrams.length > 0 && (
-          <div class="card-elevated p-6 mb-8">
-            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#F59E0B" stroke="#D97706" stroke-width="1"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              Other Days With This Pangram
-            </h2>
-            <p class="text-sm text-gray-500 mb-4">Other puzzles where these pangram words also appeared as pangrams.</p>
-            <div class="space-y-4">
-              {pangrams.map(p => (
-                <div class="mb-3">
-                  <p class="font-semibold text-amber-700 mb-2">{p.word.toUpperCase()}</p>
-                  <div id={`pangram-history-${p.word}`} class="text-sm text-gray-500">
-                    <div class="inline-block w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span class="ml-2">Loading...</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <!-- ===== SECTION 7: HOW DOES THIS PUZZLE COMPARE? ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-            How Does This Puzzle Compare?
-          </h2>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">How Does This Puzzle Compare?</h2>
 
-          <!-- Sub-section A: Score Percentile -->
           <div class="mb-8">
             <h3 class="text-sm font-bold text-gray-700 mb-3">Score Percentile</h3>
             <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              Today's score of <strong>{totalPoints}</strong> was in the <strong>{scorePercentile}th percentile</strong> of all puzzles.
+              Today's score of <strong>{totalPoints}</strong> was in the <strong>{scorePercentileText}</strong> percentile of all puzzles.
             </p>
-            {lastHighScoreDate && (
+            {analysis.score?.lastTimeAtOrAboveDate && (
               <p class="text-sm text-gray-600 leading-relaxed mb-2">
-                The last time there was a score this high was on <strong>{lastHighScoreDate}</strong>.
+                The last time there was a score this high was on <strong>{analysis.score.lastTimeAtOrAboveDate}</strong>.
               </p>
             )}
-            <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              The highest score ever was <strong>{highestScore}</strong> on {highestScoreDate}.
-            </p>
-            <p class="text-sm text-gray-600 leading-relaxed mb-4">
-              The lowest score ever was <strong>{lowestScore}</strong> on {lowestScoreDate}.
-            </p>
-            <!-- Score Distribution Bar Chart -->
+            {analysis.score?.highestScoreDate && (
+              <p class="text-sm text-gray-600 leading-relaxed mb-2">
+                The highest score ever was <strong>{analysis.score.highestScore}</strong> on <strong>{analysis.score.highestScoreDate}</strong>.
+              </p>
+            )}
+            {analysis.score?.lowestScoreDate && (
+              <p class="text-sm text-gray-600 leading-relaxed mb-4">
+                The lowest score ever was <strong>{analysis.score.lowestScore}</strong> on <strong>{analysis.score.lowestScoreDate}</strong>.
+              </p>
+            )}
             <div class="space-y-1.5">
-              {scoreBuckets.map(bucket => {
-                const nextBucket = bucket + bucketSize;
-                const isToday = bucket === todayScoreBucket;
-                const barWidth = Math.max(((bucket + bucketSize/2) / highestScore) * 100, 3);
+              {scoreHistogram.map((bin) => {
+                const barWidth = Math.max((safeNum(bin.percentage) / scoreHistogramPeak) * 100, bin.isCurrent ? 3 : 1);
                 return (
-                  <div class:list={['flex items-center gap-2', isToday && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5']}>
-                    <span class:list={['w-16 text-xs font-bold text-right flex-shrink-0', isToday ? 'text-amber-700' : 'text-gray-400']}>{bucket}-{nextBucket}</span>
+                  <div class:list={['flex items-center gap-3', bin.isCurrent && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <span class:list={['w-20 text-xs font-bold text-right flex-shrink-0', bin.isCurrent ? 'text-amber-700' : 'text-gray-400']}>
+                      {formatHistogramRange(bin)}
+                    </span>
                     <div class="flex-1">
                       <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
                         <div class:list={[
                           'h-5 rounded-full flex items-center pl-2 text-[10px] font-bold',
-                          isToday ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' : 'bg-gray-300 text-gray-600'
+                          bin.isCurrent ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white' : 'bg-gray-300 text-gray-600',
                         ]} style={`width: ${barWidth}%`}>
-                          {isToday ? '← Today' : ''}
+                          {bin.isCurrent ? 'Current' : `${roundTo(safeNum(bin.percentage), 1)}%`}
                         </div>
                       </div>
                     </div>
@@ -769,44 +586,46 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
                 );
               })}
             </div>
-            <p class="text-xs text-gray-400 mt-2">Max score in all puzzles (approximate distribution)</p>
+            <p class="text-xs text-gray-400 mt-2">Max score in all puzzles</p>
           </div>
 
           <hr class="border-gray-100 my-6" />
 
-          <!-- Sub-section B: Word Count Percentile -->
           <div class="mb-8">
             <h3 class="text-sm font-bold text-gray-700 mb-3">Word Count Percentile</h3>
             <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              This puzzle's <strong>{puzzle.word_count} possible answers</strong> rank it in the <strong>{wordPercentile}th percentile</strong> of all puzzles.
+              This puzzle's <strong>{puzzle.word_count} possible answers</strong> rank it in the <strong>{wordCountPercentileText}</strong> percentile of all puzzles.
             </p>
-            {lastMoreAnswersDate && (
+            {analysis.wordCount?.lastTimeAboveDate && (
               <p class="text-sm text-gray-600 leading-relaxed mb-2">
-                The last time there were more answers than this was on <strong>{lastMoreAnswersDate}</strong>.
+                The last time there were more answers than this was on <strong>{analysis.wordCount.lastTimeAboveDate}</strong>.
               </p>
             )}
-            <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              The highest number of answers was <strong>{maxWords}</strong> on {maxWordsDate}.
-            </p>
-            <p class="text-sm text-gray-600 leading-relaxed mb-4">
-              The lowest number of answers was <strong>{minWords}</strong> on {minWordsDate}.
-            </p>
-            <!-- Word Count Distribution Bar Chart -->
+            {analysis.wordCount?.highestWordCountDate && (
+              <p class="text-sm text-gray-600 leading-relaxed mb-2">
+                The highest number of answers was <strong>{analysis.wordCount.highestWordCount}</strong> on <strong>{analysis.wordCount.highestWordCountDate}</strong>.
+              </p>
+            )}
+            {analysis.wordCount?.lowestWordCountDate && (
+              <p class="text-sm text-gray-600 leading-relaxed mb-4">
+                The lowest number of answers was <strong>{analysis.wordCount.lowestWordCount}</strong> on <strong>{analysis.wordCount.lowestWordCountDate}</strong>.
+              </p>
+            )}
             <div class="space-y-1.5">
-              {wordBuckets.map(bucket => {
-                const nextBucket = bucket + wordBucketSize;
-                const isToday = bucket === todayWordBucket;
-                const barWidth = Math.max(((bucket + wordBucketSize/2) / maxWords) * 100, 3);
+              {wordCountHistogram.map((bin) => {
+                const barWidth = Math.max((safeNum(bin.percentage) / wordCountHistogramPeak) * 100, bin.isCurrent ? 3 : 1);
                 return (
-                  <div class:list={['flex items-center gap-2', isToday && 'bg-violet-50 -mx-2 px-2 rounded-lg py-0.5']}>
-                    <span class:list={['w-16 text-xs font-bold text-right flex-shrink-0', isToday ? 'text-violet-700' : 'text-gray-400']}>{bucket}-{nextBucket}</span>
+                  <div class:list={['flex items-center gap-3', bin.isCurrent && 'bg-violet-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <span class:list={['w-20 text-xs font-bold text-right flex-shrink-0', bin.isCurrent ? 'text-violet-700' : 'text-gray-400']}>
+                      {formatHistogramRange(bin)}
+                    </span>
                     <div class="flex-1">
                       <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
                         <div class:list={[
                           'h-5 rounded-full flex items-center pl-2 text-[10px] font-bold',
-                          isToday ? 'bg-gradient-to-r from-violet-400 to-violet-500 text-white' : 'bg-gray-300 text-gray-600'
+                          bin.isCurrent ? 'bg-gradient-to-r from-violet-400 to-violet-500 text-white' : 'bg-gray-300 text-gray-600',
                         ]} style={`width: ${barWidth}%`}>
-                          {isToday ? '← Today' : ''}
+                          {bin.isCurrent ? 'Current' : `${roundTo(safeNum(bin.percentage), 1)}%`}
                         </div>
                       </div>
                     </div>
@@ -814,38 +633,36 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
                 );
               })}
             </div>
-            <p class="text-xs text-gray-400 mt-2">Number of answers in all puzzles (approximate distribution)</p>
+            <p class="text-xs text-gray-400 mt-2">Number of answers in all puzzles</p>
           </div>
 
           <hr class="border-gray-100 my-6" />
 
-          <!-- Sub-section C: Length for Genius -->
           <div class="mb-8">
             <h3 class="text-sm font-bold text-gray-700 mb-3">Length for Genius</h3>
             <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              It takes a <strong>{geniusMinLength}-letter word</strong> for genius.
+              It takes a <strong>{requiredLength}-letter word</strong> for genius.
             </p>
-            {lastGeniusLengthDate && (
+            {analysis.genius?.lastTimeSameLengthDate && (
               <p class="text-sm text-gray-600 leading-relaxed mb-4">
-                The last time this happened was on <strong>{lastGeniusLengthDate}</strong>.
+                The last time this happened was on <strong>{analysis.genius.lastTimeSameLengthDate}</strong>.
               </p>
             )}
-            <!-- Genius Length Distribution -->
             <div class="space-y-1.5">
-              {sortedLengths.map(len => {
-                const count = wordsByLengthAll[len].length;
-                const isGeniusLen = len === geniusMinLength;
-                const barWidth = Math.max((count / maxWordsByLength) * 100, 3);
+              {geniusHistogram.map((item) => {
+                const barWidth = Math.max((safeNum(item.percentage) / geniusHistogramPeak) * 100, item.isCurrent ? 3 : 1);
                 return (
-                  <div class:list={['flex items-center gap-2', isGeniusLen && 'bg-purple-50 -mx-2 px-2 rounded-lg py-0.5']}>
-                    <span class:list={['w-16 text-xs font-bold text-right flex-shrink-0', isGeniusLen ? 'text-purple-700' : 'text-gray-400']}>{len}-letter</span>
+                  <div class:list={['flex items-center gap-3', item.isCurrent && 'bg-purple-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <span class:list={['w-20 text-xs font-bold text-right flex-shrink-0', item.isCurrent ? 'text-purple-700' : 'text-gray-400']}>
+                      {item.value}-letter
+                    </span>
                     <div class="flex-1">
                       <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
                         <div class:list={[
                           'h-5 rounded-full flex items-center pl-2 text-[10px] font-bold',
-                          isGeniusLen ? 'bg-gradient-to-r from-purple-400 to-purple-500 text-white' : 'bg-gray-300 text-gray-600'
+                          item.isCurrent ? 'bg-gradient-to-r from-purple-400 to-purple-500 text-white' : 'bg-gray-300 text-gray-600',
                         ]} style={`width: ${barWidth}%`}>
-                          {count} {isGeniusLen ? '← Genius' : ''}
+                          {item.isCurrent ? 'Current' : `${roundTo(safeNum(item.percentage), 1)}%`}
                         </div>
                       </div>
                     </div>
@@ -853,115 +670,106 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
                 );
               })}
             </div>
-            <p class="text-xs text-gray-400 mt-2">Length for genius in today's puzzle</p>
+            <p class="text-xs text-gray-400 mt-2">Length for Genius in all puzzles</p>
           </div>
 
           <hr class="border-gray-100 my-6" />
 
-          <!-- Sub-section D: Average Word Length -->
           <div>
             <h3 class="text-sm font-bold text-gray-700 mb-3">Average Word Length</h3>
             <p class="text-sm text-gray-600 leading-relaxed mb-2">
-              Today's puzzle has an average word length of <strong>{thisPuzzleAvgLen}</strong>.
+              Today's puzzle has an average word length of <strong>{averageWordLengthValue.toFixed(1)}</strong>.
             </p>
             <p class="text-sm text-gray-600 leading-relaxed mb-4">
-              For all Bees, the average word length has been <strong>{safeNum(averages.averageWordLength).toFixed(1)}</strong>.
+              For all Bees, the average word length has been <strong>{averageWordLengthGlobal.toFixed(1)}</strong>.
             </p>
-            <!-- Average Word Length Bar Chart -->
             <div class="space-y-1.5">
-              {sortedLengths.map(len => {
-                const count = wordsByLengthAll[len].length;
-                const pctOfTotal = ((count / words.length) * 100);
-                const barWidth = Math.max(pctOfTotal, 2);
+              {averageLengthHistogram.map((bin) => {
+                const barWidth = Math.max((safeNum(bin.percentage) / averageLengthHistogramPeak) * 100, bin.isCurrent ? 3 : 1);
                 return (
-                  <div class="flex items-center gap-2">
-                    <span class="w-16 text-xs font-bold text-gray-400 text-right flex-shrink-0">{len}-letter</span>
+                  <div class:list={['flex items-center gap-3', bin.isCurrent && 'bg-emerald-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <span class:list={['w-20 text-xs font-bold text-right flex-shrink-0', bin.isCurrent ? 'text-emerald-700' : 'text-gray-400']}>
+                      {formatHistogramRange(bin, 1)}
+                    </span>
                     <div class="flex-1">
-                      <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
-                        <div class="h-4 rounded-full bg-emerald-300" style={`width: ${barWidth}%`}></div>
+                      <div class="w-full bg-gray-100 rounded-full h-5 overflow-hidden">
+                        <div class:list={[
+                          'h-5 rounded-full flex items-center pl-2 text-[10px] font-bold',
+                          bin.isCurrent ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-white' : 'bg-gray-300 text-gray-600',
+                        ]} style={`width: ${barWidth}%`}>
+                          {bin.isCurrent ? 'Current' : `${roundTo(safeNum(bin.percentage), 1)}%`}
+                        </div>
                       </div>
                     </div>
-                    <span class="text-[10px] text-gray-400 font-medium w-10 text-right flex-shrink-0">{count}</span>
                   </div>
                 );
               })}
             </div>
-            <p class="text-xs text-gray-400 mt-2">Average length of the words in this bee</p>
+            <p class="text-xs text-gray-400 mt-2">Average word length in all puzzles</p>
           </div>
         </div>
 
-        <!-- ===== SECTION 8: HAVEN'T I SEEN THESE LETTERS BEFORE? ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            Haven't I Seen These Letters Before?
-          </h2>
-          <p class="text-sm text-gray-500 mb-4">How often each letter appears across all {safeLocale(totalPuzzles)} puzzles. Letters in today's puzzle are highlighted.</p>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Haven't I Seen These Letters Before?</h2>
+          <p class="text-sm text-gray-500 mb-4">Historical letter frequency across all {safeLocale(totalPuzzles)} puzzles. Letters in today's puzzle are highlighted.</p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- As Center Letter -->
             <div>
-              <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400 text-white text-xs font-black">C</span>
-                As Center Letter
-              </h3>
+              <h3 class="text-sm font-bold text-gray-700 mb-3">As Center Letter</h3>
               <div class="space-y-1.5">
-                {allLettersAZ.map(l => {
-                  const freq = letterFreqMap[l] || { totalAppearances: 0, asCenter: 0, asOuter: 0 };
-                  const centerInfo = centerFreqMap[l] || { count: 0, percentage: 0 };
-                  const centerCount = centerInfo.count || freq.asCenter || 0;
-                  const isTodayCenter = l === center;
-                  const isTodayLetter = allLetters.includes(l);
-                  const barWidth = Math.max((centerCount / maxCenterCount) * 100, isTodayCenter ? 2 : 0);
+                {allLettersAZ.map((letter) => {
+                  const count = safeNum(centerFreqMap[letter]?.count || letterFreqMap[letter]?.asCenter);
+                  const isTodayCenter = letter === center;
+                  const isTodayLetter = allLetters.includes(letter);
+                  const barWidth = Math.max((count / maxCenterCount) * 100, isTodayCenter ? 2 : 0);
                   return (
-                    <div class:list={['flex items-center gap-2 group relative', isTodayCenter && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <div class:list={['flex items-center gap-2', isTodayCenter && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5']}>
                       <span class:list={[
                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0',
-                        isTodayCenter ? 'bg-amber-400 text-white' : isTodayLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300'
-                      ]}>{l}</span>
+                        isTodayCenter ? 'bg-amber-400 text-white' : isTodayLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300',
+                      ]}>{letter}</span>
                       <div class="flex-1">
                         <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
                           <div class:list={[
                             'h-4 rounded-full',
-                            isTodayCenter ? 'bg-amber-400' : 'bg-gray-300'
+                            isTodayCenter ? 'bg-amber-400' : 'bg-gray-300',
                           ]} style={`width: ${barWidth}%`}></div>
                         </div>
                       </div>
-                      <span class:list={['text-[10px] font-bold w-10 text-right flex-shrink-0', isTodayCenter ? 'text-amber-700' : 'text-gray-400']}>{centerCount}</span>
+                      <span class:list={['text-[10px] font-bold w-10 text-right flex-shrink-0', isTodayCenter ? 'text-amber-700' : 'text-gray-400']}>{count}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <!-- As Valid Letter (total appearances) -->
             <div>
-              <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-300 text-gray-700 text-xs font-black">A</span>
-                As Valid Letter
-              </h3>
+              <h3 class="text-sm font-bold text-gray-700 mb-3">As Valid Letter</h3>
               <div class="space-y-1.5">
-                {allLettersAZ.map(l => {
-                  const freq = letterFreqMap[l] || { totalAppearances: 0, asCenter: 0, asOuter: 0 };
-                  const totalCount = freq.totalAppearances || 0;
-                  const isTodayCenter = l === center;
-                  const isTodayLetter = allLetters.includes(l);
-                  const barWidth = Math.max((totalCount / maxTotalAppearance) * 100, isTodayLetter ? 2 : 0);
+                {allLettersAZ.map((letter) => {
+                  const count = safeNum(letterFreqMap[letter]?.totalAppearances);
+                  const isTodayCenter = letter === center;
+                  const isTodayLetter = allLetters.includes(letter);
+                  const barWidth = Math.max((count / maxValidLetterCount) * 100, isTodayLetter ? 2 : 0);
                   return (
-                    <div class:list={['flex items-center gap-2 group relative', isTodayLetter && !isTodayCenter && 'bg-gray-50 -mx-2 px-2 rounded-lg py-0.5', isTodayCenter && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5']}>
+                    <div class:list={[
+                      'flex items-center gap-2',
+                      isTodayCenter && 'bg-amber-50 -mx-2 px-2 rounded-lg py-0.5',
+                      isTodayLetter && !isTodayCenter && 'bg-gray-50 -mx-2 px-2 rounded-lg py-0.5',
+                    ]}>
                       <span class:list={[
                         'w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0',
-                        isTodayCenter ? 'bg-amber-400 text-white' : isTodayLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300'
-                      ]}>{l}</span>
+                        isTodayCenter ? 'bg-amber-400 text-white' : isTodayLetter ? 'bg-gray-200 text-gray-600' : 'bg-gray-50 text-gray-300',
+                      ]}>{letter}</span>
                       <div class="flex-1">
                         <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
                           <div class:list={[
                             'h-4 rounded-full',
-                            isTodayCenter ? 'bg-amber-400' : isTodayLetter ? 'bg-gray-400' : 'bg-gray-200'
+                            isTodayCenter ? 'bg-amber-400' : isTodayLetter ? 'bg-gray-400' : 'bg-gray-200',
                           ]} style={`width: ${barWidth}%`}></div>
                         </div>
                       </div>
-                      <span class:list={['text-[10px] font-bold w-10 text-right flex-shrink-0', isTodayLetter ? 'text-gray-600' : 'text-gray-300']}>{totalCount}</span>
+                      <span class:list={['text-[10px] font-bold w-10 text-right flex-shrink-0', isTodayLetter ? 'text-gray-600' : 'text-gray-300']}>{count}</span>
                     </div>
                   );
                 })}
@@ -969,149 +777,179 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
             </div>
           </div>
 
-          <div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
-            <span class="flex items-center gap-1.5"><span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-white text-[8px] font-bold">C</span> Today's center</span>
-            <span class="flex items-center gap-1.5"><span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-600 text-[8px] font-bold">L</span> Today's letter</span>
-          </div>
-          <p class="text-sm text-gray-500 mt-3">
-            {(() => {
-              const centerData = letterFreqMap[center] || {};
-              const centerTimes = centerData.asCenter || 0;
-              return <span>Center letter <strong>{center}</strong> has been the center letter <strong>{centerTimes} times</strong> across all puzzles
-                {centerTimes > 200 ? ' — making it one of the most frequently used center letters.' : centerTimes > 100 ? ' — a fairly common center letter.' : ' — a relatively uncommon center letter.'}
-              </span>;
-            })()}
+          <p class="text-sm text-gray-500 mt-4">
+            Center letter <strong>{center}</strong> has appeared in the center <strong>{currentCenterUsage}</strong> times across the full archive.
           </p>
+
+          {sameCenterPuzzles.length > 0 && (
+            <div class="mt-6 border-t border-gray-100 pt-6">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">Other Days With Center Letter {center}</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {sameCenterPuzzles.map((item) => (
+                  <a href={archiveHref(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">{item.date}</span>
+                      <span class="font-mono text-xs text-gray-400">{item.all_letters}</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                      <span class="text-gray-500">{item.word_count} answers</span>
+                      <span class="text-amber-600 font-semibold">{item.score} pts</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <!-- ===== SECTION 9: HAVEN'T I SEEN THESE WORDS BEFORE? ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            Haven't I Seen These Words Before?
-          </h2>
-          <p class="text-sm text-gray-500 mb-4">Word frequency analysis — how often words from today's puzzle appear across recent puzzles.</p>
-
-          <!-- Rarity Legend -->
-          <div class="flex flex-wrap gap-3 mb-5">
-            {Object.entries(rarityColors).map(([key, val]) => (
-              <div class:list={['flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border', val.bg, val.border, val.text]}>
-                <span>{val.label}</span>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Haven't I Seen These Words Before?</h2>
+          <p class="text-sm text-gray-500 mb-4">The most common words in the Bee are:</p>
+          <div class="grid sm:grid-cols-2 gap-2">
+            {commonWords.map((item) => (
+              <div class="flex items-center gap-3">
+                <span class="w-20 text-sm font-semibold text-gray-700 truncate">{item.word}</span>
+                <div class="flex-1">
+                  <div class="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                    <div class="h-4 rounded-full bg-sky-400" style={`width: ${Math.max((item.count / maxCommonWordCount) * 100, 3)}%`}></div>
+                  </div>
+                </div>
+                <span class="text-xs font-bold text-gray-500 w-10 text-right">{item.count}</span>
               </div>
             ))}
           </div>
-
-          <!-- Words by Rarity -->
-          {['unique', 'uncommon', 'occasional', 'common'].map(rarity => {
-            const filteredWords = wordRarity.filter(w => w.rarity === rarity);
-            if (filteredWords.length === 0) return null;
-            const style = rarityColors[rarity];
-            return (
-              <div class="mb-4">
-                <p class:list={['text-xs font-bold uppercase tracking-wider mb-2', style.text]}>
-                  {rarity === 'unique' ? 'Unique to this puzzle' : rarity === 'uncommon' ? 'Uncommon (1 recent appearance)' : rarity === 'occasional' ? 'Occasional (2-3 recent appearances)' : 'Common (4+ recent appearances)'}
-                  <span class="font-normal ml-1">({filteredWords.length})</span>
-                </p>
-                <div class="flex flex-wrap gap-1.5">
-                  {filteredWords.map(w => (
-                    <span class:list={[
-                      'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border',
-                      style.bg, style.border, style.text,
-                      w.is_pangram ? '!bg-amber-50 !border-amber-300 !text-amber-800 font-bold' : ''
-                    ]}>
-                      {w.is_pangram === 1 && <span class="text-amber-500">&#9733;</span>}
-                      {w.word}
-                      <span class="opacity-50">{w.length}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-
-          <p class="text-sm text-gray-500 mt-4">
-            {(() => {
-              const uniqueCount = wordRarity.filter(w => w.rarity === 'unique').length;
-              const commonCount = wordRarity.filter(w => w.rarity === 'common').length;
-              return <span>This puzzle has <strong>{uniqueCount} words</strong> unique to it among recent puzzles, and <strong>{commonCount} words</strong> that appear frequently.
-                {uniqueCount > words.length * 0.5 ? ' This puzzle features an unusually high number of uncommon words, making it more challenging.' : ''}
-              </span>;
-            })()}
-          </p>
         </div>
 
-        <!-- ===== SECTION 10: VALID DICTIONARY WORDS NOT IN OFFICIAL ANSWERS ===== -->
         <div class="card-elevated p-6 mb-8">
-          <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            Valid Dictionary Words Not in Today's Official Answers
-          </h2>
-          <div id="non-official-words-section">
-            <p class="text-sm text-gray-500 mb-4">These are dictionary-valid words that can be formed from today's letters but aren't in the official NYT answer list. <em>*Because the New York Times considers them obscure or offensive.</em></p>
-            <div id="non-official-words-list" class="text-sm text-gray-500">
-              <div class="inline-block w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-              <span class="ml-2">Loading...</span>
+          <h2 class="text-lg font-bold text-gray-800 mb-4">How Long Are Words in the Bee?</h2>
+          <p class="text-sm text-gray-500 mb-6">
+            There have been <strong>{safeLocale(totalHistoricalAnswers)}</strong> accepted answers in the Bee, with
+            <strong> {safeLocale(totalUniqueHistoricalWords)}</strong> unique words.
+          </p>
+
+          <div class="mb-8">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">Length of All Answers</h3>
+            <div class="space-y-2">
+              {allAnswerLengthDistribution.map((item) => (
+                <div class="flex items-center gap-3">
+                  <span class="w-16 text-sm font-bold text-right text-gray-600 flex-shrink-0">{item.length}-letter</span>
+                  <div class="flex-1">
+                    <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+                      <div class="h-6 rounded-full bg-amber-300 text-amber-900 text-xs font-bold flex items-center pl-3" style={`width: ${Math.max((item.count / maxAllAnswerLengthCount) * 100, 2)}%`}>
+                        {safeLocale(item.count)}
+                      </div>
+                    </div>
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{item.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-sm font-bold text-gray-700 mb-3">Length of Unique Answers</h3>
+            <div class="space-y-2">
+              {uniqueAnswerLengthDistribution.map((item) => (
+                <div class="flex items-center gap-3">
+                  <span class="w-16 text-sm font-bold text-right text-gray-600 flex-shrink-0">{item.length}-letter</span>
+                  <div class="flex-1">
+                    <div class="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+                      <div class="h-6 rounded-full bg-emerald-300 text-emerald-900 text-xs font-bold flex items-center pl-3" style={`width: ${Math.max((item.count / maxUniqueAnswerLengthCount) * 100, 2)}%`}>
+                        {safeLocale(item.count)}
+                      </div>
+                    </div>
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium w-12 text-right flex-shrink-0">{item.percentage}%</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <!-- ========== SEO CONTENT SECTION ========== -->
-        <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
-          <h2 class="text-lg font-bold text-gray-800 mb-3">Today's Spelling Bee Puzzle Breakdown</h2>
-          <p class="text-gray-600 leading-relaxed text-sm mb-3">The New York Times Spelling Bee for <strong>{puzzle.date}</strong> uses <strong>{center}</strong> as the mandatory center letter with outer letters <strong>{outerLetters.join(', ')}</strong>. Players need to find as many words as possible that include the center letter and are at least four letters long. Each letter can be used multiple times within a word.</p>
-          <p class="text-gray-600 leading-relaxed text-sm mb-3">Today's puzzle contains <strong>{puzzle.word_count} valid words</strong> and <strong>{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</strong>. A pangram is a word that uses all seven available letters at least once. {hasPerfectPangram ? `This puzzle features a perfect pangram — a word that uses each letter exactly once, making it exactly 7 letters long. The perfect pangram${perfectPangrams.length > 1 ? 's are' : ' is'} <strong>${perfectPangrams.join(', ').toUpperCase()}</strong>.` : 'There are no perfect pangrams in today\'s puzzle, meaning no 7-letter word uses each letter exactly once.'}</p>
-          <p class="text-gray-600 leading-relaxed text-sm mb-3">The maximum possible score for this puzzle is <strong>{totalPoints} points</strong>. Four-letter words earn 1 point each, while longer words earn points equal to their letter count. Pangrams receive a bonus 7 points on top of their letter-count score. To reach Genius level, you need <strong>{geniusThreshold} points</strong> (70% of the total), which can be achieved by finding <strong>{geniusWordCount} of the {words.length} words</strong>.</p>
-          <p class="text-gray-600 leading-relaxed text-sm mb-3">Word lengths in today's Bee range from 4 to {sortedLengths[sortedLengths.length - 1] || '?'} letters. The most common word length is {sortedLengths.reduce((a, b) => wordsByLengthAll[a].length >= wordsByLengthAll[b].length ? a : b)}-letter words with {wordsByLengthAll[sortedLengths.reduce((a, b) => wordsByLengthAll[a].length >= wordsByLengthAll[b].length ? a : b)]?.length || 0} entries. The center letter {center} appears in every single word, while the outer letters each appear in a varying number of answers.</p>
-          <p class="text-gray-600 leading-relaxed text-sm">SpellingBee Solver provides the complete word list, pangram details, scoring breakdown, and in-depth statistical analysis for every daily Spelling Bee puzzle. Whether you're stuck on a few words or want to verify your progress, our tool gives you instant access to today's full solution set without any subscription or paywall.</p>
+        <div class="card-elevated p-6 mb-8">
+          <h2 class="text-lg font-bold text-gray-800 mb-4">Valid Dictionary Words Not in Today's Official Answers</h2>
+          <p class="text-sm text-gray-500 mb-4">
+            You may be wondering why these words are not here. These are dictionary-valid words that fit today's letters but are not in the official NYT answer list.
+          </p>
+          {nonOfficialWords.length > 0 ? (
+            <>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+                {nonOfficialWords.map((word) => (
+                  <span class="text-sm text-gray-700">{word}</span>
+                ))}
+              </div>
+              <p class="text-xs text-gray-400 mt-4">Because the New York Times considers some of them obscure or otherwise out of scope.</p>
+            </>
+          ) : (
+            <p class="text-sm text-gray-400 italic">No additional dictionary words found for these letters.</p>
+          )}
         </div>
 
-        <!-- ========== FAQ SECTION ========== -->
+        <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
+          <h2 class="text-lg font-bold text-gray-800 mb-3">Today's Spelling Bee Puzzle Breakdown</h2>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">
+            The New York Times Spelling Bee for <strong>{puzzle.date}</strong> uses <strong>{center}</strong> as the mandatory center letter with outer letters <strong>{outerLetters.join(', ')}</strong>.
+            Today's puzzle contains <strong>{puzzle.word_count} answers</strong>, <strong>{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</strong>, and a maximum score of <strong>{totalPoints}</strong>.
+          </p>
+          <p class="text-gray-600 leading-relaxed text-sm mb-3">
+            Historically, this puzzle ranks in the <strong>{wordCountPercentileText}</strong> percentile for answer count and the <strong>{scorePercentileText}</strong> percentile for score.
+            The average answer length today is <strong>{averageWordLengthValue.toFixed(1)}</strong>, compared with a long-run average of <strong>{averageWordLengthGlobal.toFixed(1)}</strong>.
+          </p>
+          <p class="text-gray-600 leading-relaxed text-sm">
+            SpellingBee Solver now computes these comparison sections from the full archive instead of rough front-end approximations, so the percentile text, "last time" references, and history charts stay aligned with the historical data.
+          </p>
+        </div>
+
         <div class="mt-8">
           <h2 class="text-lg font-bold text-gray-800 mb-4">Frequently Asked Questions</h2>
           <div class="space-y-3">
             <details class="card-elevated p-5 group" open>
-              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What are the NYT Spelling Bee answers for {puzzle.date}?
-                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                What are the NYT Spelling Bee answers for {puzzle.date}?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">The Spelling Bee for {puzzle.date} has {puzzle.word_count} words and {puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}. The center letter is {center} and the available letters are {allLetters.split('').join(', ')}. Scroll up to see the complete word list organized by length.</p>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                The puzzle for {puzzle.date} has {puzzle.word_count} answers, {puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}, and a maximum score of {totalPoints}. The center letter is {center}, and the full set of letters is {allLetters.split('').join(', ')}.
+              </p>
             </details>
+
             <details class="card-elevated p-5 group">
-              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">What score do I need for Genius today?
-                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                What score do I need for Genius today?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">You need {geniusThreshold} points out of {totalPoints} total to reach Genius. That's 70% of the maximum score. You can achieve this by finding {geniusWordCount} of the {words.length} words. {puzzle.pangrams_count > 0 ? `Finding the pangram${puzzle.pangrams_count > 1 ? 's' : ''} helps a lot since each one is worth at least 14 points (7-letter word = 7 points + 7 bonus).` : ''}</p>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                You need {geniusThreshold} points to reach Genius. Historically, this puzzle requires between {geniusMinWords} and {geniusMaxWords} answers, and you need at least one {requiredLength}-letter word to get there.
+              </p>
             </details>
+
             <details class="card-elevated p-5 group">
-              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">Does today's puzzle have a perfect pangram?
-                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
+                How does today's puzzle compare to others?
+                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">{hasPerfectPangram ? `Yes! Today's puzzle has a perfect pangram: <strong>${perfectPangrams.join(', ').toUpperCase()}</strong>. A perfect pangram uses all seven letters exactly once, making it exactly 7 letters long.` : 'No, today\'s puzzle does not have a perfect pangram. A perfect pangram would be a 7-letter word that uses each of the seven available letters exactly once.'}</p>
-            </details>
-            <details class="card-elevated p-5 group">
-              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How does the NYT Spelling Bee scoring work?
-                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-              </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">Four-letter words are worth 1 point each. Words with five or more letters earn points equal to their length. Pangrams (words using all seven letters) get a 7-point bonus on top of their base score. The progress levels are: Beginner (0%), Starting (2%), Solid (5%), Nice (8%), Good (15%), Great (25%), Amazing (40%), Genius (70%), and Queen Bee (100%).</p>
-            </details>
-            <details class="card-elevated p-5 group">
-              <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">How does today's puzzle compare to others?
-                <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-              </summary>
-              <p class="text-sm text-gray-600 mt-3 leading-relaxed">Today's puzzle ranks roughly in the {wordPercentile}th percentile for word count with {puzzle.word_count} words (average is {safeNum(averages.wordsPerPuzzle).toFixed(0)}). It has {puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''} compared to the average of {safeNum(averages.pangramsPerPuzzle).toFixed(1)}. {faqCompareText}</p>
+              <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                Today's puzzle ranks in the {wordCountPercentileText} percentile for answer count and the {scorePercentileText} percentile for max score. It has {puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}, and {faqCompareText}
+              </p>
             </details>
           </div>
         </div>
       </div>
 
-      <!-- ========== SIDEBAR ========== -->
       <aside class="w-full lg:w-72 flex-shrink-0 space-y-4">
         <div class="card-elevated p-5">
           <h3 class="font-bold text-gray-800 mb-4 text-sm">Recent Puzzles</h3>
           <div class="space-y-1">
-            {recentPuzzles.map(p => (
-              <a href="/archive" class="block p-2.5 rounded-lg hover:bg-amber-50 transition-colors group">
-                <p class="text-sm font-medium text-gray-700 group-hover:text-amber-700">{p.date}</p>
-                <p class="text-xs text-gray-400">Center: {p.letters} &middot; {p.word_count} words</p>
+            {recentPuzzles.map((item) => (
+              <a href={archiveHref(item.date)} class="block p-2.5 rounded-lg hover:bg-amber-50 transition-colors group">
+                <p class="text-sm font-medium text-gray-700 group-hover:text-amber-700">{item.date}</p>
+                <p class="text-xs text-gray-400">Center: {item.letters} - {item.word_count} answers</p>
               </a>
             ))}
           </div>
@@ -1126,7 +964,6 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
           <a href="/archive" class="btn-secondary w-full text-sm !py-3">Puzzle Archive</a>
         </div>
 
-        <!-- Sidebar Stats Card -->
         <div class="card-elevated p-5">
           <h3 class="font-bold text-gray-800 mb-3 text-sm">Quick Stats</h3>
           <div class="space-y-2.5">
@@ -1135,16 +972,16 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
               <span class="text-xs font-bold text-gray-700">{safeLocale(totalPuzzles)}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">Avg words/puzzle</span>
+              <span class="text-xs text-gray-500">Total words</span>
+              <span class="text-xs font-bold text-gray-700">{safeLocale(totalWordsAcrossAllPuzzles)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-500">Avg answers/puzzle</span>
               <span class="text-xs font-bold text-gray-700">{safeNum(averages.wordsPerPuzzle).toFixed(1)}</span>
             </div>
             <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-500">Avg pangrams/puzzle</span>
-              <span class="text-xs font-bold text-gray-700">{safeNum(averages.pangramsPerPuzzle).toFixed(1)}</span>
-            </div>
-            <div class="flex items-center justify-between">
               <span class="text-xs text-gray-500">Most common center</span>
-              <span class="text-xs font-bold text-gray-700">{centerFreq.length > 0 ? centerFreq[0].letter : '\u2014'}</span>
+              <span class="text-xs font-bold text-gray-700">{centerFreq.length > 0 ? centerFreq[0].letter : '--'}</span>
             </div>
           </div>
         </div>
@@ -1152,139 +989,3 @@ const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLoc
     </div>
   </div>
 </BaseLayout>
-
-<script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev', puzzleId: (data.puzzle || {}).puzzle_id }}>
-  // Fetch pangram history for each pangram word
-  document.addEventListener('DOMContentLoaded', () => {
-    const pangramElements = document.querySelectorAll('[id^="pangram-history-"]');
-    pangramElements.forEach(async (el) => {
-      const word = el.id.replace('pangram-history-', '');
-      if (!word) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/pangramHistory/${word}`);
-        const data = await res.json();
-        const history = (data.pangramHistory || []).filter(p => p.puzzle_id !== puzzleId);
-        if (history.length === 0) {
-          el.innerHTML = '<span class="text-gray-400 italic">No other puzzles found with this pangram</span>';
-        } else {
-          el.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">' +
-            history.slice(0, 6).map(p =>
-              '<a href="/archive" class="block p-3 rounded-lg border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group">' +
-                '<div class="flex items-center justify-between mb-1">' +
-                  '<span class="font-semibold text-gray-800 group-hover:text-amber-700 text-xs">' + p.date + '</span>' +
-                  '<span class="font-mono text-[10px] text-gray-400">' + p.all_letters + '</span>' +
-                '</div>' +
-                '<div class="flex items-center gap-2 text-[10px]">' +
-                  '<span class="text-gray-500">' + p.word_count + ' words</span>' +
-                  '<span class="text-amber-600 font-semibold">' + p.pangrams_count + ' pangram' + (p.pangrams_count !== 1 ? 's' : '') + '</span>' +
-                '</div>' +
-              '</a>'
-            ).join('') +
-          '</div>';
-        }
-      } catch (e) {
-        el.innerHTML = '<span class="text-red-400">Failed to load history</span>';
-      }
-    });
-  });
-
-  // Non-official words: try API first, then compute client-side from dictionary
-  (async () => {
-    const nonOfficialEl = document.getElementById('non-official-words-list');
-    if (!nonOfficialEl || !puzzleId) return;
-
-    // Try API endpoint first
-    try {
-      const res = await fetch(`${API_BASE}/api/nonOfficialWords/${puzzleId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const nonOfficialWords = data.words || data.nonOfficialWords || [];
-        if (nonOfficialWords.length === 0) {
-          nonOfficialEl.innerHTML = '<p class="text-gray-400 italic">No additional dictionary words found for these letters.</p>';
-        } else {
-          const byLen = {};
-          for (const w of nonOfficialWords) {
-            const l = w.length || (typeof w === 'string' ? w.length : 0);
-            if (!byLen[l]) byLen[l] = [];
-            byLen[l].push(typeof w === 'string' ? w : w.word);
-          }
-          nonOfficialEl.innerHTML = Object.keys(byLen).sort((a,b) => +b - +a).map(len =>
-            '<div class="mb-3"><p class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p>' +
-            '<div class="flex flex-wrap gap-1.5">' +
-            byLen[len].map(w => '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">' + w + '</span>').join('') +
-            '</div></div>'
-          ).join('') + '<p class="text-xs text-gray-400 mt-3 italic">*Because the New York Times considers them obscure or offensive.</p>';
-        }
-        return;
-      }
-    } catch (e) { /* API not available, fall through */ }
-
-    // Fallback: compute client-side from dictionary
-    try {
-      const dictRes = await fetch('/twl06.txt');
-      if (!dictRes.ok) throw new Error('No dictionary');
-      const dictText = await dictRes.text();
-      const dict = dictText.split('\n').filter(w => w.trim().length > 0);
-
-      // Get official words from the page
-      const officialWords = new Set();
-      document.querySelectorAll('.word-chip, .pangram-chip').forEach(el => {
-        const text = el.textContent.replace(/[★\s\d]/g, '').trim().toLowerCase();
-        if (text) officialWords.add(text);
-      });
-      // Also add perfect pangrams
-      document.querySelectorAll('.perfect-pangram-chip').forEach(el => {
-        const text = el.textContent.trim().toLowerCase();
-        if (text) officialWords.add(text);
-      });
-
-      // Get letters from the page
-      const centerLetter = document.querySelector('.letter-circle-center');
-      const centerL = centerLetter ? centerLetter.textContent.trim().toLowerCase() : '';
-      const allLetterEls = document.querySelectorAll('[class*="bg-amber-100"], [class*="bg-gray-100"]');
-      const validLetters = new Set([centerL]);
-      allLetterEls.forEach(el => {
-        const t = el.textContent.trim().toLowerCase();
-        if (t && t.length === 1 && /[a-z]/.test(t)) validLetters.add(t);
-      });
-
-      if (!centerL || validLetters.size < 2) {
-        nonOfficialEl.innerHTML = '<p class="text-gray-400 italic">Unable to determine puzzle letters for dictionary lookup.</p>';
-        return;
-      }
-
-      // Find all valid dictionary words
-      const nonOfficial = [];
-      for (const word of dict) {
-        const w = word.toLowerCase();
-        if (w.length < 4) continue;
-        if (!w.includes(centerL)) continue;
-        let valid = true;
-        for (const ch of w) {
-          if (!validLetters.has(ch)) { valid = false; break; }
-        }
-        if (!valid) continue;
-        if (officialWords.has(w)) continue;
-        nonOfficial.push(w);
-      }
-
-      if (nonOfficial.length === 0) {
-        nonOfficialEl.innerHTML = '<p class="text-gray-400 italic">No additional dictionary words found for these letters.</p>';
-      } else {
-        const byLen = {};
-        for (const w of nonOfficial) {
-          if (!byLen[w.length]) byLen[w.length] = [];
-          byLen[w.length].push(w);
-        }
-        nonOfficialEl.innerHTML = Object.keys(byLen).sort((a,b) => +b - +a).map(len =>
-          '<div class="mb-3"><p class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">' + len + '-Letter Words (' + byLen[len].length + ')</p>' +
-          '<div class="flex flex-wrap gap-1.5">' +
-          byLen[len].map(w => '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">' + w + '</span>').join('') +
-          '</div></div>'
-        ).join('') + '<p class="text-xs text-gray-400 mt-3 italic">*Because the New York Times considers them obscure or offensive.</p>';
-      }
-    } catch (e) {
-      nonOfficialEl.innerHTML = '<p class="text-gray-400 italic">Coming soon — this feature requires API support for non-official word lists.</p>';
-    }
-  })();
-</script>

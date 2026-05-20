@@ -49,6 +49,12 @@ const CACHE_TTL_SITEMAP = 3600;   // 1 hour for sitemap/feed
 const RATE_LIMIT_WINDOW = 60;     // 1 minute window
 const RATE_LIMIT_MAX = 60;        // 60 requests per minute for public
 const RATE_LIMIT_MAX_AUTH = 120;  // 120 for authenticated
+const HISTORICAL_ANALYTICS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let historicalAnalyticsCache = {
+  expiresAt: 0,
+  value: null,
+};
 
 // ============================================================
 // CORS HEADERS
@@ -599,6 +605,433 @@ function calculatePuzzleEnrichments(words) {
   return { totalPoints, hasPerfectPangram, perfectPangrams };
 }
 
+function getWordPoints(wordObj) {
+  if (!wordObj || !wordObj.length) return 0;
+  const base = wordObj.length === 4 ? 1 : wordObj.length;
+  return base + (wordObj.is_pangram ? 7 : 0);
+}
+
+function roundTo(value, decimals = 2) {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+function computeMeanAndStd(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return { mean: 0, stddev: 0 };
+  }
+
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
+  return { mean, stddev: Math.sqrt(variance) };
+}
+
+function getHistogramBucketIndex(value, min, max, bucketCount = 10) {
+  if (bucketCount <= 1 || max <= min) return 0;
+  const step = (max - min) / bucketCount;
+  if (step <= 0) return 0;
+  return Math.min(bucketCount - 1, Math.floor((value - min) / step));
+}
+
+function buildHistogram(values, bucketCount = 10) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return { min: 0, max: 0, step: 0, bins: [] };
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+
+  if (min === max) {
+    return {
+      min,
+      max,
+      step: 0,
+      bins: [{
+        index: 0,
+        start: min,
+        end: max,
+        count: values.length,
+        percentage: 100,
+      }],
+    };
+  }
+
+  const counts = Array(bucketCount).fill(0);
+  const step = (max - min) / bucketCount;
+
+  for (const value of values) {
+    const bucketIndex = getHistogramBucketIndex(value, min, max, bucketCount);
+    counts[bucketIndex] += 1;
+  }
+
+  return {
+    min,
+    max,
+    step,
+    bins: counts.map((count, index) => {
+      const start = min + (step * index);
+      const end = index === bucketCount - 1 ? max : start + step;
+      return {
+        index,
+        start,
+        end,
+        count,
+        percentage: roundTo((count / values.length) * 100, 2),
+      };
+    }),
+  };
+}
+
+function markHistogramCurrentBucket(histogram, currentValue) {
+  if (!histogram || !Array.isArray(histogram.bins)) return [];
+  const currentIndex = getHistogramBucketIndex(currentValue, histogram.min, histogram.max, histogram.bins.length || 10);
+  return histogram.bins.map(bin => ({
+    ...bin,
+    isCurrent: bin.index === currentIndex,
+  }));
+}
+
+function buildDiscreteHistogram(values) {
+  if (!Array.isArray(values) || values.length === 0) return [];
+
+  const counts = new Map();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([value, count]) => ({
+      value,
+      count,
+      percentage: roundTo((count / values.length) * 100, 2),
+    }));
+}
+
+function computeGeniusWordCounts(words, geniusThreshold) {
+  if (!Array.isArray(words) || words.length === 0) {
+    return { minWords: 0, maxWords: 0 };
+  }
+
+  const byPointsDesc = [...words].sort((a, b) => (
+    getWordPoints(b) - getWordPoints(a)
+    || b.length - a.length
+    || a.word.localeCompare(b.word)
+  ));
+
+  const byPointsAsc = [...words].sort((a, b) => (
+    getWordPoints(a) - getWordPoints(b)
+    || a.length - b.length
+    || a.word.localeCompare(b.word)
+  ));
+
+  let minAccum = 0;
+  let minWords = 0;
+  for (const word of byPointsDesc) {
+    minAccum += getWordPoints(word);
+    minWords += 1;
+    if (minAccum >= geniusThreshold) break;
+  }
+
+  let maxAccum = 0;
+  let maxWords = 0;
+  for (const word of byPointsAsc) {
+    maxAccum += getWordPoints(word);
+    maxWords += 1;
+    if (maxAccum >= geniusThreshold) break;
+  }
+
+  return { minWords, maxWords };
+}
+
+function computeRequiredGeniusLength(words, geniusThreshold) {
+  if (!Array.isArray(words) || words.length === 0) return 0;
+
+  const pointsByLength = new Map();
+  for (const word of words) {
+    pointsByLength.set(word.length, (pointsByLength.get(word.length) || 0) + getWordPoints(word));
+  }
+
+  let runningPoints = 0;
+  const lengths = [...pointsByLength.keys()].sort((a, b) => a - b);
+  for (const length of lengths) {
+    runningPoints += pointsByLength.get(length) || 0;
+    if (runningPoints >= geniusThreshold) {
+      return length;
+    }
+  }
+
+  return lengths[lengths.length - 1] || 0;
+}
+
+async function loadHistoricalAnalytics(env) {
+  const now = Date.now();
+  if (historicalAnalyticsCache.value && historicalAnalyticsCache.expiresAt > now) {
+    return historicalAnalyticsCache.value;
+  }
+
+  const [puzzlesResult, wordsResult] = await Promise.all([
+    env.DB.prepare(`
+      SELECT puzzle_id, date, date_iso, letters, all_letters, word_count, pangrams_count, total_points
+      FROM puzzles
+      WHERE letters IS NOT NULL AND letters != ''
+      ORDER BY date_iso ASC
+    `).all(),
+    env.DB.prepare(`
+      SELECT puzzle_id, word, length, is_pangram
+      FROM words
+      ORDER BY puzzle_id, word
+    `).all(),
+  ]);
+
+  const puzzles = puzzlesResult.results || [];
+  const words = wordsResult.results || [];
+  const wordsByPuzzle = new Map();
+  const pangramHistoryMap = new Map();
+  const commonWordCounts = new Map();
+  const uniqueWordLengths = new Map();
+  const allAnswerLengths = new Map();
+  const uniqueWords = new Set();
+
+  for (const word of words) {
+    if (!wordsByPuzzle.has(word.puzzle_id)) {
+      wordsByPuzzle.set(word.puzzle_id, []);
+    }
+    wordsByPuzzle.get(word.puzzle_id).push(word);
+
+    allAnswerLengths.set(word.length, (allAnswerLengths.get(word.length) || 0) + 1);
+    commonWordCounts.set(word.word, (commonWordCounts.get(word.word) || 0) + 1);
+
+    if (!uniqueWords.has(word.word)) {
+      uniqueWords.add(word.word);
+      uniqueWordLengths.set(word.length, (uniqueWordLengths.get(word.length) || 0) + 1);
+    }
+
+    if (word.is_pangram === 1) {
+      if (!pangramHistoryMap.has(word.word)) {
+        pangramHistoryMap.set(word.word, []);
+      }
+      pangramHistoryMap.get(word.word).push(word.puzzle_id);
+    }
+  }
+
+  const puzzleMetrics = puzzles.map((puzzle) => {
+    const puzzleWords = wordsByPuzzle.get(puzzle.puzzle_id) || [];
+    const totalPoints = puzzleWords.reduce((sum, word) => sum + getWordPoints(word), 0);
+    const pangramPoints = puzzleWords
+      .filter(word => word.is_pangram === 1)
+      .reduce((sum, word) => sum + getWordPoints(word), 0);
+    const geniusThreshold = Math.round(totalPoints * 0.7);
+    const averageWordLength = puzzleWords.length > 0
+      ? puzzleWords.reduce((sum, word) => sum + word.length, 0) / puzzleWords.length
+      : 0;
+    const geniusWords = computeGeniusWordCounts(puzzleWords, geniusThreshold);
+    const requiredGeniusLength = computeRequiredGeniusLength(puzzleWords, geniusThreshold);
+
+    return {
+      puzzle_id: puzzle.puzzle_id,
+      date: puzzle.date,
+      date_iso: puzzle.date_iso,
+      letters: puzzle.letters,
+      all_letters: puzzle.all_letters,
+      word_count: puzzle.word_count,
+      pangrams_count: puzzle.pangrams_count,
+      words: puzzleWords,
+      score: totalPoints,
+      pangramPoints,
+      geniusThreshold,
+      minWordsForGenius: geniusWords.minWords,
+      maxWordsForGenius: geniusWords.maxWords,
+      requiredGeniusLength,
+      averageWordLength,
+      pointsPerWord: puzzle.word_count > 0 ? totalPoints / puzzle.word_count : 0,
+    };
+  });
+
+  const pointsPerWordValues = puzzleMetrics
+    .filter(metric => metric.word_count > 0)
+    .map(metric => metric.pointsPerWord);
+  const { mean: pointsPerWordMean, stddev: pointsPerWordStddev } = computeMeanAndStd(pointsPerWordValues);
+  const scoreOutlierThreshold = pointsPerWordMean + (3 * pointsPerWordStddev);
+
+  for (const metric of puzzleMetrics) {
+    metric.isScoreOutlier = metric.pointsPerWord > scoreOutlierThreshold;
+  }
+
+  const cleanScoreMetrics = puzzleMetrics.filter(metric => !metric.isScoreOutlier);
+  const byPuzzleId = new Map(puzzleMetrics.map(metric => [metric.puzzle_id, metric]));
+  const pangramHistory = new Map(
+    [...pangramHistoryMap.entries()].map(([word, puzzleIds]) => [
+      word,
+      puzzleIds
+        .map((puzzleId) => {
+          const metric = byPuzzleId.get(puzzleId);
+          return metric ? {
+            puzzle_id: metric.puzzle_id,
+            date: metric.date,
+            date_iso: metric.date_iso,
+            letters: metric.letters,
+            all_letters: metric.all_letters,
+            word_count: metric.word_count,
+            pangrams_count: metric.pangrams_count,
+            score: metric.score,
+          } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.date_iso.localeCompare(a.date_iso)),
+    ]),
+  );
+
+  const commonWordsTop = [...commonWordCounts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 60)
+    .map(([word, count]) => ({ word, count }));
+
+  const analytics = {
+    generatedAt: now,
+    scoreOutlierThreshold: roundTo(scoreOutlierThreshold, 4),
+    excludedScoreOutliers: puzzleMetrics.length - cleanScoreMetrics.length,
+    puzzleMetrics,
+    cleanScoreMetrics,
+    byPuzzleId,
+    pangramHistory,
+    commonWordsTop,
+    scoreHistogram: buildHistogram(cleanScoreMetrics.map(metric => metric.score)),
+    wordCountHistogram: buildHistogram(puzzleMetrics.map(metric => metric.word_count)),
+    geniusLengthHistogram: buildDiscreteHistogram(puzzleMetrics.map(metric => metric.requiredGeniusLength)),
+    averageWordLengthHistogram: buildHistogram(puzzleMetrics.map(metric => metric.averageWordLength)),
+    allAnswerLengthDistribution: [...allAnswerLengths.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => ({
+        length,
+        count,
+        percentage: roundTo((count / words.length) * 100, 2),
+      })),
+    uniqueAnswerLengthDistribution: [...uniqueWordLengths.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([length, count]) => ({
+        length,
+        count,
+        percentage: roundTo((count / uniqueWords.size) * 100, 2),
+      })),
+  };
+
+  historicalAnalyticsCache = {
+    expiresAt: now + HISTORICAL_ANALYTICS_CACHE_TTL_MS,
+    value: analytics,
+  };
+
+  return analytics;
+}
+
+async function getPuzzleAnalysis(env, puzzleId) {
+  const analytics = await loadHistoricalAnalytics(env);
+  const metric = analytics.byPuzzleId.get(puzzleId);
+  if (!metric) return null;
+
+  const scoreMetrics = analytics.cleanScoreMetrics;
+  const scoreLowerCount = scoreMetrics.filter(item => item.score < metric.score).length;
+  const wordCountLowerCount = analytics.puzzleMetrics.filter(item => item.word_count < metric.word_count).length;
+
+  const highestScorePuzzle = scoreMetrics.reduce((best, item) => (!best || item.score > best.score ? item : best), null);
+  const lowestScorePuzzle = scoreMetrics.reduce((best, item) => (!best || item.score < best.score ? item : best), null);
+  const highestWordCountPuzzle = analytics.puzzleMetrics.reduce((best, item) => (!best || item.word_count > best.word_count ? item : best), null);
+  const lowestWordCountPuzzle = analytics.puzzleMetrics.reduce((best, item) => (!best || item.word_count < best.word_count ? item : best), null);
+
+  const lastScoreAtLeastCurrent = [...scoreMetrics]
+    .reverse()
+    .find(item => item.date_iso < metric.date_iso && item.score >= metric.score) || null;
+  const lastWordCountAboveCurrent = [...analytics.puzzleMetrics]
+    .reverse()
+    .find(item => item.date_iso < metric.date_iso && item.word_count > metric.word_count) || null;
+  const lastSameGeniusLength = [...analytics.puzzleMetrics]
+    .reverse()
+    .find(item => item.date_iso < metric.date_iso && item.requiredGeniusLength === metric.requiredGeniusLength) || null;
+
+  const nonPangramPoints = metric.score - metric.pangramPoints;
+  const scoreHistogram = markHistogramCurrentBucket(analytics.scoreHistogram, metric.score);
+  const wordCountHistogram = markHistogramCurrentBucket(analytics.wordCountHistogram, metric.word_count);
+  const averageWordLengthHistogram = markHistogramCurrentBucket(analytics.averageWordLengthHistogram, metric.averageWordLength);
+  const geniusLengthHistogram = analytics.geniusLengthHistogram.map(item => ({
+    ...item,
+    isCurrent: item.value === metric.requiredGeniusLength,
+  }));
+  const sameCenterPuzzles = [...analytics.puzzleMetrics]
+    .filter(item => item.letters === metric.letters && item.puzzle_id !== metric.puzzle_id)
+    .reverse()
+    .slice(0, 6)
+    .map(item => ({
+      puzzle_id: item.puzzle_id,
+      date: item.date,
+      all_letters: item.all_letters,
+      word_count: item.word_count,
+      pangrams_count: item.pangrams_count,
+      score: item.score,
+    }));
+
+  const pangramHistoryByWord = {};
+  for (const word of metric.words.filter(item => item.is_pangram === 1)) {
+    pangramHistoryByWord[word.word] = (analytics.pangramHistory.get(word.word) || [])
+      .filter(item => item.puzzle_id !== metric.puzzle_id)
+      .slice(0, 8);
+  }
+
+  return {
+    puzzleId: metric.puzzle_id,
+    dataQuality: {
+      scoreOutlierThreshold: analytics.scoreOutlierThreshold,
+      excludedScoreOutliers: analytics.excludedScoreOutliers,
+    },
+    score: {
+      value: metric.score,
+      percentile: Math.round((scoreLowerCount / scoreMetrics.length) * 100),
+      highestScore: highestScorePuzzle?.score || 0,
+      highestScoreDate: highestScorePuzzle?.date || null,
+      lowestScore: lowestScorePuzzle?.score || 0,
+      lowestScoreDate: lowestScorePuzzle?.date || null,
+      lastTimeAtOrAboveDate: lastScoreAtLeastCurrent?.date || null,
+      histogram: scoreHistogram,
+    },
+    wordCount: {
+      value: metric.word_count,
+      percentile: Math.round((wordCountLowerCount / analytics.puzzleMetrics.length) * 100),
+      highestWordCount: highestWordCountPuzzle?.word_count || 0,
+      highestWordCountDate: highestWordCountPuzzle?.date || null,
+      lowestWordCount: lowestWordCountPuzzle?.word_count || 0,
+      lowestWordCountDate: lowestWordCountPuzzle?.date || null,
+      lastTimeAboveDate: lastWordCountAboveCurrent?.date || null,
+      histogram: wordCountHistogram,
+    },
+    genius: {
+      threshold: metric.geniusThreshold,
+      minWords: metric.minWordsForGenius,
+      maxWords: metric.maxWordsForGenius,
+      requiredLength: metric.requiredGeniusLength,
+      lastTimeSameLengthDate: lastSameGeniusLength?.date || null,
+      neededWithoutPangramsPct: nonPangramPoints > 0
+        ? roundTo((metric.geniusThreshold / nonPangramPoints) * 100, 0)
+        : 0,
+      neededAfterPangramsPct: nonPangramPoints > 0
+        ? roundTo((Math.max(metric.geniusThreshold - metric.pangramPoints, 0) / nonPangramPoints) * 100, 0)
+        : 0,
+      histogram: geniusLengthHistogram,
+    },
+    averageWordLength: {
+      value: roundTo(metric.averageWordLength, 1),
+      globalAverage: roundTo(
+        analytics.puzzleMetrics.reduce((sum, item) => sum + item.averageWordLength, 0) / analytics.puzzleMetrics.length,
+        1,
+      ),
+      histogram: averageWordLengthHistogram,
+    },
+    commonWords: analytics.commonWordsTop,
+    allAnswerLengthDistribution: analytics.allAnswerLengthDistribution,
+    uniqueAnswerLengthDistribution: analytics.uniqueAnswerLengthDistribution,
+    sameCenterPuzzles,
+    pangramHistoryByWord,
+  };
+}
+
 // ============================================================
 // OPTIMIZED PUZZLE QUERIES
 // ============================================================
@@ -879,6 +1312,8 @@ router.get('/', async (request, env) => {
         shortestWords: { method: 'GET', path: '/api/shortestWords', params: '?limit=10', description: 'Shortest words in puzzles' },
         longestWords: { method: 'GET', path: '/api/longestWords', params: '?limit=10', description: 'Longest non-pangram words' },
         centerLetterCombo: { method: 'GET', path: '/api/centerLetterCombo/:letter', description: 'All puzzles where a letter was center' },
+        puzzleAnalysis: { method: 'GET', path: '/api/puzzleAnalysis/:id', description: 'Detailed comparison metrics and chart data for a puzzle' },
+        pangramHistory: { method: 'GET', path: '/api/pangramHistory/:word', description: 'Historical pangram appearances for a word' },
         rarestLetters: { method: 'GET', path: '/api/rarestLetters', description: 'Least frequently used letters' },
         wordLengthDistribution: { method: 'GET', path: '/api/wordLengthDistribution', description: 'Distribution of word lengths' },
       },
@@ -1094,18 +1529,23 @@ router.get('/api/mostCommonCenterLetters', async (request, env) => {
   `).bind(limit);
 
   const result = await stmt.all();
-  const total = result.results.reduce((sum, r) => sum + r.count, 0);
+  const totalPuzzlesResult = await env.DB.prepare(`
+    SELECT COUNT(*) as total
+    FROM puzzles
+    WHERE letters IS NOT NULL AND letters != ''
+  `).first();
+  const totalPuzzles = totalPuzzlesResult?.total || 0;
 
   // Add percentage
   const enriched = result.results.map(r => ({
     letter: r.letters,
     count: r.count,
-    percentage: total > 0 ? Math.round((r.count / total) * 10000) / 100 : 0,
+    percentage: totalPuzzles > 0 ? Math.round((r.count / totalPuzzles) * 10000) / 100 : 0,
   }));
 
   return jsonResponse(successResponse({
     centerLetterFrequency: enriched,
-    totalPuzzles: total,
+    totalPuzzles,
   }, {}, CACHE_TTL_READONLY));
 });
 
@@ -1192,6 +1632,31 @@ router.get('/api/allLettersFrequency', async (request, env) => {
   return jsonResponse(successResponse({
     allLettersFrequency: letterFrequency,
     totalPuzzles: allLettersResult.results.length,
+  }, {}, CACHE_TTL_READONLY));
+});
+
+// Puzzle comparison / analysis data for detailed frontend charts
+router.get('/api/puzzleAnalysis/([0-9]+)', async (request, env, params) => {
+  const puzzleId = parseInt(params[0], 10);
+  const analysis = await getPuzzleAnalysis(env, puzzleId);
+
+  if (!analysis) {
+    return jsonResponse(errorResponse(`Puzzle #${puzzleId} not found`, 404), 404);
+  }
+
+  return jsonResponse(successResponse({
+    analysis,
+  }, {}, CACHE_TTL_READONLY));
+});
+
+// Historical pangram appearances across all puzzles
+router.get('/api/pangramHistory/([A-Za-z]+)', async (request, env, params) => {
+  const word = decodeURIComponent(params[0]).toLowerCase();
+  const analytics = await loadHistoricalAnalytics(env);
+
+  return jsonResponse(successResponse({
+    word,
+    pangramHistory: analytics.pangramHistory.get(word) || [],
   }, {}, CACHE_TTL_READONLY));
 });
 
@@ -1348,8 +1813,11 @@ router.get('/api/wordLengthDistribution', async (request, env) => {
 
 // Comprehensive Statistics (PERF FIX: batched into fewer queries)
 router.get('/api/statistics', async (request, env) => {
+  const analyticsPromise = loadHistoricalAnalytics(env);
+
   // Combine multiple stats into fewer queries
   const [
+    analytics,
     puzzleCount,
     wordCount,
     pangramCount,
@@ -1362,6 +1830,7 @@ router.get('/api/statistics', async (request, env) => {
     longestWord,
     shortestWord,
   ] = await Promise.all([
+    analyticsPromise,
     env.DB.prepare(`SELECT COUNT(*) as total FROM puzzles`).first(),
     env.DB.prepare(`SELECT COUNT(*) as total FROM words`).first(),
     env.DB.prepare(`SELECT COUNT(*) as total FROM words WHERE is_pangram = 1`).first(),
@@ -1377,6 +1846,12 @@ router.get('/api/statistics', async (request, env) => {
 
   // Calculate average word length
   const avgWordLengthResult = await env.DB.prepare(`SELECT AVG(length) as avg_length FROM words`).first();
+  const highestScorePuzzle = analytics.cleanScoreMetrics.reduce((best, item) => (
+    !best || item.score > best.score ? item : best
+  ), null);
+  const lowestScorePuzzle = analytics.cleanScoreMetrics.reduce((best, item) => (
+    !best || item.score < best.score ? item : best
+  ), null);
 
   return jsonResponse(successResponse({
     overview: {
@@ -1395,6 +1870,18 @@ router.get('/api/statistics', async (request, env) => {
       puzzleWithFewestWords: minWords,
       puzzleWithMostPangrams: maxPangrams,
       puzzleWithFewestPangrams: minPangrams,
+      highestScore: highestScorePuzzle ? {
+        puzzle_id: highestScorePuzzle.puzzle_id,
+        date: highestScorePuzzle.date,
+        letters: highestScorePuzzle.letters,
+        max_score: highestScorePuzzle.score,
+      } : null,
+      lowestScore: lowestScorePuzzle ? {
+        puzzle_id: lowestScorePuzzle.puzzle_id,
+        date: lowestScorePuzzle.date,
+        letters: lowestScorePuzzle.letters,
+        max_score: lowestScorePuzzle.score,
+      } : null,
       longestWordLength: longestWord?.max_len || 0,
       shortestWordLength: shortestWord?.min_len || 0,
     },

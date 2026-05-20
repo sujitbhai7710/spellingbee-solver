@@ -138,7 +138,7 @@ const faqSchema = JSON.stringify({
     </div>
   </div>
 
-  <script define:vars={{ API_BASE: 'https://spelling-bee-api.sbsolver.workers.dev' }}>
+  <script define:vars={{ API_BASE }}>
     const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
     const puzzleDetail = document.getElementById('puzzle-detail');
     const puzzleDetailContent = document.getElementById('puzzle-detail-content');
@@ -190,12 +190,6 @@ const faqSchema = JSON.stringify({
     function showDetailView() {
       puzzleListView.classList.add('hidden');
       puzzleDetail.classList.remove('hidden');
-      // Ensure URL stays as /archive (no date param)
-      var url = new URL(window.location);
-      if (url.searchParams.has('date')) {
-        url.searchParams.delete('date');
-        window.history.replaceState({}, '', url.pathname + (url.search || ''));
-      }
     }
 
     async function loadPuzzleBySlug(slug) {
@@ -206,10 +200,10 @@ const faqSchema = JSON.stringify({
       }
 
       showDetailView();
+      var url = new URL(window.location);
+      url.searchParams.set('date', slug);
+      window.history.replaceState({}, '', url.pathname + '?' + url.searchParams.toString());
       puzzleDetailContent.innerHTML = '<div class="text-center py-12"><div class="inline-block w-10 h-10 border-[3px] border-amber-400 border-t-transparent rounded-full animate-spin"></div><p class="text-gray-500 mt-3 font-medium">Loading puzzle...</p></div>';
-
-      // Do NOT change the URL — keep it as /archive only
-      // This avoids duplicate indexing issues
 
       try {
         var res = await fetch(API_BASE + '/api/search/date/' + encodeURIComponent(dateStr));
@@ -360,6 +354,13 @@ const faqSchema = JSON.stringify({
       if (redirectSlug) {
         sessionStorage.removeItem('sb_archive_date');
         loadPuzzleBySlug(redirectSlug);
+        return;
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var selectedDate = params.get('date');
+      if (selectedDate) {
+        loadPuzzleBySlug(selectedDate);
       }
     })();
   </script>

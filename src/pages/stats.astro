@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { API_BASE } from '../lib/utils';
+import { API_BASE, formatDateURL } from '../lib/utils';
 
 // Safely fetch with fallback
 let stats = { overview: {}, averages: {}, extremes: {} };
@@ -25,6 +25,7 @@ const extremes = stats.extremes || {};
 
 const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLocaleString() : (val != null ? String(val) : '—');
 const safeNum = (val, def = 0) => (val != null && !isNaN(Number(val))) ? Number(val) : def;
+const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
 
 const maxCenterCount = Math.max(...centerFreq.map(c => c.count), 1);
 const maxLetterCount = Math.max(...letterFreq.map(l => l.totalAppearances), 1);
@@ -127,7 +128,7 @@ const faqSchema = JSON.stringify({
                 <span class="font-bold text-emerald-700 text-sm">{safeLocale(extremes.puzzleWithMostWords.word_count)} words</span>
               </div>
               {extremes.puzzleWithMostWords.date && (
-                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostWords.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostWords.date} <a href={archiveHref(extremes.puzzleWithMostWords.date)} class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
               )}
             </div>
           )}
@@ -138,7 +139,7 @@ const faqSchema = JSON.stringify({
                 <span class="font-bold text-red-700 text-sm">{safeLocale(extremes.puzzleWithFewestWords.word_count)} words</span>
               </div>
               {extremes.puzzleWithFewestWords.date && (
-                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithFewestWords.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithFewestWords.date} <a href={archiveHref(extremes.puzzleWithFewestWords.date)} class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
               )}
             </div>
           )}
@@ -149,7 +150,7 @@ const faqSchema = JSON.stringify({
                 <span class="font-bold text-amber-700 text-sm">{safeLocale(extremes.puzzleWithMostPangrams.pangrams_count)} pangrams</span>
               </div>
               {extremes.puzzleWithMostPangrams.date && (
-                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostPangrams.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+                <p class="text-xs text-gray-500 mt-1">on {extremes.puzzleWithMostPangrams.date} <a href={archiveHref(extremes.puzzleWithMostPangrams.date)} class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
               )}
             </div>
           )}
@@ -160,7 +161,7 @@ const faqSchema = JSON.stringify({
                 <span class="font-bold text-violet-700 text-sm">{safeLocale(extremes.highestScore.max_score)} points</span>
               </div>
               {extremes.highestScore.date && (
-                <p class="text-xs text-gray-500 mt-1">on {extremes.highestScore.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+                <p class="text-xs text-gray-500 mt-1">on {extremes.highestScore.date} <a href={archiveHref(extremes.highestScore.date)} class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
               )}
             </div>
           )}
@@ -171,7 +172,7 @@ const faqSchema = JSON.stringify({
                 <span class="font-bold text-orange-700 text-sm">{safeLocale(extremes.lowestScore.max_score)} points</span>
               </div>
               {extremes.lowestScore.date && (
-                <p class="text-xs text-gray-500 mt-1">on {extremes.lowestScore.date} <a href="/archive" class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
+                <p class="text-xs text-gray-500 mt-1">on {extremes.lowestScore.date} <a href={archiveHref(extremes.lowestScore.date)} class="text-amber-600 font-semibold hover:text-amber-700 ml-1">&rarr; View in Archive</a></p>
               )}
             </div>
           )}
