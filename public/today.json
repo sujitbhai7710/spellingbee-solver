@@ -184,7 +184,758 @@
       "length": 4
     }
   ],
-  "definitionsByWord": {},
+  "definitionsByWord": {
+    "adage": {
+      "word": "adage",
+      "definition": "A saying that expresses a general truth or piece of advice, often passed down through generations.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "aphorism",
+        "maxim",
+        "proverb",
+        "saying",
+        "truism"
+      ],
+      "antonyms": [
+        "fable",
+        "innovation",
+        "new idea",
+        "novelty",
+        "untested notion"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "aged": {
+      "word": "aged",
+      "definition": "Having lived for a long time; grown old.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "elderly",
+        "mature",
+        "old",
+        "senior",
+        "venerable"
+      ],
+      "antonyms": [
+        "fresh",
+        "infant",
+        "new",
+        "young",
+        "youthful"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "agenda": {
+      "word": "agenda",
+      "definition": "A list of items to be discussed or dealt with at a meeting.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "list",
+        "order of business",
+        "plan",
+        "program",
+        "schedule"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "cadge": {
+      "word": "cadge",
+      "definition": "To ask for or obtain something, especially by begging or wheedling.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "beg",
+        "beggar",
+        "net",
+        "scrounge",
+        "sponge"
+      ],
+      "antonyms": [
+        "donate",
+        "give",
+        "offer",
+        "provide",
+        "refuse"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "cadged": {
+      "word": "cadged",
+      "definition": "Past tense of cadge; obtained by begging or borrowing.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "begged",
+        "borrowed",
+        "pinched",
+        "scrounged",
+        "swindled"
+      ],
+      "antonyms": [
+        "bought",
+        "earned",
+        "paid for",
+        "purchased"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "cage": {
+      "word": "cage",
+      "definition": "An enclosure of bars or wires for confining birds or small animals.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "cell",
+        "coop",
+        "enclosure",
+        "pen",
+        "traps"
+      ],
+      "antonyms": [
+        "freedom",
+        "liberty",
+        "open space",
+        "release",
+        "wilderness"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "caged": {
+      "word": "caged",
+      "definition": "Past tense of cage; to confine or trap someone or something in a cage.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "confined",
+        "enclosed",
+        "imprisoned",
+        "locked",
+        "trapped"
+      ],
+      "antonyms": [
+        "freed",
+        "liberated",
+        "released",
+        "unbound",
+        "unlocked"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "change": {
+      "word": "change",
+      "definition": "To make or become different in form, nature, or appearance.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "alter",
+        "modify",
+        "shift",
+        "transform",
+        "vary"
+      ],
+      "antonyms": [
+        "keep",
+        "maintain",
+        "preserve",
+        "stabilize",
+        "unchange"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "changed": {
+      "word": "changed",
+      "definition": "Past tense of change; made or become different.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "altered",
+        "modified",
+        "shifted",
+        "transformed",
+        "updated"
+      ],
+      "antonyms": [
+        "constant",
+        "same",
+        "stable",
+        "static",
+        "unchanged"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "dang": {
+      "word": "dang",
+      "definition": "A mild expletive used to express annoyance or surprise, a euphemism for damn.",
+      "partOfSpeech": "interjection",
+      "synonyms": [
+        "blast",
+        "darn",
+        "oh no",
+        "rats",
+        "shoot"
+      ],
+      "antonyms": [],
+      "usageNotes": "Used to avoid profanity in polite company.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "edge": {
+      "word": "edge",
+      "definition": "The outer boundary or margin of something, or to move slowly or cautiously.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "border",
+        "brink",
+        "margin",
+        "periphery",
+        "rim"
+      ],
+      "antonyms": [
+        "center",
+        "core",
+        "heart",
+        "interior",
+        "middle"
+      ],
+      "usageNotes": "Also used as a verb meaning to move gradually.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "edged": {
+      "word": "edged",
+      "definition": "Past tense of edge; to have provided a border or margin, or to have slightly increased.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "bordered",
+        "framed",
+        "narrowed",
+        "rimmed",
+        "slightly increased"
+      ],
+      "antonyms": [
+        "diminished",
+        "erased",
+        "reduced",
+        "removed",
+        "smoothed"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "egad": {
+      "word": "egad",
+      "definition": "An archaic exclamation expressing surprise or dismay, a euphemism for 'oh God'.",
+      "partOfSpeech": "interjection",
+      "synonyms": [
+        "good grief",
+        "goodness",
+        "gosh",
+        "heavens",
+        "oh dear"
+      ],
+      "antonyms": [],
+      "usageNotes": "Rarely used in modern English; considered archaic or humorous.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "egged": {
+      "word": "egged",
+      "definition": "Past tense of egg; to have incited or encouraged someone to do something, often recklessly.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "goaded",
+        "incited",
+        "provoked",
+        "spurred",
+        "urged"
+      ],
+      "antonyms": [
+        "calmed",
+        "deterred",
+        "discouraged",
+        "dissuaded",
+        "restrained"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "egghead": {
+      "word": "egghead",
+      "definition": "A person regarded as overly intellectual or academic.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "boffin",
+        "geek",
+        "intellectual",
+        "nerd",
+        "wonk"
+      ],
+      "antonyms": [
+        "buffoon",
+        "dummy",
+        "ignoramus",
+        "lout",
+        "simpleton"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "eggheaded": {
+      "word": "eggheaded",
+      "definition": "Characterized by or associated with excessive intellectualism or book learning.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "academic",
+        "bookish",
+        "intellectual",
+        "nerdy",
+        "pedantic"
+      ],
+      "antonyms": [
+        "common",
+        "practical",
+        "simple",
+        "uneducated",
+        "unintellectual"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "encage": {
+      "word": "encage",
+      "definition": "To put or confine in a cage.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "cage",
+        "confine",
+        "enclose",
+        "imprison",
+        "shut in"
+      ],
+      "antonyms": [
+        "free",
+        "liberate",
+        "release",
+        "set free",
+        "unleash"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "encaged": {
+      "word": "encaged",
+      "definition": "Past tense of encage; confined or imprisoned in a cage.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "caged",
+        "captured",
+        "confined",
+        "imprisoned",
+        "locked up"
+      ],
+      "antonyms": [
+        "freed",
+        "liberated",
+        "released",
+        "set free",
+        "unlocked"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "engage": {
+      "word": "engage",
+      "definition": "To occupy the attention or efforts of someone; to involve or participate.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "absorb",
+        "commit",
+        "enthrall",
+        "involve",
+        "occupy"
+      ],
+      "antonyms": [
+        "avoid",
+        "detach",
+        "disengage",
+        "disinterest",
+        "ignore"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "engaged": {
+      "word": "engaged",
+      "definition": "Past tense of engage; occupied, involved, or committed.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "absorbed",
+        "busy",
+        "committed",
+        "involved",
+        "occupied"
+      ],
+      "antonyms": [
+        "disengaged",
+        "free",
+        "idle",
+        "uninvolved",
+        "unoccupied"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "gadded": {
+      "word": "gadded",
+      "definition": "Past tense of gadd; to go about aimlessly or in a frivolous way.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "flitted",
+        "frolicked",
+        "gadded about",
+        "roamed",
+        "wandered"
+      ],
+      "antonyms": [
+        "housed",
+        "lingered",
+        "remained",
+        "settled",
+        "stayed"
+      ],
+      "usageNotes": "Archaic or dialectal; rarely used in modern English.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "gaga": {
+      "word": "gaga",
+      "definition": "Mentally confused or senile, often due to old age; also used to describe infatuation.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "addled",
+        "befuddled",
+        "dotty",
+        "loopy",
+        "senile"
+      ],
+      "antonyms": [
+        "clear-headed",
+        "composed",
+        "lucid",
+        "rational",
+        "sane"
+      ],
+      "usageNotes": "Can also mean 'infatuated' in informal contexts, e.g., 'gaga over pop stars'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "gage": {
+      "word": "gage",
+      "definition": "A pledge or something given as security for the performance of an obligation.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "bond",
+        "deposit",
+        "pledge",
+        "security",
+        "surety"
+      ],
+      "antonyms": [],
+      "usageNotes": "Often used in legal or historical contexts; also spelled 'gage'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:45.126Z"
+    },
+    "gagged": {
+      "word": "gagged",
+      "definition": "Past tense of gag; to silence or restrain from speaking.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "hushed",
+        "muzzled",
+        "silenced",
+        "stifled",
+        "suppressed"
+      ],
+      "antonyms": [
+        "declared",
+        "expressed",
+        "protested",
+        "spoke",
+        "voiced"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "ganache": {
+      "word": "ganache",
+      "definition": "A rich mixture of chocolate and cream used as a filling or glaze in desserts.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "chocolate glaze",
+        "chocolate paste",
+        "cream filling",
+        "dessert topping",
+        "fondant"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "gang": {
+      "word": "gang",
+      "definition": "A group of people associated for a common purpose, often with negative connotations.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "band",
+        "clique",
+        "crew",
+        "group",
+        "mob"
+      ],
+      "antonyms": [
+        "individual",
+        "solitary"
+      ],
+      "usageNotes": "Can refer to criminal groups or informal work teams depending on context.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:45.126Z"
+    },
+    "ganged": {
+      "word": "ganged",
+      "definition": "Past tense of gang; to work together in a group, especially in labor.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "collaborated",
+        "cooperated",
+        "grouped",
+        "united",
+        "worked together"
+      ],
+      "antonyms": [
+        "divided",
+        "isolated",
+        "separated",
+        "soloed",
+        "worked alone"
+      ],
+      "usageNotes": "Often used in the phrase 'ganged up'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "gene": {
+      "word": "gene",
+      "definition": "A unit of heredity that is transferred from a parent to offspring and determines some characteristic.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "allele",
+        "chromosome",
+        "factor",
+        "inheritance",
+        "trait"
+      ],
+      "antonyms": [],
+      "usageNotes": "Commonly used in genetics; plural is 'genes'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:45.126Z"
+    },
+    "ghee": {
+      "word": "ghee",
+      "definition": "Clarified butter used in South Asian cooking and religious rituals.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "butterfat",
+        "clarified butter",
+        "liquid butter"
+      ],
+      "antonyms": [],
+      "usageNotes": "Common in Indian cuisine; has a higher smoke point than regular butter.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:45.126Z"
+    },
+    "hang": {
+      "word": "hang",
+      "definition": "To suspend or be suspended from a point above so as to hang freely.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "dangle",
+        "hover",
+        "linger",
+        "suspend",
+        "swing"
+      ],
+      "antonyms": [
+        "detach",
+        "fix",
+        "pull down",
+        "remove"
+      ],
+      "usageNotes": "Can also mean to spend time idly or to execute by suspending; context-dependent.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:45.126Z"
+    },
+    "hanged": {
+      "word": "hanged",
+      "definition": "Past tense of hang; executed by suspending by the neck.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "executed",
+        "lynched",
+        "noosed",
+        "put to death",
+        "strangled"
+      ],
+      "antonyms": [
+        "freed",
+        "pardoned",
+        "released",
+        "saved",
+        "spared"
+      ],
+      "usageNotes": "Used only for executions; 'hung' is used for objects.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:31:53.437Z"
+    },
+    "hedge": {
+      "word": "hedge",
+      "definition": "A boundary formed by closely planted shrubs or bushes, or to avoid making a clear commitment.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "barrier",
+        "boundary",
+        "bush",
+        "fence",
+        "screen"
+      ],
+      "antonyms": [
+        "clearance",
+        "exposure",
+        "gap",
+        "open space",
+        "void"
+      ],
+      "usageNotes": "Also used as a verb meaning to avoid direct statements.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "hedged": {
+      "word": "hedged",
+      "definition": "Past tense of hedge; to have avoided making a clear statement or commitment.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "avoided",
+        "dodged",
+        "equivocated",
+        "prevaricated",
+        "qualified"
+      ],
+      "antonyms": [
+        "asserted",
+        "committed",
+        "confirmed",
+        "declared",
+        "stated"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "henge": {
+      "word": "henge",
+      "definition": "A prehistoric monument consisting of a circular bank and ditch with standing stones, such as Stonehenge.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "ancient structure",
+        "megalith",
+        "monument",
+        "ritual site",
+        "stone circle"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    },
+    "nagged": {
+      "word": "nagged",
+      "definition": "Past tense of nag; to annoy persistently with petty complaints or requests.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "badgered",
+        "bothered",
+        "harassed",
+        "irritated",
+        "pestered"
+      ],
+      "antonyms": [
+        "calmed",
+        "comforted",
+        "ignored",
+        "pleased",
+        "soothed"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-21T18:32:31.011Z"
+    }
+  },
   "totalPoints": 163,
   "hasPerfectPangram": true,
   "perfectPangrams": [
