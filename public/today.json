@@ -1,0 +1,193 @@
+{
+  "puzzle": {
+    "puzzle_id": 2934,
+    "date": "May 21, 2026",
+    "letters": "G",
+    "all_letters": "GACDEHN",
+    "word_count": 35,
+    "pangrams_count": 1
+  },
+  "words": [
+    {
+      "word": "changed",
+      "is_pangram": 1,
+      "length": 7
+    },
+    {
+      "word": "eggheaded",
+      "is_pangram": 0,
+      "length": 9
+    },
+    {
+      "word": "egghead",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "encaged",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "engaged",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "ganache",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "agenda",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "cadged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "change",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "encage",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "engage",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "gadded",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "gagged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "ganged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "hanged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "hedged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "nagged",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "adage",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "cadge",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "caged",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "edged",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "egged",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "hedge",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "henge",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "aged",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "cage",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "dang",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "edge",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "egad",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "gaga",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "gage",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "gang",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "gene",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "ghee",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "hang",
+      "is_pangram": 0,
+      "length": 4
+    }
+  ],
+  "definitionsByWord": {},
+  "totalPoints": 163,
+  "hasPerfectPangram": true,
+  "perfectPangrams": [
+    "changed"
+  ]
+}
