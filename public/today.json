@@ -1,0 +1,1336 @@
+{
+  "puzzle": {
+    "puzzle_id": 2935,
+    "date": "May 22, 2026",
+    "letters": "O",
+    "all_letters": "OAHILNT",
+    "word_count": 55,
+    "pangrams_count": 2
+  },
+  "words": [
+    {
+      "word": "annihilation",
+      "is_pangram": 1,
+      "length": 12
+    },
+    {
+      "word": "inhalation",
+      "is_pangram": 1,
+      "length": 10
+    },
+    {
+      "word": "titillation",
+      "is_pangram": 0,
+      "length": 11
+    },
+    {
+      "word": "annotation",
+      "is_pangram": 0,
+      "length": 10
+    },
+    {
+      "word": "initiation",
+      "is_pangram": 0,
+      "length": 10
+    },
+    {
+      "word": "intonation",
+      "is_pangram": 0,
+      "length": 10
+    },
+    {
+      "word": "notational",
+      "is_pangram": 0,
+      "length": 10
+    },
+    {
+      "word": "nonillion",
+      "is_pangram": 0,
+      "length": 9
+    },
+    {
+      "word": "national",
+      "is_pangram": 0,
+      "length": 8
+    },
+    {
+      "word": "notation",
+      "is_pangram": 0,
+      "length": 8
+    },
+    {
+      "word": "notional",
+      "is_pangram": 0,
+      "length": 8
+    },
+    {
+      "word": "annatto",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "lanolin",
+      "is_pangram": 0,
+      "length": 7
+    },
+    {
+      "word": "anoint",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "atonal",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "lotion",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "nation",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "notion",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "tattoo",
+      "is_pangram": 0,
+      "length": 6
+    },
+    {
+      "word": "aioli",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "allot",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "aloha",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "anion",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "atoll",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "litho",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "llano",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "loath",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "lotto",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "onion",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "talon",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "tonal",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "tooth",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "total",
+      "is_pangram": 0,
+      "length": 5
+    },
+    {
+      "word": "alto",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "anon",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "halo",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "holt",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "hoot",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "into",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "iota",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "lion",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "loan",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "loin",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "loll",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "loon",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "loot",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "noon",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "oath",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "olio",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "onto",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "toil",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "toll",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "tool",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "toon",
+      "is_pangram": 0,
+      "length": 4
+    },
+    {
+      "word": "toot",
+      "is_pangram": 0,
+      "length": 4
+    }
+  ],
+  "definitionsByWord": {
+    "aioli": {
+      "word": "aioli",
+      "definition": "A garlic-flavored mayonnaise originating in Mediterranean cuisine.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "condiment",
+        "dip",
+        "garlic mayo",
+        "garlic sauce",
+        "mayonnaise"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "allot": {
+      "word": "allot",
+      "definition": "To assign or distribute a portion of something as a share.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "allocate",
+        "apportion",
+        "assign",
+        "distribute",
+        "grant"
+      ],
+      "antonyms": [
+        "deny",
+        "hoard",
+        "keep",
+        "retain",
+        "withhold"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "aloha": {
+      "word": "aloha",
+      "definition": "A Hawaiian word used as a greeting or farewell, also expressing love or compassion.",
+      "partOfSpeech": "interjection",
+      "synonyms": [
+        "farewell",
+        "goodbye",
+        "hello",
+        "love",
+        "peace"
+      ],
+      "antonyms": [],
+      "usageNotes": "Primarily used in Hawaiian culture and tourism contexts.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "alto": {
+      "word": "alto",
+      "definition": "The lowest female singing voice, or a part written for such a voice.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "contralto"
+      ],
+      "antonyms": [
+        "soprano"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "anion": {
+      "word": "anion",
+      "definition": "A negatively charged ion formed by gaining one or more electrons.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "anion",
+        "electron-rich ion",
+        "negative ion"
+      ],
+      "antonyms": [
+        "cation",
+        "positive ion"
+      ],
+      "usageNotes": "Commonly used in chemistry and electrochemistry contexts.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "annatto": {
+      "word": "annatto",
+      "definition": "A reddish-orange dye obtained from the seeds of the achiote tree, used in food and cosmetics.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "achiote",
+        "bixa",
+        "colorant",
+        "food coloring",
+        "natural dye"
+      ],
+      "antonyms": [
+        "artificial pigment",
+        "clear",
+        "colorless",
+        "synthetic dye",
+        "white pigment"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "annihilation": {
+      "word": "annihilation",
+      "definition": "The complete destruction or obliteration of something.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "demolition",
+        "destruction",
+        "eradication",
+        "extinction",
+        "obliteration"
+      ],
+      "antonyms": [
+        "construction",
+        "creation",
+        "formation",
+        "generation",
+        "preservation"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "annotation": {
+      "word": "annotation",
+      "definition": "A note added to a text to explain or comment on it.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "comment",
+        "explanation",
+        "gloss",
+        "note",
+        "remark"
+      ],
+      "antonyms": [
+        "blank",
+        "deletion",
+        "erasure",
+        "omission",
+        "silence"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "anoint": {
+      "word": "anoint",
+      "definition": "To rub or smear with oil or ointment, especially in a religious or ceremonial context.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "apply oil",
+        "bless",
+        "consecrate",
+        "rub",
+        "smear"
+      ],
+      "antonyms": [
+        "defile",
+        "desecrate",
+        "remove",
+        "strip",
+        "unholy"
+      ],
+      "usageNotes": "Often used in religious or royal ceremonies.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "anon": {
+      "word": "anon",
+      "definition": "Soon; in a short time.",
+      "partOfSpeech": "adverb",
+      "synonyms": [
+        "presently",
+        "shortly",
+        "soon"
+      ],
+      "antonyms": [
+        "later",
+        "never"
+      ],
+      "usageNotes": "Archaic or literary usage.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "atoll": {
+      "word": "atoll",
+      "definition": "A ring-shaped coral reef or island, typically surrounding a lagoon.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "atoll island",
+        "coral island",
+        "lagoon island",
+        "reef"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "atonal": {
+      "word": "atonal",
+      "definition": "Lacking a tonal center or key; not based on traditional scales or harmony.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "dissonant",
+        "modernist",
+        "non-tonal",
+        "serial",
+        "unmelodic"
+      ],
+      "antonyms": [
+        "diatonic",
+        "harmonious",
+        "key-based",
+        "melodic",
+        "tonal"
+      ],
+      "usageNotes": "Commonly used to describe 20th-century classical music.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "halo": {
+      "word": "halo",
+      "definition": "A circle of light surrounding a sacred figure in art, or a luminous ring around the sun or moon.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "aura",
+        "glow",
+        "nimbus"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "holt": {
+      "word": "holt",
+      "definition": "A small wooded hill or grove.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "copse",
+        "grove",
+        "wood"
+      ],
+      "antonyms": [],
+      "usageNotes": "Archaic or regional usage.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "hoot": {
+      "word": "hoot",
+      "definition": "A loud cry, especially that of an owl.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "cry",
+        "screech",
+        "shout"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "inhalation": {
+      "word": "inhalation",
+      "definition": "The act of drawing air or other substances into the lungs.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "breath",
+        "breathing",
+        "draw",
+        "inspiration",
+        "吸入"
+      ],
+      "antonyms": [
+        "blow out",
+        "breath out",
+        "exhalation",
+        "expiration",
+        "release"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "initiation": {
+      "word": "initiation",
+      "definition": "The action or process of beginning something or being introduced to it.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "beginning",
+        "commencement",
+        "inception",
+        "onset",
+        "start"
+      ],
+      "antonyms": [
+        "cessation",
+        "completion",
+        "conclusion",
+        "end",
+        "termination"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "into": {
+      "word": "into",
+      "definition": "Expressing movement or action resulting in entry or inclusion within something.",
+      "partOfSpeech": "preposition",
+      "synonyms": [
+        "inside",
+        "toward",
+        "within"
+      ],
+      "antonyms": [
+        "away from",
+        "out of"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "intonation": {
+      "word": "intonation",
+      "definition": "The rise and fall of the voice in speaking, especially to convey meaning or emotion.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "cadence",
+        "inflection",
+        "modulation",
+        "pitch",
+        "tone"
+      ],
+      "antonyms": [
+        "drone",
+        "flatness",
+        "monotone",
+        "stagnation",
+        "uninflected"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "iota": {
+      "word": "iota",
+      "definition": "A very small amount.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "bit",
+        "smidgen",
+        "trace"
+      ],
+      "antonyms": [
+        "lot",
+        "mass"
+      ],
+      "usageNotes": "Often used in the phrase 'not one iota'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "lanolin": {
+      "word": "lanolin",
+      "definition": "A waxy substance secreted by the sebaceous glands of wool-bearing animals, used in cosmetics and ointments.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "emollient",
+        "lipid",
+        "sebaceous secretion",
+        "sheep grease",
+        "wool wax"
+      ],
+      "antonyms": [
+        "alcohol",
+        "mineral oil",
+        "oil",
+        "synthetic lubricant",
+        "water"
+      ],
+      "usageNotes": "Often used as a moisturizer in skincare products.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "lion": {
+      "word": "lion",
+      "definition": "A large, powerful wild cat with a tawny coat and a mane in the male.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "beast",
+        "feline",
+        "king"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "litho": {
+      "word": "litho",
+      "definition": "Short for lithograph; a print made from a stone or metal plate.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "engraving",
+        "etching",
+        "lithograph",
+        "print",
+        "replica"
+      ],
+      "antonyms": [],
+      "usageNotes": "Often used as a shortened form in art contexts.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "llano": {
+      "word": "llano",
+      "definition": "A vast, flat, treeless grassland, especially in the Americas.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "grassland",
+        "plain",
+        "prairie",
+        "savanna",
+        "steppe"
+      ],
+      "antonyms": [
+        "forest",
+        "hill",
+        "jungle",
+        "mountain"
+      ],
+      "usageNotes": "Used primarily in Spanish-speaking regions of the Americas.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "loan": {
+      "word": "loan",
+      "definition": "Something, especially money, lent to someone with the expectation of return.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "advance",
+        "borrowing",
+        "credit"
+      ],
+      "antonyms": [
+        "payment",
+        "repayment"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "loath": {
+      "word": "loath",
+      "definition": "Reluctant or unwilling to do something.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "averse",
+        "disinclined",
+        "hesitant",
+        "reluctant",
+        "unwilling"
+      ],
+      "antonyms": [
+        "eager",
+        "enthusiastic",
+        "keen",
+        "ready",
+        "willing"
+      ],
+      "usageNotes": "Often used in the phrase 'loath to do something'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "loin": {
+      "word": "loin",
+      "definition": "The part of the body on each side of the spine between the ribs and the hip.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "flank",
+        "hip",
+        "waist"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "loll": {
+      "word": "loll",
+      "definition": "To sit, lie, or stand in a lazy, relaxed way.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "loaf",
+        "lounge",
+        "slouch"
+      ],
+      "antonyms": [
+        "stand tall",
+        "work hard"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "loon": {
+      "word": "loon",
+      "definition": "A large aquatic bird with a distinctive call and lobed toes.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "diver"
+      ],
+      "antonyms": [],
+      "usageNotes": "Also slang for a crazy person, but biological meaning is primary here.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "loot": {
+      "word": "loot",
+      "definition": "Stolen goods or property taken by force, especially during war or robbery.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "booty",
+        "pillage",
+        "plunder",
+        "spoils",
+        "swag"
+      ],
+      "antonyms": [
+        "assets",
+        "belongings",
+        "property"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "lotion": {
+      "word": "lotion",
+      "definition": "A liquid or semi-liquid preparation applied to the skin for medicinal or cosmetic purposes.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "balm",
+        "cream",
+        "emollient",
+        "ointment",
+        "solution"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "lotto": {
+      "word": "lotto",
+      "definition": "A game of chance in which players buy tickets with numbers and win prizes if their numbers are drawn.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "bingo",
+        "draw",
+        "lottery",
+        "numbers game",
+        "raffle"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "nation": {
+      "word": "nation",
+      "definition": "A large body of people united by common descent, history, culture, or language, inhabiting a particular country or territory.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "country",
+        "land",
+        "people",
+        "realm",
+        "state"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "national": {
+      "word": "national",
+      "definition": "Relating to a nation or country, especially in terms of identity or government.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "country",
+        "domestic",
+        "patriotic",
+        "public",
+        "state"
+      ],
+      "antonyms": [
+        "alien",
+        "foreign",
+        "global",
+        "international",
+        "transnational"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "nonillion": {
+      "word": "nonillion",
+      "definition": "The number equal to 1 followed by 30 zeros in the U.S. system.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "10^30",
+        "large number",
+        "numerical magnitude",
+        "power of ten",
+        "quintillion (UK)"
+      ],
+      "antonyms": [
+        "decimal",
+        "fraction",
+        "one",
+        "small number",
+        "zero"
+      ],
+      "usageNotes": "Used primarily in scientific or mathematical contexts; rare in everyday language.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "noon": {
+      "word": "noon",
+      "definition": "The middle of the day, exactly 12 o'clock.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "12 p.m.",
+        "midday"
+      ],
+      "antonyms": [
+        "midnight"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "notation": {
+      "word": "notation",
+      "definition": "A system of symbols or signs used to represent numbers, quantities, or musical elements.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "annotation",
+        "code",
+        "representation",
+        "symbolism",
+        "system"
+      ],
+      "antonyms": [
+        "description",
+        "oral expression",
+        "plain text",
+        "spoken word",
+        "verbalization"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "notational": {
+      "word": "notational",
+      "definition": "Relating to or using a system of symbols or signs to represent information.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "coded",
+        "marked",
+        "representational",
+        "sign-based",
+        "symbolic"
+      ],
+      "antonyms": [
+        "literal",
+        "plain",
+        "spoken",
+        "unwritten",
+        "verbal"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "notion": {
+      "word": "notion",
+      "definition": "A vague or imperfect conception or idea about something.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "belief",
+        "concept",
+        "idea",
+        "impression",
+        "thought"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "notional": {
+      "word": "notional",
+      "definition": "Existing only in the mind; conceptual rather than real.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "abstract",
+        "conceptual",
+        "imaginary",
+        "mental",
+        "theoretical"
+      ],
+      "antonyms": [
+        "actual",
+        "concrete",
+        "physical",
+        "real",
+        "tangible"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "oath": {
+      "word": "oath",
+      "definition": "A solemn promise, often invoking a divine witness, to tell the truth or fulfill a duty.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "affirmation",
+        "pledge",
+        "swear",
+        "sworn statement",
+        "vow"
+      ],
+      "antonyms": [
+        "deception",
+        "falsehood",
+        "lie"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "olio": {
+      "word": "olio",
+      "definition": "A miscellaneous mixture or medley, especially of dishes or performances.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "assortment",
+        "hodgepodge",
+        "medley",
+        "mishmash",
+        "potpourri"
+      ],
+      "antonyms": [],
+      "usageNotes": "Often used in culinary or theatrical contexts.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "onion": {
+      "word": "onion",
+      "definition": "A bulbous vegetable with a pungent taste, used as a seasoning or vegetable.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "allium",
+        "allium cepa",
+        "bulb",
+        "clove",
+        "vegetable"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "onto": {
+      "word": "onto",
+      "definition": "On the surface or top of something, indicating movement or position.",
+      "partOfSpeech": "preposition",
+      "synonyms": [
+        "on",
+        "on top of",
+        "upon"
+      ],
+      "antonyms": [
+        "away from",
+        "off of"
+      ],
+      "usageNotes": "Often confused with 'on to'; 'onto' implies movement to a surface.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "talon": {
+      "word": "talon",
+      "definition": "A sharp, curved claw of a bird of prey or other animal.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "claw",
+        "clutch",
+        "grasp",
+        "hook",
+        "nail"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "tattoo": {
+      "word": "tattoo",
+      "definition": "A design made by inserting ink into the skin under the surface.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "body art",
+        "design",
+        "ink",
+        "marking",
+        "刺青"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:04.575Z"
+    },
+    "titillation": {
+      "word": "titillation",
+      "definition": "The action of tickling or the state of being tickled; also, mild amusement or excitement.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "arousal",
+        "excitement",
+        "pleasure",
+        "tickling",
+        "tingling"
+      ],
+      "antonyms": [
+        "apathy",
+        "boredom",
+        "dullness",
+        "indifference",
+        "weariness"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:32:37.352Z"
+    },
+    "toil": {
+      "word": "toil",
+      "definition": "To work hard and continuously, especially under difficult conditions.",
+      "partOfSpeech": "verb",
+      "synonyms": [
+        "drudge",
+        "labor",
+        "slave",
+        "slog",
+        "strive"
+      ],
+      "antonyms": [
+        "idle",
+        "loaf",
+        "relax",
+        "rest"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "toll": {
+      "word": "toll",
+      "definition": "A fee charged for the use of a road, bridge, or service, or the sound of a bell.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "charge",
+        "entrance fee",
+        "fee",
+        "peal",
+        "tax"
+      ],
+      "antonyms": [],
+      "usageNotes": "Can also be a verb meaning to ring a bell or to exact a cost.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "tonal": {
+      "word": "tonal",
+      "definition": "Relating to or characterized by tone, especially in music.",
+      "partOfSpeech": "adjective",
+      "synonyms": [
+        "melodic",
+        "musical",
+        "pitch-based"
+      ],
+      "antonyms": [
+        "atonal",
+        "noise-like"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "tool": {
+      "word": "tool",
+      "definition": "An instrument used to carry out a function, especially for mechanical work.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "apparatus",
+        "device",
+        "implement",
+        "instrument",
+        "utensil"
+      ],
+      "antonyms": [],
+      "usageNotes": "Can also be used metaphorically to describe a person manipulated by others.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "toon": {
+      "word": "toon",
+      "definition": "A cartoon or animated character, especially in popular culture.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "animation",
+        "cartoon",
+        "character",
+        "comic",
+        "drawing"
+      ],
+      "antonyms": [],
+      "usageNotes": "Informal term derived from 'cartoon'.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "toot": {
+      "word": "toot",
+      "definition": "A short, loud sound made by a horn or whistle.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "beep",
+        "blare",
+        "blast",
+        "honk",
+        "pip"
+      ],
+      "antonyms": [],
+      "usageNotes": "Can also be a verb meaning to make such a sound.",
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:59.426Z"
+    },
+    "tooth": {
+      "word": "tooth",
+      "definition": "One of the hard, bony structures embedded in the jaws of vertebrates, used for biting and chewing.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "fang",
+        "incisor",
+        "molar"
+      ],
+      "antonyms": [],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    },
+    "total": {
+      "word": "total",
+      "definition": "The whole amount or sum of something.",
+      "partOfSpeech": "noun",
+      "synonyms": [
+        "aggregate",
+        "entirety",
+        "sum"
+      ],
+      "antonyms": [
+        "fraction",
+        "partial"
+      ],
+      "usageNotes": null,
+      "sourceProvider": "nvidia-nim",
+      "sourceModel": "qwen/qwen3-next-80b-a3b-instruct",
+      "updatedAt": "2026-05-22T18:33:32.311Z"
+    }
+  },
+  "totalPoints": 262,
+  "hasPerfectPangram": false,
+  "perfectPangrams": []
+}
