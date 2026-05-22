@@ -423,3 +423,74 @@ Next Best Follow-Up:
 
 - Removed the last stray Yesterday's Answers CTA from the /today sidebar so /yesterday no longer appears in the active UI.
 
+## 2026-05-23 Today Page + Release Timing Fixes
+- Root cause for the site looking "one day late" was not the database. The worker cron was still running at 12:00am IST, 12:05am IST, and 12:15am IST, but the NYT Spelling Bee puzzle does not release until 12:30pm IST. That meant the rebuild pipeline was repeatedly fetching and publishing the previous day's puzzle.
+- Updated the worker cron schedule to:
+  - 12:31pm IST
+  - 01:31pm IST backup
+- Added duplicate-date checks before storing a puzzle in:
+  - scheduled worker runs
+  - `POST /api/update/nyt`
+  - `GET /api/update/nyt`
+- Important behavior change:
+  - GitHub `repository_dispatch` is now sent only when a brand-new puzzle is stored.
+  - This removes the old behavior where every cron run could trigger another rebuild even when the puzzle had not changed yet.
+- Improved the worker root API documentation at `/` with browser-friendly admin auth examples using `?key=YOUR_API_KEY`.
+- Added build-time API cache-busting to the Astro frontend for server-rendered pages so a new rebuild fetches fresh worker data instead of baking a stale 5-minute cached API response into the static HTML.
+- Updated `/today` SEO copy and visible headings:
+  - removed the `Today` and `Full Analysis` badges
+  - H1 now uses `Spelling Bee Answer today with Clue and Meaning (DATE)`
+  - matching title/description metadata now use the same phrasing
+  - the official answers `<details>` label now reads `Show today's official spelling bee answers`
+  - the meanings `<details>` label now reads `Show spelling bee answers with means`
+- Confirmed the answers/meanings sections on `/today` are semantic `<details>/<summary>` content, not JS-only content, so the text remains present in the HTML source for indexing.
+- Improved the definitions pipeline:
+  - `scripts/backfill-definitions.mjs` now reads the local `human-writing/SKILL.md` guidance and includes it in the NIM prompt
+  - definitions are now requested as richer multi-sentence English explanations
+  - usage notes are now asked to include at least one natural example sentence
+  - smaller generation batches and retry logic were added because the earlier long-output NIM calls were timing out
+  - added `--force` mode so existing word definitions can be regenerated, not just missing ones
+- Updated the `/today` and archive definition cards to render the richer `usageNotes` block as `Example and usage`.
+
+## 2026-05-23 Snapshot Build + Archive Permalinks
+- Reworked the public site architecture so the browser no longer depends on the worker for normal page rendering.
+- Added `scripts/generate-site-data.mjs` and wired `npm run build` to:
+  - fetch authenticated worker data
+  - generate `public/site-data/*.json`
+  - generate per-puzzle `public/site-data/archive/*.json`
+  - generate pre-rendered archive detail HTML under `public/site-data/archive-html/`
+  - run the Astro static build after the snapshot is ready
+- Added `src/lib/site-data.js` to read build snapshots from disk during Astro generation.
+- Added `src/lib/render-puzzle-detail.js` to render archive puzzle detail pages from a saved bundle instead of rebuilding the view client-side in the browser.
+- Converted these pages away from live worker fetches and onto snapshot files:
+  - `src/pages/index.astro`
+  - `src/pages/today.astro`
+  - `src/pages/stats.astro`
+  - `src/pages/solver.astro`
+- Replaced the old archive query-string detail flow with permanent static pages:
+  - new archive index: `src/pages/archive.astro`
+  - new per-puzzle route: `src/pages/archive/[slug].astro`
+  - canonical public path is now `/archive/<month>-<day>-<year>/`
+- The archive root page now:
+  - lists all puzzles from the snapshot
+  - uses a date picker that maps directly to the permanent archive URL
+  - upgrades old `?date=` URLs client-side to the new canonical path
+- The old `404` recovery for `/answer-for-*` now redirects directly to `/archive/<slug>/`.
+- Added a Pages redirect rule for `/answer-for/:slug -> /archive/:slug/` in `public/_redirects`.
+- Added site-level SEO files generated from the snapshot:
+  - `src/pages/robots.txt.ts`
+  - `src/pages/sitemap.xml.ts`
+- Domain/canonical output remains `https://spellingbeesolver.dev`.
+- Tightened worker exposure further:
+  - only `/` remains public on the worker
+  - data routes require API key auth
+  - the public site now does not need those data endpoints at runtime
+- Removed the old worker path that committed `public/today.json` into GitHub on update. The active publishing path is now repository_dispatch -> GitHub Action rebuild from snapshots.
+- Verification completed:
+  - `npm run build` succeeded with `2,944` static pages built
+  - built HTML no longer contains worker API URLs for `index`, `today`, `stats`, `solver`, `archive`, or archive detail pages
+  - Playwright verification confirmed:
+    - `/today` renders fully with zero worker data requests
+    - `/solver` autofill uses the snapshot letters and only fetches `/twl06.txt`
+    - archive detail pages render full answer/analysis HTML at build time
+

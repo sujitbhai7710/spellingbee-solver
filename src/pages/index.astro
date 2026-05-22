@@ -1,11 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Honeycomb from '../components/Honeycomb.astro';
-import { API_BASE, formatDateURL } from '../lib/utils';
+import { buildArchivePath } from '../lib/utils';
+import { readPublicJson } from '../lib/site-data';
 
 // Get latest puzzle for the homepage
-const todayRes = await fetch(`${API_BASE}/today`);
-const todayData = await todayRes.json();
+const todayData = readPublicJson('site-data/today.json', { puzzle: {}, words: [] });
 const puzzle = todayData.puzzle || {};
 const words = todayData.words || [];
 const center = puzzle.letters || '';
@@ -18,18 +18,16 @@ const pangramCount = puzzle.pangrams_count || 0;
 const puzzleDate = puzzle.date || '';
 
 // Get recent puzzles
-const recentRes = await fetch(`${API_BASE}/api/last/8`);
-const recentData = await recentRes.json();
+const recentData = readPublicJson('site-data/recent-puzzles.json', { puzzles: [] });
 const recentPuzzles = (recentData.puzzles || [])
   .filter(p => p.puzzle_id !== puzzle.puzzle_id)
   .slice(0, 6);
 
 // Get stats
-const statsRes = await fetch(`${API_BASE}/api/statistics`);
-const statsData = await statsRes.json();
+const statsData = readPublicJson('site-data/stats.json', { overview: {} });
 const totalPuzzles = statsData.overview?.totalPuzzles || 0;
 const totalWords = statsData.overview?.totalWords || 0;
-const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
+const archiveHref = (date) => buildArchivePath(date);
 
 const websiteSchema = JSON.stringify({
   "@context": "https://schema.org",

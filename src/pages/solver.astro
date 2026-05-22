@@ -1,10 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { API_BASE } from '../lib/utils';
+import { readPublicJson } from '../lib/site-data';
 
 // Fetch today's puzzle data at build time for autofill (NO runtime API call)
-const todayRes = await fetch(`${API_BASE}/today`);
-const todayData = await todayRes.json();
+const todayData = readPublicJson('site-data/today.json', { puzzle: {} });
 const todayPuzzle = todayData.puzzle || {};
 const todayCenter = (todayPuzzle.letters || '').toUpperCase();
 const todayAllLetters = (todayPuzzle.all_letters || '').toUpperCase();

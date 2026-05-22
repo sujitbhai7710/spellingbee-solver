@@ -53,6 +53,7 @@ const HISTORICAL_ANALYTICS_CACHE_TTL_MS = 5 * 60 * 1000;
 const ANALYSIS_CACHE_VERSION = 'v8';
 const ANALYSIS_KV_WRITE_LIMIT_PER_DAY = 1000;
 const SITE_TIMEZONE = 'Asia/Kolkata';
+const SITE_ORIGIN = 'https://spellingbeesolver.dev';
 
 let historicalAnalyticsCache = {
   expiresAt: 0,
@@ -66,10 +67,11 @@ let auxTablesReadyPromise = null;
 // ============================================================
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': SITE_ORIGIN,
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
   'Access-Control-Max-Age': '86400',
+  'Vary': 'Origin',
 };
 
 // ============================================================
@@ -99,6 +101,20 @@ class Router {
     // Handle CORS preflight
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    const authed = isAuthenticated(request, env);
+    const publicRoute = path === '/';
+
+    if (!publicRoute && !authed) {
+      return jsonResponse(errorResponse('Unauthorized. Data endpoints require a valid API key via X-API-Key header or ?key= parameter.', 401), 401);
+    }
+
+    const allowed = await checkRateLimit(request, env, ctx);
+    if (!allowed) {
+      return jsonResponse(errorResponse('Rate limit exceeded. Please slow down and try again shortly.', 429), 429, {
+        'Retry-After': String(RATE_LIMIT_WINDOW),
+      });
     }
 
     // Find matching route
@@ -184,7 +200,7 @@ function isAuthenticated(request, env) {
   return queryKey && queryKey === env.APIKEY;
 }
 
-async function checkRateLimit(request, env) {
+async function checkRateLimit(request, env, ctx) {
   // Simple IP-based rate limiting using Cloudflare Cache API
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const authed = isAuthenticated(request, env);
@@ -207,7 +223,11 @@ async function checkRateLimit(request, env) {
         'Cache-Control': `public, max-age=${RATE_LIMIT_WINDOW}`,
       },
     });
-    ctx.waitUntil && cache.put(cacheUrl, response);
+    if (ctx && typeof ctx.waitUntil === 'function') {
+      ctx.waitUntil(cache.put(cacheUrl, response));
+    } else {
+      await cache.put(cacheUrl, response);
+    }
 
     return true;
   } catch {
@@ -707,6 +727,17 @@ function getLastNDays(n) {
     dates.push(date);
   }
   return dates;
+}
+
+async function findPuzzleByDate(env, dateValue) {
+  const normalizedDate = normalizeDate(dateValue);
+  const normalizedIso = dateToISO(normalizedDate);
+  return env.DB.prepare(`
+    SELECT puzzle_id, date, date_iso
+    FROM puzzles
+    WHERE date = ? OR date_iso = ?
+    LIMIT 1
+  `).bind(normalizedDate, normalizedIso).first();
 }
 
 // ============================================================
@@ -1490,6 +1521,20 @@ async function getPuzzleById(env, puzzleId) {
   };
 }
 
+async function getPuzzleBundle(env, puzzleId) {
+  const puzzleData = await getPuzzleById(env, puzzleId);
+  if (!puzzleData) return null;
+
+  const analysis = await getPuzzleAnalysis(env, puzzleId);
+  const dateIso = puzzleData.puzzle?.date_iso || dateToISO(puzzleData.puzzle?.date);
+  const slugDate = new Date(`${dateIso}T00:00:00Z`);
+  return {
+    slug: formatDateForURL(slugDate),
+    ...puzzleData,
+    analysis,
+  };
+}
+
 // ============================================================
 // GITHUB SYNC
 // ============================================================
@@ -1759,6 +1804,11 @@ router.get('/', async (request, env) => {
     version: API_VERSION,
     description: 'Comprehensive API for NYT Spelling Bee puzzle data',
     baseUrl: 'https://spelling-bee-api.sbsolver.workers.dev',
+    access: {
+      publicDocs: true,
+      dataEndpointsRequireApiKey: true,
+      siteOrigin: SITE_ORIGIN,
+    },
     endpoints: {
       puzzles: {
         listPuzzles: { method: 'GET', path: '/api/puzzles', params: '?limit=50&offset=0', description: 'List puzzles sorted by date (newest first) with pagination' },
@@ -1796,6 +1846,7 @@ router.get('/', async (request, env) => {
         addById: { method: 'POST', path: '/api/add/id/:id', auth: true, description: 'Add puzzle from SBSolver by ID' },
         deleteById: { method: 'POST', path: '/api/delete/:id', auth: true, description: 'Delete puzzle by ID' },
         deleteByDate: { method: 'POST', path: '/api/delete/date/:date', auth: true, description: 'Delete puzzle by date' },
+        puzzleBundle: { method: 'GET', path: '/api/admin/puzzleBundle/:id', auth: true, description: 'Get a single puzzle bundle with words, definitions, and analysis for static site generation' },
         missingDefinitions: { method: 'GET', path: '/api/admin/definitions/missing/puzzle/:id', auth: true, description: 'List words in a puzzle that still need definitions' },
         upsertDefinitions: { method: 'POST', path: '/api/admin/definitions/upsert', auth: true, description: 'Insert or update generated word definitions' },
       },
@@ -1804,7 +1855,18 @@ router.get('/', async (request, env) => {
         rss: { method: 'GET', path: '/feed.xml', description: 'RSS Feed' },
       }
     },
-    authentication: 'Pass API key via X-API-Key header or ?key= parameter for admin endpoints',
+    authentication: {
+      note: 'All data and admin endpoints require a valid API key. The public website now builds from snapshot files instead of calling this worker directly.',
+      header: { name: 'X-API-Key', value: 'YOUR_API_KEY' },
+      browserQuery: '?key=YOUR_API_KEY',
+      browserExamples: [
+        '/today?key=YOUR_API_KEY',
+        '/api/puzzle/2935?key=YOUR_API_KEY',
+        '/api/admin/puzzleBundle/2935?key=YOUR_API_KEY',
+        '/api/update/nyt?key=YOUR_API_KEY',
+        '/api/admin/definitions/missing/puzzle/2933?key=YOUR_API_KEY',
+      ],
+    },
   }));
 });
 
@@ -2147,6 +2209,17 @@ router.get('/api/definitions/([^/]+)', async (request, env, params) => {
     word,
     definition: definitionsByWord[word] || null,
   }, {}, CACHE_TTL_READONLY));
+});
+
+router.get('/api/admin/puzzleBundle/([0-9]+)', async (request, env, params) => {
+  const puzzleId = parseInt(params[0], 10);
+  const bundle = await getPuzzleBundle(env, puzzleId);
+
+  if (!bundle) {
+    return jsonResponse(errorResponse(`Puzzle #${puzzleId} not found`, 404), 404);
+  }
+
+  return jsonResponse(successResponse(bundle, {}, CACHE_TTL_READONLY));
 });
 
 // Longest Pangrams
@@ -2633,17 +2706,28 @@ router.post('/api/update/nyt', async (request, env, params, ctx) => {
 
   try {
     const puzzleData = await scrapeNYTSpellingBee(env);
+    const existingPuzzle = await findPuzzleByDate(env, puzzleData.printDate);
+    if (existingPuzzle) {
+      return jsonResponse({
+        success: true,
+        skipped: true,
+        puzzleId: existingPuzzle.puzzle_id,
+        date: existingPuzzle.date,
+        message: `Puzzle for ${existingPuzzle.date} already exists. Skipping duplicate update.`,
+      });
+    }
+
     const result = await storePuzzleData(env, puzzleData);
 
-    // Sync to GitHub
-    const todayData = await getLatestPuzzle(env, 0);
-    if (todayData) {
-      ctx.waitUntil(commitToGithub(env, todayData));
-      ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
-        source: 'manual-update',
-        puzzleId: todayData.puzzle?.puzzle_id || null,
-        date: todayData.puzzle?.date || null,
-      }));
+    if (result.success) {
+      const todayData = await getLatestPuzzle(env, 0);
+      if (todayData) {
+        ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+          source: 'manual-update',
+          puzzleId: todayData.puzzle?.puzzle_id || null,
+          date: todayData.puzzle?.date || null,
+        }));
+      }
     }
 
     return jsonResponse(result);
@@ -2660,16 +2744,28 @@ router.get('/api/update/nyt', async (request, env, params, ctx) => {
 
   try {
     const puzzleData = await scrapeNYTSpellingBee(env);
+    const existingPuzzle = await findPuzzleByDate(env, puzzleData.printDate);
+    if (existingPuzzle) {
+      return jsonResponse({
+        success: true,
+        skipped: true,
+        puzzleId: existingPuzzle.puzzle_id,
+        date: existingPuzzle.date,
+        message: `Puzzle for ${existingPuzzle.date} already exists. Skipping duplicate update.`,
+      });
+    }
+
     const result = await storePuzzleData(env, puzzleData);
 
-    const todayData = await getLatestPuzzle(env, 0);
-    if (todayData) {
-      ctx.waitUntil(commitToGithub(env, todayData));
-      ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
-        source: 'manual-update-get',
-        puzzleId: todayData.puzzle?.puzzle_id || null,
-        date: todayData.puzzle?.date || null,
-      }));
+    if (result.success) {
+      const todayData = await getLatestPuzzle(env, 0);
+      if (todayData) {
+        ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+          source: 'manual-update-get',
+          puzzleId: todayData.puzzle?.puzzle_id || null,
+          date: todayData.puzzle?.date || null,
+        }));
+      }
     }
 
     return jsonResponse({
@@ -2946,17 +3042,30 @@ export default {
 
       console.log(`Raw date from NYT: ${puzzleData.printDate}`);
 
+      const existingPuzzle = await findPuzzleByDate(env, puzzleData.printDate);
+      if (existingPuzzle) {
+        const skipped = {
+          success: true,
+          skipped: true,
+          puzzleId: existingPuzzle.puzzle_id,
+          date: existingPuzzle.date,
+          message: `Puzzle for ${existingPuzzle.date} already exists. Skipping scheduled duplicate update.`,
+        };
+        console.log('Scheduled update skipped:', skipped);
+        return skipped;
+      }
+
       const result = await storePuzzleData(env, puzzleData);
 
-      // Sync to GitHub
-      const todayData = await getLatestPuzzle(env, 0);
-      if (todayData) {
-        ctx.waitUntil(commitToGithub(env, todayData));
-        ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
-          source: 'scheduled-cron',
-          puzzleId: todayData.puzzle?.puzzle_id || null,
-          date: todayData.puzzle?.date || null,
-        }));
+      if (result.success) {
+        const todayData = await getLatestPuzzle(env, 0);
+        if (todayData) {
+          ctx.waitUntil(triggerGithubRepositoryDispatch(env, {
+            source: 'scheduled-cron',
+            puzzleId: todayData.puzzle?.puzzle_id || null,
+            date: todayData.puzzle?.date || null,
+          }));
+        }
       }
 
       console.log('Scheduled update result:', result);

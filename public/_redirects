@@ -1,2 +1,3 @@
 /yesterday /archive 301
 /yesterday/ /archive 301
+/answer-for/:slug /archive/:slug/ 301

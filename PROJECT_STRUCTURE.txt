@@ -11,6 +11,7 @@ CURRENT ACTIVE PROJECTS
    Automation added in this pass.
    - audit-nytbee-parity.mjs: compares our worker analytics against live nytbee pages.
    - backfill-definitions.mjs: fills missing word definitions through NVIDIA NIM and upserts them into D1.
+   - generate-site-data.mjs: pulls authenticated worker data, generates static snapshot JSON/HTML under public/site-data, and feeds the static Pages build.
 
 4. .github/workflows/
    GitHub Actions workflow added in this pass.
@@ -54,10 +55,15 @@ IMPORTANT NOTES
 ===============
 
 1. The worker is the analytics source of truth. The frontend should consume worker data, not re-create history math locally.
+   Update 2026-05-23: the public site now builds from generated snapshot files, so browsers should not call the worker directly for normal page rendering.
 
 2. The site now uses an ANALYTICS_CACHE KV namespace for per-puzzle cached analysis blobs.
 
 3. The daily rebuild pipeline is intended to be:
-   Cloudflare cron scrape -> worker stores puzzle -> worker triggers GitHub repository_dispatch -> GitHub Action backfills definitions -> GitHub Action rebuilds + deploys Pages.
+   Cloudflare cron scrape -> worker stores puzzle -> worker triggers GitHub repository_dispatch -> GitHub Action backfills definitions -> GitHub Action generates public/site-data snapshots -> GitHub Action rebuilds + deploys Pages.
 
 4. There is still some historical corpus drift versus nytbee on a handful of dates because the archive is broader than the exact official nytbee corpus.
+
+5. Current public archive URL shape:
+   /archive/<month>-<day>-<year>/
+   Example: /archive/may-22-2026/

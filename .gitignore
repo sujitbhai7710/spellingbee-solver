@@ -7,3 +7,5 @@ cf-pages-dist/
 .env.local
 .env.*.local
 cloudflare.local.env
+public/site-data/
+.playwright-cli/

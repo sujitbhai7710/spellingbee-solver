@@ -1,14 +1,3 @@
-export const API_BASE = 'https://spelling-bee-api.sbsolver.workers.dev';
-
-export async function fetchAPI(path) {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
 export function formatDate(dateStr) {
   // "September 9, 2025" -> "september-9-2025"
   if (!dateStr) return '';
@@ -22,7 +11,34 @@ export function formatDate(dateStr) {
 
 export function formatDateURL(dateStr) {
   // "September 9, 2025" -> "september-9-2025"
-  return dateStr.toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+  return String(dateStr || '').toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+}
+
+export function dateTextToIso(dateStr) {
+  const match = String(dateStr || '').trim().match(/^([A-Za-z]+)\s+(\d{1,2}),\s+(\d{4})$/);
+  if (!match) return '';
+  const monthMap = {
+    january: '01',
+    february: '02',
+    march: '03',
+    april: '04',
+    may: '05',
+    june: '06',
+    july: '07',
+    august: '08',
+    september: '09',
+    october: '10',
+    november: '11',
+    december: '12',
+  };
+  const month = monthMap[match[1].toLowerCase()];
+  if (!month) return '';
+  return `${match[3]}-${month}-${String(match[2]).padStart(2, '0')}`;
+}
+
+export function buildArchivePath(dateStr) {
+  const slug = formatDateURL(dateStr);
+  return slug ? `/archive/${slug}/` : '/archive';
 }
 
 export function getOuterLetters(allLetters, centerLetter) {

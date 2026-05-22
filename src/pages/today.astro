@@ -2,20 +2,8 @@
 import { readFileSync } from 'node:fs';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Honeycomb from '../components/Honeycomb.astro';
-import { API_BASE, formatDateURL } from '../lib/utils';
-
-const safeFetchJSON = async (url, fallback) => {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return fallback;
-    }
-    return await response.json();
-  } catch (error) {
-    console.error(`Failed to fetch ${url}:`, error);
-    return fallback;
-  }
-};
+import { buildArchivePath } from '../lib/utils';
+import { readPublicJson } from '../lib/site-data';
 
 const safeNum = (value, fallback = 0) => (
   value != null && !Number.isNaN(Number(value)) ? Number(value) : fallback
@@ -61,7 +49,7 @@ const formatHistogramRange = (bin, decimals = 0) => {
   return start === end ? `${start}` : `${start}-${end}`;
 };
 
-const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
+const archiveHref = (date) => buildArchivePath(date);
 
 const dictionaryPath = new URL('../../public/twl06.txt', import.meta.url);
 const dictionaryWords = (() => {
@@ -78,7 +66,7 @@ const dictionaryWords = (() => {
   }
 })();
 
-const todayData = await safeFetchJSON(`${API_BASE}/today`, { puzzle: {}, words: [] });
+const todayData = readPublicJson('site-data/today.json', { puzzle: {}, words: [] });
 const puzzle = todayData.puzzle || {};
 const words = todayData.words || [];
 const definitionsByWord = todayData.definitionsByWord || {};
@@ -92,10 +80,7 @@ const perfectPangrams = todayData.perfectPangrams || [];
 const hasPerfectPangram = todayData.hasPerfectPangram || false;
 const geniusThreshold = Math.round(totalPoints * 0.7);
 
-const analysisData = puzzle.puzzle_id
-  ? await safeFetchJSON(`${API_BASE}/api/puzzleAnalysis/${puzzle.puzzle_id}`, { analysis: null })
-  : { analysis: null };
-const analysis = analysisData.analysis || {
+const analysis = todayData.analysis || {
   score: {
     value: totalPoints,
     percentile: 0,
@@ -141,18 +126,18 @@ const analysis = analysisData.analysis || {
   pangramHistoryCombined: [],
 };
 
-const statsData = await safeFetchJSON(`${API_BASE}/api/statistics`, {
+const statsData = readPublicJson('site-data/stats.json', {
   overview: {},
   averages: {},
   extremes: {},
 });
-const centerFrequencyData = await safeFetchJSON(`${API_BASE}/api/mostCommonCenterLetters`, {
+const centerFrequencyData = readPublicJson('site-data/center-frequency.json', {
   centerLetterFrequency: [],
 });
-const letterFrequencyData = await safeFetchJSON(`${API_BASE}/api/allLettersFrequency`, {
+const letterFrequencyData = readPublicJson('site-data/all-letters-frequency.json', {
   allLettersFrequency: [],
 });
-const recentData = await safeFetchJSON(`${API_BASE}/api/last/8`, { puzzles: [] });
+const recentData = readPublicJson('site-data/recent-puzzles.json', { puzzles: [] });
 
 const stats = statsData || {};
 const overview = stats.overview || {};
@@ -266,6 +251,12 @@ const geniusMinWords = safeNum(analysis.genius?.minWords);
 const geniusMaxWords = safeNum(analysis.genius?.maxWords);
 const averageWordLengthGlobal = safeNum(analysis.averageWordLength?.globalAverage, safeNum(averages.averageWordLength));
 const currentCenterUsage = safeNum(centerFreqMap[center]?.count || letterFreqMap[center]?.asCenter);
+const pageTitle = puzzle.date
+  ? `Spelling Bee Answer today with Clue and Meaning (${puzzle.date})`
+  : 'Spelling Bee Answer today with Clue and Meaning';
+const pageDescription = puzzle.date
+  ? `${pageTitle}. See official answers, pangrams, puzzle analysis, and word meanings on one indexable page.`
+  : 'Spelling Bee Answer today with Clue and Meaning. See official answers, pangrams, puzzle analysis, and word meanings on one indexable page.';
 
 const faqCompareText = safeNum(analysis.wordCount?.percentile) >= 60
   ? 'This is a larger-than-average puzzle with more total scoring chances.'
@@ -305,17 +296,12 @@ const faqSchema = JSON.stringify({
 });
 ---
 
-<BaseLayout title="Spelling Bee Answers and Clue with Meaning" description={`NYT Spelling Bee answers for ${puzzle.date}. Find all ${puzzle.word_count} words, ${puzzle.pangrams_count} pangrams, and full puzzle analysis.`} schema={faqSchema}>
+<BaseLayout title={pageTitle} description={pageDescription} schema={faqSchema}>
   <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <div class="flex flex-col lg:flex-row gap-8">
       <div class="flex-1 min-w-0">
         <div class="mb-8">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="badge badge-gold">Today</span>
-            <span class="badge badge-slate">Full Analysis</span>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Spelling Bee Answers and Clue with Meaning</h1>
-          </div>
-          <p class="text-gray-500 font-medium">{puzzle.date}</p>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">{pageTitle}</h1>
         </div>
 
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-8 mb-8">
@@ -361,7 +347,7 @@ const faqSchema = JSON.stringify({
 
         <details class="card-elevated p-6 mb-8 group">
           <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
-            Show Official Answers
+            <h2 class="text-lg font-bold text-gray-800">Show today's official spelling bee answers</h2>
             <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
             </svg>
@@ -413,7 +399,7 @@ const faqSchema = JSON.stringify({
         {wordsWithDefinitions.length > 0 && (
           <details class="card-elevated p-6 mb-8 group">
             <summary class="font-semibold text-gray-800 cursor-pointer flex items-center justify-between">
-              Show Word Meanings
+              <h2 class="text-lg font-bold text-gray-800">Show spelling bee answers with means</h2>
               <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
               </svg>
@@ -432,6 +418,12 @@ const faqSchema = JSON.stringify({
                       )}
                     </div>
                     <p class="text-sm text-gray-700 leading-relaxed">{word.definitionMeta?.definition}</p>
+                    {word.definitionMeta?.usageNotes && (
+                      <div class="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Example and usage</p>
+                        <p class="text-sm text-slate-700 leading-relaxed">{word.definitionMeta.usageNotes}</p>
+                      </div>
+                    )}
                     {word.definitionMeta?.synonyms?.length > 0 && (
                       <p class="text-xs text-gray-500 mt-2"><strong>Synonyms:</strong> {word.definitionMeta.synonyms.join(', ')}</p>
                     )}

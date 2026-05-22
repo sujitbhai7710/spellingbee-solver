@@ -26,17 +26,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 <script>
   // Handle old /answer-for-* URLs that land on 404
-  // Redirect to /archive using sessionStorage (no query params for SEO)
+  // Redirect straight to the permanent archive page
   (function() {
     var path = window.location.pathname;
     // Match /answer-for-month-day-year or /answer-for-month-day-year/
     var match = path.match(/^\/answer-for-(.+)\/?$/);
     if (match) {
       var slug = match[1].replace(/\/$/, ''); // Remove trailing slash
-      // Store the date slug in sessionStorage, then redirect to /archive
-      // The archive page will read this and auto-open that day's puzzle
-      sessionStorage.setItem('sb_archive_date', slug);
-      window.location.replace('/archive');
+      window.location.replace('/archive/' + slug + '/');
     }
   })();
 </script>

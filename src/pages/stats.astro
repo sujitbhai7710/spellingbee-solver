@@ -1,23 +1,12 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { API_BASE, formatDateURL } from '../lib/utils';
+import { buildArchivePath } from '../lib/utils';
+import { readPublicJson } from '../lib/site-data';
 
-// Safely fetch with fallback
-let stats = { overview: {}, averages: {}, extremes: {} };
-let centerFreq = [];
-let letterFreq = [];
-let wordDist = [];
-
-try {
-  const statsRes = await fetch(`${API_BASE}/api/statistics`);
-  const statsData = await statsRes.json();
-  stats = statsData || stats;
-  centerFreq = (await (await fetch(`${API_BASE}/api/mostCommonCenterLetters?limit=10`)).json()).centerLetterFrequency || [];
-  letterFreq = (await (await fetch(`${API_BASE}/api/allLettersFrequency`)).json()).allLettersFrequency || [];
-  wordDist = (await (await fetch(`${API_BASE}/api/wordLengthDistribution`)).json()).wordLengthDistribution || [];
-} catch (e) {
-  console.error('Stats fetch error:', e);
-}
+const stats = readPublicJson('site-data/stats.json', { overview: {}, averages: {}, extremes: {} }) || { overview: {}, averages: {}, extremes: {} };
+const centerFreq = readPublicJson('site-data/center-frequency.json', { centerLetterFrequency: [] })?.centerLetterFrequency || [];
+const letterFreq = readPublicJson('site-data/all-letters-frequency.json', { allLettersFrequency: [] })?.allLettersFrequency || [];
+const wordDist = readPublicJson('site-data/word-length-distribution.json', { wordLengthDistribution: [] })?.wordLengthDistribution || [];
 
 const overview = stats.overview || {};
 const averages = stats.averages || {};
@@ -25,7 +14,7 @@ const extremes = stats.extremes || {};
 
 const safeLocale = (val) => (val != null && typeof val === 'number') ? val.toLocaleString() : (val != null ? String(val) : '—');
 const safeNum = (val, def = 0) => (val != null && !isNaN(Number(val))) ? Number(val) : def;
-const archiveHref = (date) => `/archive?date=${formatDateURL(date)}`;
+const archiveHref = (date) => buildArchivePath(date);
 
 const maxCenterCount = Math.max(...centerFreq.map(c => c.count), 1);
 const maxLetterCount = Math.max(...letterFreq.map(l => l.totalAppearances), 1);

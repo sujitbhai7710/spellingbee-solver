@@ -4,7 +4,8 @@
   "version": "2.0.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "site-data:generate": "node scripts/generate-site-data.mjs",
+    "build": "npm run site-data:generate && astro build",
     "preview": "astro preview",
     "audit:nytbee": "node scripts/audit-nytbee-parity.mjs",
     "definitions:backfill": "node scripts/backfill-definitions.mjs"

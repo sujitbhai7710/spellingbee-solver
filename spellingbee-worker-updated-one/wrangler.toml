@@ -13,9 +13,10 @@ binding = "ANALYTICS_CACHE"
 id = "e6864ed6da3349ac9433374e6b372ca2"
 
 
-# Scheduled trigger for 12:00am IST with two retry windows.
+# Scheduled trigger for 12:31pm IST after the NYT Spelling Bee release,
+# with one backup run at 1:31pm IST.
 # Cloudflare cron expressions run in UTC, so:
-# - 12:00am IST = 18:30 UTC
-# - retries at 12:05am IST and 12:15am IST
+# - 12:31pm IST = 07:01 UTC
+# - 01:31pm IST = 08:01 UTC
 [triggers]
-crons = ["30 18 * * *", "35 18 * * *", "45 18 * * *"]
+crons = ["1 7 * * *", "1 8 * * *"]
