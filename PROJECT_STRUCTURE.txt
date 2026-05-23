@@ -4,45 +4,40 @@ CURRENT ACTIVE PROJECTS
 1. src/
    Main Astro frontend that powers spellingbeesolver.dev.
 
-2. spellingbee-worker-updated-one/
+2. worker-backend-cloudflare/
    Main Cloudflare Worker + D1 + KV backend.
 
-3. scripts/
-   Automation added in this pass.
-   - audit-nytbee-parity.mjs: compares our worker analytics against live nytbee pages.
-   - backfill-definitions.mjs: fills missing word definitions through NVIDIA NIM and upserts them into D1.
-   - generate-site-data.mjs: pulls authenticated worker data, generates static snapshot JSON/HTML under public/site-data, and feeds the static Pages build.
+3. functions/
+   Cloudflare Pages Functions used for same-domain API helpers such as archive detail loading.
 
-4. .github/workflows/
-   GitHub Actions workflow added in this pass.
+4. scripts/
+   Automation used by the active project.
+   - audit-nytbee-parity.mjs
+   - backfill-definitions.mjs
+   - generate-site-data.mjs
+   - sync-worker-secrets.ps1
+   - purge-analysis-cache.ps1
+
+5. .github/workflows/
    - daily-rebuild.yml: rebuild/deploy pipeline triggered manually or by repository_dispatch from the worker.
 
 
-LEGACY / REFERENCE FOLDERS
+LEGACY / NON-RUNTIME AREAS
 ==========================
 
-1. spellingbee-solver/
-   Older nested frontend copy kept only as a legacy snapshot/reference.
-   Do not treat this as the live site unless we explicitly decide to revive it.
+1. old-version/
+   Historical code snapshots kept only for reference.
+   - legacy-frontend-sbsolver/: older nested frontend copy
 
-2. nytbee-source-code/
-   Saved nytbee HTML/reference material used to compare layout, ordering, and analytics text.
-
-3. claude-seo/
-   Separate helper/reference content from older work. Not part of the live runtime path.
-
-4. output/
-   Older generated/reference artifacts. Not used by the live app.
-
-5. nytbee_source.html / nytbee_*.png / search*.json
-   Historical inspection artifacts only. Useful for reference, not runtime.
+2. useless/
+   Inactive helper repos, old deployment artifacts, saved screenshots, and debug files.
 
 
 DEPLOYMENT PATH
 ===============
 
 1. Worker deploy:
-   spellingbee-worker-updated-one/wrangler.toml
+   worker-backend-cloudflare/wrangler.toml
 
 2. Static site build:
    npm run build
@@ -57,7 +52,7 @@ IMPORTANT NOTES
 1. The worker is the analytics source of truth. The frontend should consume worker data, not re-create history math locally.
    Update 2026-05-23: the public site now builds from generated snapshot files, so browsers should not call the worker directly for normal page rendering.
 
-2. The site now uses an ANALYTICS_CACHE KV namespace for per-puzzle cached analysis blobs.
+2. The site uses an ANALYTICS_CACHE KV namespace for per-puzzle cached analysis blobs.
 
 3. The daily rebuild pipeline is intended to be:
    Cloudflare cron scrape -> worker stores puzzle -> worker triggers GitHub repository_dispatch -> GitHub Action backfills definitions -> GitHub Action generates public/site-data snapshots -> GitHub Action rebuilds + deploys Pages.
@@ -65,5 +60,5 @@ IMPORTANT NOTES
 4. There is still some historical corpus drift versus nytbee on a handful of dates because the archive is broader than the exact official nytbee corpus.
 
 5. Current public archive URL shape:
-   /archive/<month>-<day>-<year>/
-   Example: /archive/may-22-2026/
+   /archive
+   The selected puzzle detail loads inside that one page instead of using thousands of separate archive URLs.

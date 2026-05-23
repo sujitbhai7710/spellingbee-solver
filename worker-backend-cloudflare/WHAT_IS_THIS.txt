@@ -1,0 +1,15 @@
+ACTIVE BACKEND
+=============
+
+This folder contains the live Cloudflare Worker backend for spellingbeesolver.dev.
+
+What is inside:
+- `src/index.js`: main Worker API, cron logic, D1/KV analytics, GitHub dispatch trigger
+- `wrangler.toml`: Worker deployment config, D1 binding, KV binding, cron schedule
+
+Use this folder for:
+- `npx wrangler deploy`
+- worker secret sync scripts
+- KV maintenance scripts
+
+This folder replaced the older top-level name `spellingbee-worker-updated-one`.

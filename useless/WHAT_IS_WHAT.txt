@@ -1,0 +1,25 @@
+USELESS / REFERENCE MATERIAL
+============================
+
+These folders and files are not part of the live runtime path.
+
+Contents:
+- `claude-seo/`
+  Unrelated helper/reference repo content from older work.
+- `nytbee-source-code/`
+  Saved nytbee HTML/source reference material.
+- `cf-pages-dist/`
+  Older deployment artifact folder.
+- `output/`
+  Older generated artifacts.
+- `nytbee-artifacts/`
+  Screenshots and saved page snapshots used during earlier comparison work.
+- `search-artifacts/`
+  Historical search/debug JSON files.
+- `deployed-worker.js`
+- `devserver.err.log`
+- `devserver.out.log`
+
+Safe rule:
+- do not use anything in this folder for live builds or deploys
+- keep only if you still want the historical reference material

@@ -45,7 +45,7 @@ foreach ($requiredKey in @('CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLO
 
 $env:CLOUDFLARE_API_TOKEN = $config['CLOUDFLARE_API_TOKEN']
 $env:CLOUDFLARE_ACCOUNT_ID = $config['CLOUDFLARE_ACCOUNT_ID']
-$workerDir = (Resolve-Path (Join-Path $PSScriptRoot '..\spellingbee-worker-updated-one')).Path
+$workerDir = (Resolve-Path (Join-Path $PSScriptRoot '..\worker-backend-cloudflare')).Path
 
 Push-Location $workerDir
 try {

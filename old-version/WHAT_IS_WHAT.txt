@@ -1,0 +1,12 @@
+OLD VERSION
+===========
+
+This folder keeps code that is no longer part of the active production app.
+
+Contents:
+- `legacy-frontend-sbsolver/`
+  Older nested Astro frontend snapshot that still uses the older `sbsolver.online`
+  branding and route structure.
+
+Keep this only for reference or historical comparison.
+Do not treat it as the live site unless we explicitly decide to revive it.

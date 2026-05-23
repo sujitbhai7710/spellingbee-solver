@@ -75,7 +75,7 @@ if ($config.ContainsKey('GITHUB_REPO_URL')) {
   $config['GITHUB_REPO_URL'] = Normalize-GitHubRepoUrl -Value $config['GITHUB_REPO_URL']
 }
 
-$workerDir = (Resolve-Path (Join-Path $PSScriptRoot '..\spellingbee-worker-updated-one')).Path
+$workerDir = (Resolve-Path (Join-Path $PSScriptRoot '..\worker-backend-cloudflare')).Path
 $env:CLOUDFLARE_API_TOKEN = $config['CLOUDFLARE_API_TOKEN']
 $env:CLOUDFLARE_ACCOUNT_ID = $config['CLOUDFLARE_ACCOUNT_ID']
 

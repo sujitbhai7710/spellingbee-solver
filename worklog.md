@@ -538,3 +538,25 @@ Next Best Follow-Up:
 - Wired the workflow to use `github.event.client_payload.puzzleId` and `github.event.client_payload.date` when the worker triggers the rebuild, instead of always auto-resolving the puzzle.
 - Added workflow concurrency to prevent overlapping duplicate rebuilds on the same branch.
 
+## 2026-05-24 - Repo structure cleanup
+
+- Moved the active Cloudflare Worker backend from:
+  - `spellingbee-worker-updated-one/`
+  into:
+  - `worker-backend-cloudflare/`
+- Moved the old nested frontend snapshot into:
+  - `old-version/legacy-frontend-sbsolver/`
+- Moved inactive/reference material into:
+  - `useless/claude-seo/`
+  - `useless/nytbee-source-code/`
+  - `useless/cf-pages-dist/`
+  - `useless/output/`
+  - `useless/nytbee-artifacts/`
+  - `useless/search-artifacts/`
+  - plus old debug/log files
+- Updated helper scripts to use the new active worker path:
+  - `scripts/sync-worker-secrets.ps1`
+  - `scripts/purge-analysis-cache.ps1`
+- Rewrote `PROJECT_STRUCTURE.txt` so the active, legacy, and useless areas are clearly separated.
+- Added small text files inside `worker-backend-cloudflare/`, `old-version/`, and `useless/` to explain what belongs there.
+
