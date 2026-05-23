@@ -36,6 +36,8 @@
  * - FIX: searchWordle renamed to searchFiveLetterWords
  */
 
+import { renderPuzzleDetailHTML } from '../../src/lib/render-puzzle-detail.js';
+
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
@@ -58,6 +60,12 @@ const SITE_ORIGIN = 'https://spellingbeesolver.dev';
 let historicalAnalyticsCache = {
   expiresAt: 0,
   value: null,
+};
+
+let archiveRenderAssetsCache = {
+  expiresAt: 0,
+  dictionaryWords: null,
+  globalData: null,
 };
 
 let auxTablesReadyPromise = null;
@@ -104,7 +112,7 @@ class Router {
     }
 
     const authed = isAuthenticated(request, env);
-    const publicRoute = path === '/';
+    const publicRoute = path === '/' || path.startsWith('/api/public/archive/slug/');
 
     if (!publicRoute && !authed) {
       return jsonResponse(errorResponse('Unauthorized. Data endpoints require a valid API key via X-API-Key header or ?key= parameter.', 401), 401);
@@ -1535,6 +1543,131 @@ async function getPuzzleBundle(env, puzzleId) {
   };
 }
 
+function slugToDateText(slug) {
+  const match = String(slug || '').trim().toLowerCase().match(/^([a-z]+)-(\d{1,2})-(\d{4})$/);
+  if (!match) return null;
+
+  const months = {
+    january: 'January',
+    february: 'February',
+    march: 'March',
+    april: 'April',
+    may: 'May',
+    june: 'June',
+    july: 'July',
+    august: 'August',
+    september: 'September',
+    october: 'October',
+    november: 'November',
+    december: 'December',
+  };
+
+  const month = months[match[1]];
+  if (!month) return null;
+  return `${month} ${parseInt(match[2], 10)}, ${match[3]}`;
+}
+
+async function getPuzzleIdBySlug(env, slug) {
+  const dateText = slugToDateText(slug);
+  if (!dateText) return null;
+
+  const row = await env.DB.prepare(`
+    SELECT puzzle_id
+    FROM puzzles
+    WHERE date = ?
+    LIMIT 1
+  `).bind(dateText).first();
+
+  return row?.puzzle_id || null;
+}
+
+async function getArchiveRenderAssets(env) {
+  const now = Date.now();
+  if (
+    archiveRenderAssetsCache.expiresAt > now
+    && archiveRenderAssetsCache.dictionaryWords
+    && archiveRenderAssetsCache.globalData
+  ) {
+    return archiveRenderAssetsCache;
+  }
+
+  const centerResult = await env.DB.prepare(`
+    SELECT letters as letter, COUNT(*) as count
+    FROM puzzles
+    WHERE letters IS NOT NULL AND letters != ''
+    GROUP BY letters
+    ORDER BY count DESC
+  `).all();
+  const totalPuzzlesResult = await env.DB.prepare(`
+    SELECT COUNT(*) as total
+    FROM puzzles
+    WHERE letters IS NOT NULL AND letters != ''
+  `).first();
+  const allLettersResult = await env.DB.prepare(`
+    SELECT all_letters
+    FROM puzzles
+    WHERE all_letters IS NOT NULL AND all_letters != ''
+  `).all();
+
+  const totalPuzzles = totalPuzzlesResult?.total || 0;
+  const centerLetterFrequency = (centerResult.results || []).map((row) => ({
+    letter: row.letter,
+    count: row.count,
+    percentage: totalPuzzles > 0 ? Math.round((row.count / totalPuzzles) * 10000) / 100 : 0,
+  }));
+
+  const centerCounts = {};
+  for (const row of centerResult.results || []) {
+    centerCounts[row.letter] = row.count;
+  }
+
+  const letterCounts = {};
+  for (const puzzle of allLettersResult.results || []) {
+    const seen = new Set();
+    for (const char of String(puzzle.all_letters || '').toUpperCase()) {
+      if (!seen.has(char)) {
+        letterCounts[char] = (letterCounts[char] || 0) + 1;
+        seen.add(char);
+      }
+    }
+  }
+
+  const allLettersFrequency = Object.keys(letterCounts).map((letter) => ({
+    letter,
+    totalAppearances: letterCounts[letter],
+    asCenter: centerCounts[letter] || 0,
+    asOuter: (letterCounts[letter] || 0) - (centerCounts[letter] || 0),
+  })).sort((a, b) => b.totalAppearances - a.totalAppearances);
+
+  let dictionaryWords = [];
+  try {
+    const response = await fetch(`${SITE_ORIGIN}/twl06.txt`);
+    if (response.ok) {
+      const text = await response.text();
+      dictionaryWords = [...new Set(
+        text
+          .split(/\r?\n/)
+          .map((word) => word.trim().toLowerCase())
+          .filter(Boolean),
+      )];
+    }
+  } catch (error) {
+    console.warn('Unable to load site dictionary for archive rendering', error);
+  }
+
+  archiveRenderAssetsCache = {
+    expiresAt: now + (60 * 60 * 1000),
+    dictionaryWords,
+    globalData: {
+      centerLetterFrequency,
+      allLettersFrequency,
+      totalPuzzles,
+    },
+  };
+
+  return archiveRenderAssetsCache;
+}
+
 // ============================================================
 // GITHUB SYNC
 // ============================================================
@@ -2220,6 +2353,48 @@ router.get('/api/admin/puzzleBundle/([0-9]+)', async (request, env, params) => {
   }
 
   return jsonResponse(successResponse(bundle, {}, CACHE_TTL_READONLY));
+});
+
+router.get('/api/public/archive/slug/([^/]+)/html', async (request, env, params) => {
+  const slug = String(params[0] || '').trim().toLowerCase();
+  const puzzleId = await getPuzzleIdBySlug(env, slug);
+
+  if (!puzzleId) {
+    return new Response('Archive detail not found', {
+      status: 404,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
+        ...corsHeaders,
+      },
+    });
+  }
+
+  const bundle = await getPuzzleBundle(env, puzzleId);
+  if (!bundle) {
+    return new Response('Archive detail not found', {
+      status: 404,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
+        ...corsHeaders,
+      },
+    });
+  }
+
+  const renderAssets = await getArchiveRenderAssets(env);
+  const html = renderPuzzleDetailHTML(bundle, {
+    globalData: renderAssets.globalData || {},
+    dictionaryWords: renderAssets.dictionaryWords || [],
+  });
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      ...corsHeaders,
+    },
+  });
 });
 
 // Longest Pangrams

@@ -37,8 +37,7 @@ export function dateTextToIso(dateStr) {
 }
 
 export function buildArchivePath(dateStr) {
-  const slug = formatDateURL(dateStr);
-  return slug ? `/archive/${slug}/` : '/archive';
+  return '/archive';
 }
 
 export function getOuterLetters(allLetters, centerLetter) {

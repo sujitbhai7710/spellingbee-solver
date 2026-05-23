@@ -25,15 +25,21 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 
 <script>
-  // Handle old /answer-for-* URLs that land on 404
-  // Redirect straight to the permanent archive page
   (function() {
     var path = window.location.pathname;
-    // Match /answer-for-month-day-year or /answer-for-month-day-year/
-    var match = path.match(/^\/answer-for-(.+)\/?$/);
-    if (match) {
-      var slug = match[1].replace(/\/$/, ''); // Remove trailing slash
-      window.location.replace('/archive/' + slug + '/');
+    var answerMatch = path.match(/^\/answer-for-(.+)\/?$/);
+    var archiveMatch = path.match(/^\/archive\/([^/]+)\/?$/);
+    var slug = '';
+
+    if (answerMatch) {
+      slug = answerMatch[1].replace(/\/$/, '');
+    } else if (archiveMatch) {
+      slug = archiveMatch[1].replace(/\/$/, '');
+    }
+
+    if (slug) {
+      sessionStorage.setItem('sb_archive_slug', slug);
+      window.location.replace('/archive');
     }
   })();
 </script>

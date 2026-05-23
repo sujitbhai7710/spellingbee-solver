@@ -78,9 +78,13 @@ function buildHoneycombHTML(center, outer) {
   `;
 }
 
-function archiveHref(date) {
-  const slug = String(date || '').toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
-  return `/archive/${slug}/`;
+function archiveSlug(date) {
+  return String(date || '').toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+}
+
+function archiveLinkAttrs(date) {
+  const slug = archiveSlug(date);
+  return `href="/archive" data-archive-slug="${escapeHtml(slug)}" data-archive-date="${escapeHtml(date || '')}"`;
 }
 
 function renderHistogramRows(bins, peak, currentTheme, decimals = 0) {
@@ -374,7 +378,7 @@ export function renderPuzzleDetailHTML(bundle, options = {}) {
     <div class="card-elevated p-6 mb-8">
       <h2 class="text-lg font-bold text-gray-800 mb-4">Other Days With This Pangram</h2>
       ${pangramHistoryCombined.length > 0
-        ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${pangramHistoryCombined.map((item) => `<a href="${archiveHref(item.date)}" class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group"><div class="flex items-center justify-between mb-2 gap-3"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">${escapeHtml(item.date)}</span><span class="font-mono text-xs text-gray-400">${escapeHtml(item.all_letters)}</span></div><div class="flex flex-wrap items-center gap-2 text-xs mb-2"><span class="text-gray-500">${safeNum(item.word_count, 0)} answers</span><span class="text-amber-600 font-semibold">${safeNum(item.pangrams_count, 0)} pangram${safeNum(item.pangrams_count, 0) !== 1 ? 's' : ''}</span></div>${item.matchingWords?.length ? `<p class="text-xs text-gray-500">Matching pangrams: ${escapeHtml(item.matchingWords.join(', '))}</p>` : ''}</a>`).join('')}</div>`
+        ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${pangramHistoryCombined.map((item) => `<a ${archiveLinkAttrs(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group"><div class="flex items-center justify-between mb-2 gap-3"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">${escapeHtml(item.date)}</span><span class="font-mono text-xs text-gray-400">${escapeHtml(item.all_letters)}</span></div><div class="flex flex-wrap items-center gap-2 text-xs mb-2"><span class="text-gray-500">${safeNum(item.word_count, 0)} answers</span><span class="text-amber-600 font-semibold">${safeNum(item.pangrams_count, 0)} pangram${safeNum(item.pangrams_count, 0) !== 1 ? 's' : ''}</span></div>${item.matchingWords?.length ? `<p class="text-xs text-gray-500">Matching pangrams: ${escapeHtml(item.matchingWords.join(', '))}</p>` : ''}</a>`).join('')}</div>`
         : `<div class="space-y-3">${pangrams.map((word) => `<div><p class="font-semibold text-amber-700 mb-1">${escapeHtml(word.word.toUpperCase())}</p><p class="text-sm text-gray-400 italic">No earlier puzzles found with this pangram.</p></div>`).join('')}</div>`
       }
     </div>
@@ -457,7 +461,7 @@ export function renderPuzzleDetailHTML(bundle, options = {}) {
         <div class="mt-6 border-t border-gray-100 pt-6">
           <h3 class="text-sm font-bold text-gray-700 mb-3">Other Days With Center Letter ${escapeHtml(center)}</h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            ${sameCenterPuzzles.map((item) => `<a href="${archiveHref(item.date)}" class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group"><div class="flex items-center justify-between mb-2"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">${escapeHtml(item.date)}</span><span class="font-mono text-xs text-gray-400">${escapeHtml(item.all_letters)}</span></div><div class="flex items-center gap-3 text-xs"><span class="text-gray-500">${safeNum(item.word_count, 0)} answers</span><span class="text-amber-600 font-semibold">${safeNum(item.score, 0)} pts</span></div></a>`).join('')}
+            ${sameCenterPuzzles.map((item) => `<a ${archiveLinkAttrs(item.date)} class="block p-4 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/50 transition-all group"><div class="flex items-center justify-between mb-2"><span class="font-semibold text-gray-800 group-hover:text-amber-700 text-sm">${escapeHtml(item.date)}</span><span class="font-mono text-xs text-gray-400">${escapeHtml(item.all_letters)}</span></div><div class="flex items-center gap-3 text-xs"><span class="text-gray-500">${safeNum(item.word_count, 0)} answers</span><span class="text-amber-600 font-semibold">${safeNum(item.score, 0)} pts</span></div></a>`).join('')}
           </div>
         </div>
       ` : ''}

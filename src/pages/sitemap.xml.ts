@@ -1,5 +1,4 @@
 import { readPublicJson } from '../lib/site-data';
-import { buildArchivePath, dateTextToIso } from '../lib/utils';
 
 const SITE_URL = 'https://spellingbeesolver.dev';
 
@@ -22,7 +21,6 @@ function toUrlEntry(loc, lastmod = null, priority = null) {
 
 export function GET() {
   const manifest = readPublicJson('site-data/site-manifest.json', {}) || {};
-  const archiveSummaries = readPublicJson('site-data/archive-summaries.json', []) || [];
   const generatedAt = manifest.generatedAt ? new Date(manifest.generatedAt).toISOString() : new Date().toISOString();
 
   const staticUrls = [
@@ -35,19 +33,10 @@ export function GET() {
     toUrlEntry(`${SITE_URL}/blog/spelling-bee-rules`, generatedAt, '0.6'),
   ];
 
-  const archiveUrls = archiveSummaries
-    .filter((summary) => summary?.date && summary?.slug)
-    .map((summary) => toUrlEntry(
-      `${SITE_URL}${buildArchivePath(summary.date)}`,
-      summary.date_iso || dateTextToIso(summary.date) || generatedAt.slice(0, 10),
-      '0.7',
-    ));
-
   const body = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ...staticUrls,
-    ...archiveUrls,
     '</urlset>',
     '',
   ].join('\n');

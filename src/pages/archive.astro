@@ -1,13 +1,24 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { buildArchivePath, dateTextToIso } from '../lib/utils';
-import { readPublicJson } from '../lib/site-data';
+import { dateTextToIso, formatDateURL } from '../lib/utils';
+import { readPublicJson, readPublicText } from '../lib/site-data';
 
 const summaries = readPublicJson('site-data/archive-summaries.json', []) || [];
 const totalPuzzles = summaries.length;
 const newestPuzzle = summaries[0] || null;
 const oldestPuzzle = summaries[totalPuzzles - 1] || null;
+const defaultSlug = String(newestPuzzle?.slug || formatDateURL(newestPuzzle?.date || ''));
+const defaultDetailHtml = defaultSlug ? readPublicText(`site-data/archive-html/${defaultSlug}.html`, '') : '';
 const maxArchiveDate = newestPuzzle?.date_iso || dateTextToIso(newestPuzzle?.date) || new Date().toISOString().slice(0, 10);
+const archiveSummaryData = summaries.map((summary) => ({
+  slug: String(summary?.slug || formatDateURL(summary?.date || '')),
+  date: summary?.date || '',
+  date_iso: summary?.date_iso || dateTextToIso(summary?.date),
+  letters: summary?.letters || '',
+  all_letters: summary?.all_letters || '',
+  word_count: Number(summary?.word_count || 0),
+  pangrams_count: Number(summary?.pangrams_count || 0),
+}));
 
 const faqSchema = JSON.stringify({
   '@context': 'https://schema.org',
@@ -19,23 +30,23 @@ const faqSchema = JSON.stringify({
       acceptedAnswer: {
         '@type': 'Answer',
         text: totalPuzzles > 0
-          ? `Our archive contains ${totalPuzzles.toLocaleString()} puzzles, from ${oldestPuzzle?.date || 'the earliest available date'} through ${newestPuzzle?.date || 'today'}. Each puzzle has a permanent detail page with answers and analysis.`
-          : 'Our archive is generated from the daily Spelling Bee database and includes every puzzle available in the snapshot build.',
+          ? `Our archive contains ${totalPuzzles.toLocaleString()} puzzles, from ${oldestPuzzle?.date || 'the earliest available date'} through ${newestPuzzle?.date || 'today'}.`
+          : 'Our archive is generated from the daily Spelling Bee database and includes every puzzle available in the current snapshot.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Can I open a specific date directly?',
+      name: 'Does every archive puzzle have its own indexed page?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes. Every puzzle now has its own permanent archive URL, and the date picker jumps straight to that page.',
+        text: 'No. The archive uses one main page and swaps the selected puzzle detail inside it, so the site does not create thousands of separate archive URLs.',
       },
     },
   ],
 });
 ---
 
-<BaseLayout title="Spelling Bee Puzzle Archive" description={`Browse ${totalPuzzles.toLocaleString()} NYT Spelling Bee puzzles with permanent archive pages, complete answers, and detailed analysis.`} schema={faqSchema}>
+<BaseLayout title="Spelling Bee Puzzle Archive" description={`Browse ${totalPuzzles.toLocaleString()} NYT Spelling Bee puzzles on one archive page with full answers and detailed analysis.`} schema={faqSchema}>
   <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Puzzle Archive</h1>
@@ -48,85 +59,163 @@ const faqSchema = JSON.stringify({
     <div class="card-elevated p-5 mb-6">
       <h2 class="font-bold text-gray-800 mb-3 text-sm">Jump to a Date</h2>
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <input type="date" id="date-picker" class="solver-input !py-2.5 !px-4 !text-base !letter-normal !normal-case flex-1" min="2018-01-01" max={maxArchiveDate} />
-        <button id="go-date-btn" class="btn-primary !py-2.5 !px-5 text-sm" type="button">Open Archive Page</button>
+        <input type="date" id="date-picker" class="solver-input !py-2.5 !px-4 !text-base !letter-normal !normal-case flex-1" min="2018-01-01" max={maxArchiveDate} value={newestPuzzle?.date_iso || dateTextToIso(newestPuzzle?.date) || ''} />
+        <button id="go-date-btn" class="btn-primary !py-2.5 !px-5 text-sm" type="button">Show Puzzle</button>
       </div>
-      <p class="text-xs text-gray-400 mt-3">Each date opens its own permanent page like <span class="font-mono">/archive/may-22-2026/</span>.</p>
+      <p class="text-xs text-gray-400 mt-3">This archive stays on one URL and loads the selected puzzle below instead of creating a separate page for each date.</p>
     </div>
 
-    <div class="card-elevated p-5 mb-8">
-      <h2 class="text-lg font-bold text-gray-800 mb-3">How the Archive Works</h2>
-      <p class="text-sm text-gray-600 leading-relaxed mb-2">The archive index is static, fast, and search-engine friendly. Click any puzzle below to open its own fully rendered page with answers, meanings, charts, and historical comparison data.</p>
-      <p class="text-sm text-gray-600 leading-relaxed">Older `?date=` archive URLs are redirected to the new permanent paths automatically, so the site keeps one clean canonical URL per puzzle.</p>
-    </div>
+    <div class="grid lg:grid-cols-[360px,1fr] gap-8 items-start">
+      <div class="card-elevated overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="text-lg font-bold text-gray-800">All Archive Dates</h2>
+          <p class="text-xs text-gray-400 mt-1">Choose any day to load the full analysis here.</p>
+        </div>
+        <div class="max-h-[75vh] overflow-y-auto custom-scroll divide-y divide-gray-50" id="archive-list">
+          {archiveSummaryData.map((puzzle) => (
+            <a
+              href="/archive"
+              data-archive-slug={puzzle.slug}
+              data-archive-date={puzzle.date}
+              data-date-iso={puzzle.date_iso}
+              class:list={[
+                'archive-list-link flex items-center justify-between gap-4 p-5 hover:bg-amber-50/50 transition-colors group',
+                puzzle.slug === defaultSlug && 'bg-amber-50/70',
+              ]}
+            >
+              <div class="flex items-center gap-4 min-w-0">
+                <span class="letter-circle letter-circle-center flex-shrink-0">{puzzle.letters}</span>
+                <div class="min-w-0">
+                  <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors truncate">{puzzle.date}</p>
+                  <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{puzzle.all_letters}</p>
+                </div>
+              </div>
+              <div class="text-right flex-shrink-0">
+                <p class="text-sm font-semibold text-gray-600">{puzzle.word_count} words</p>
+                <p class="text-xs text-amber-500">{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
 
-    <div class="card-elevated divide-y divide-gray-50">
-      {summaries.map((puzzle) => (
-        <a
-          href={buildArchivePath(puzzle.date)}
-          class="flex items-center justify-between gap-4 p-5 hover:bg-amber-50/50 transition-colors group"
-          data-date={puzzle.date}
-          data-date-iso={puzzle.date_iso || dateTextToIso(puzzle.date)}
-          data-slug={String(puzzle.slug || '')}
-        >
-          <div class="flex items-center gap-4 min-w-0">
-            <span class="letter-circle letter-circle-center flex-shrink-0">{puzzle.letters}</span>
-            <div class="min-w-0">
-              <p class="font-semibold text-gray-800 group-hover:text-amber-700 transition-colors truncate">{puzzle.date}</p>
-              <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{puzzle.all_letters}</p>
+      <section id="archive-detail-section" class="min-w-0" data-default-slug={defaultSlug}>
+        <div class="card-elevated p-5 mb-6">
+          <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-amber-600 mb-1">Selected Puzzle</p>
+              <h2 id="archive-detail-title" class="text-2xl font-bold text-gray-900">{newestPuzzle?.date || 'Archive Detail'}</h2>
             </div>
+            <p class="text-sm text-gray-500 max-w-xl">The answers, charts, meanings, and historical comparison below update inside this single archive page, so the site avoids thousands of duplicate archive URLs.</p>
           </div>
-          <div class="text-right flex-shrink-0">
-            <p class="text-sm font-semibold text-gray-600">{puzzle.word_count} words</p>
-            <p class="text-xs text-amber-500">{puzzle.pangrams_count} pangram{puzzle.pangrams_count !== 1 ? 's' : ''}</p>
-          </div>
-        </a>
-      ))}
-    </div>
+        </div>
 
-    <div class="mt-10 p-6 bg-gray-50 rounded-2xl">
-      <h2 class="text-lg font-bold text-gray-800 mb-3">Browse the Complete Spelling Bee Archive</h2>
-      <p class="text-gray-600 leading-relaxed text-sm mb-3">This archive page lists every puzzle from the current site snapshot. Each detail page is generated ahead of time, so the answers, meanings, charts, and statistics are already in the HTML when the page loads.</p>
-      <p class="text-gray-600 leading-relaxed text-sm mb-3">That means the archive is faster, lighter on the worker, and much easier for Google to index than the old query-string detail view. It also gives every puzzle a stable URL you can bookmark or share.</p>
-      <p class="text-gray-600 leading-relaxed text-sm">If you know the date you want, use the date picker above. If not, scroll through the list and open any puzzle to see the full analysis page for that day.</p>
+        <div id="archive-detail-content">
+          {defaultDetailHtml ? (
+            <Fragment set:html={defaultDetailHtml} />
+          ) : (
+            <div class="card-elevated p-8 text-center">
+              <h2 class="text-2xl font-bold text-gray-900 mb-3">Archive Detail Unavailable</h2>
+              <p class="text-gray-500">The prebuilt detail for the selected puzzle is missing from the current snapshot.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   </div>
+
+  <script type="application/json" id="archive-summary-data" set:html={JSON.stringify(archiveSummaryData)} />
 
   <script>
     const datePicker = document.getElementById('date-picker');
     const goDateBtn = document.getElementById('go-date-btn');
-    const archiveLinks = Array.from(document.querySelectorAll('[data-date-iso][data-slug]'));
+    const detailSection = document.getElementById('archive-detail-section');
+    const detailTitle = document.getElementById('archive-detail-title');
+    const detailContent = document.getElementById('archive-detail-content');
+    const archiveLinks = Array.from(document.querySelectorAll('.archive-list-link[data-archive-slug]'));
+    const summaryScript = document.getElementById('archive-summary-data');
+    const archiveSummaries = summaryScript ? JSON.parse(summaryScript.textContent || '[]') : [];
+    const archiveBySlug = new Map(archiveSummaries.map((item) => [item.slug, item]));
+    const defaultSlug = detailSection ? detailSection.getAttribute('data-default-slug') || '' : '';
+
+    function setActiveSlug(slug) {
+      archiveLinks.forEach((link) => {
+        const isActive = link.getAttribute('data-archive-slug') === slug;
+        link.classList.toggle('bg-amber-50/70', isActive);
+      });
+    }
 
     function slugForIso(isoDate) {
-      const match = archiveLinks.find((link) => link.getAttribute('data-date-iso') === isoDate);
-      return match ? match.getAttribute('data-slug') : '';
+      const match = archiveSummaries.find((item) => item.date_iso === isoDate);
+      return match ? match.slug : '';
     }
 
-    function goToArchiveSlug(slug) {
-      if (!slug) return;
-      window.location.assign(`/archive/${slug}/`);
+    function syncSelectionState(slug) {
+      const summary = archiveBySlug.get(slug);
+      if (!summary) return;
+      sessionStorage.setItem('sb_archive_slug', slug);
+      if (summary.date) sessionStorage.setItem('sb_archive_date', summary.date);
+      if (detailTitle) detailTitle.textContent = summary.date || 'Archive Detail';
+      if (datePicker && summary.date_iso) datePicker.value = summary.date_iso;
+      setActiveSlug(slug);
     }
 
-    function normalizeLegacyArchiveRedirect() {
-      const params = new URLSearchParams(window.location.search);
-      const legacyDate = params.get('date') || sessionStorage.getItem('sb_archive_date');
-      if (!legacyDate) return;
-      sessionStorage.removeItem('sb_archive_date');
-      const cleanSlug = String(legacyDate).replace(/^\/+|\/+$/g, '');
-      if (cleanSlug) {
-        window.location.replace(`/archive/${cleanSlug}/`);
+    async function loadArchiveSlug(slug, options = {}) {
+      if (!slug || !detailContent) return;
+      const summary = archiveBySlug.get(slug);
+      if (!summary) return;
+
+      syncSelectionState(slug);
+
+      try {
+        const staticResponse = await fetch(`/site-data/archive-html/${slug}.html`, { cache: 'force-cache' });
+        if (staticResponse.ok) {
+          detailContent.innerHTML = await staticResponse.text();
+        } else {
+          const sameDomainResponse = await fetch(`/api/archive/${slug}`, { cache: 'force-cache' });
+          if (sameDomainResponse.ok) {
+            detailContent.innerHTML = await sameDomainResponse.text();
+          } else if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+            const workerResponse = await fetch(`https://spelling-bee-api.sbsolver.workers.dev/api/public/archive/slug/${slug}/html`, { cache: 'force-cache' });
+            if (!workerResponse.ok) throw new Error(`Failed to load ${slug}`);
+            detailContent.innerHTML = await workerResponse.text();
+          } else {
+            throw new Error(`Failed to load ${slug}`);
+          }
+        }
+        if (options.scroll && detailSection) {
+          detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (error) {
+        detailContent.innerHTML = '<div class="card-elevated p-8 text-center"><h2 class="text-2xl font-bold text-gray-900 mb-3">Archive Detail Unavailable</h2><p class="text-gray-500">We could not load that puzzle detail from the current static snapshot.</p></div>';
       }
     }
 
-    normalizeLegacyArchiveRedirect();
+    function resolveInitialSlug() {
+      const storedSlug = sessionStorage.getItem('sb_archive_slug');
+      if (storedSlug && archiveBySlug.has(storedSlug)) return storedSlug;
+
+      const storedDate = sessionStorage.getItem('sb_archive_date');
+      if (storedDate) {
+        const storedFromDate = archiveSummaries.find((item) => item.date === storedDate || item.slug === storedDate);
+        if (storedFromDate?.slug) return storedFromDate.slug;
+      }
+
+      return defaultSlug;
+    }
+
+    window.addEventListener('sb:archive-select', (event) => {
+      const slug = event.detail?.slug;
+      if (slug) {
+        loadArchiveSlug(slug, { scroll: true });
+      }
+    });
 
     if (goDateBtn && datePicker) {
       goDateBtn.addEventListener('click', () => {
-        const isoDate = datePicker.value;
-        if (!isoDate) return;
-        const slug = slugForIso(isoDate);
+        const slug = slugForIso(datePicker.value);
         if (slug) {
-          goToArchiveSlug(slug);
+          loadArchiveSlug(slug, { scroll: true });
         }
       });
 
@@ -136,6 +225,12 @@ const faqSchema = JSON.stringify({
           goDateBtn.click();
         }
       });
+    }
+
+    const initialSlug = resolveInitialSlug();
+    syncSelectionState(initialSlug);
+    if (initialSlug && initialSlug !== defaultSlug) {
+      loadArchiveSlug(initialSlug);
     }
   </script>
 </BaseLayout>

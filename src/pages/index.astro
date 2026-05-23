@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Honeycomb from '../components/Honeycomb.astro';
-import { buildArchivePath } from '../lib/utils';
+import { formatDateURL } from '../lib/utils';
 import { readPublicJson } from '../lib/site-data';
 
 // Get latest puzzle for the homepage
@@ -27,7 +27,7 @@ const recentPuzzles = (recentData.puzzles || [])
 const statsData = readPublicJson('site-data/stats.json', { overview: {} });
 const totalPuzzles = statsData.overview?.totalPuzzles || 0;
 const totalWords = statsData.overview?.totalWords || 0;
-const archiveHref = (date) => buildArchivePath(date);
+const archiveSlug = (date) => formatDateURL(date);
 
 const websiteSchema = JSON.stringify({
   "@context": "https://schema.org",
@@ -204,7 +204,7 @@ const websiteSchema = JSON.stringify({
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {recentPuzzles.map(p => (
-            <a href={archiveHref(p.date)} class="card p-5 group hover:border-amber-300">
+            <a href="/archive" data-archive-slug={archiveSlug(p.date)} data-archive-date={p.date} class="card p-5 group hover:border-amber-300">
               <div class="flex items-center gap-3 mb-3">
                 <span class="letter-circle letter-circle-center">{p.letters}</span>
                 <div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderPuzzleDetailHTML } from '../src/lib/render-puzzle-detail.js';
@@ -12,6 +12,9 @@ const archiveJsonRoot = join(publicDataRoot, 'archive');
 const archiveHtmlRoot = join(publicDataRoot, 'archive-html');
 
 const API_BASE = process.env.API_BASE || 'https://spelling-bee-api.sbsolver.workers.dev';
+const FETCH_RETRY_LIMIT = 6;
+const ARCHIVE_FETCH_CONCURRENCY = 10;
+const PREBUILT_ARCHIVE_WINDOW_DAYS = 30;
 
 function readEnvFile(path) {
   if (!existsSync(path)) return {};
@@ -48,6 +51,13 @@ function ensureDir(path) {
   mkdirSync(path, { recursive: true });
 }
 
+function clearDirectory(path) {
+  ensureDir(path);
+  for (const entry of readdirSync(path, { withFileTypes: true })) {
+    rmSync(join(path, entry.name), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+}
+
 function writeJson(relativePath, value) {
   const target = join(publicDataRoot, relativePath);
   ensureDir(dirname(target));
@@ -60,35 +70,48 @@ function writeText(relativePath, value) {
   writeFileSync(target, value, 'utf8');
 }
 
-async function fetchJson(path) {
-  const url = new URL(path, API_BASE);
-  const response = await fetch(url, {
-    headers: {
-      'X-API-Key': WORKER_ADMIN_API_KEY,
-    },
-  });
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status} for ${url}: ${await response.text()}`);
+async function requestWithRetry(path) {
+  const url = new URL(path, API_BASE);
+  for (let attempt = 0; attempt < FETCH_RETRY_LIMIT; attempt += 1) {
+    const response = await fetch(url, {
+      headers: {
+        'X-API-Key': WORKER_ADMIN_API_KEY,
+      },
+    });
+
+    if (response.ok || response.status === 404) {
+      return response;
+    }
+
+    const retryAfterHeader = Number(response.headers.get('Retry-After') || 0);
+    const shouldRetry = response.status === 429 || response.status >= 500;
+    if (!shouldRetry || attempt === FETCH_RETRY_LIMIT - 1) {
+      throw new Error(`Request failed ${response.status} for ${url}: ${await response.text()}`);
+    }
+
+    const retryDelay = retryAfterHeader > 0
+      ? retryAfterHeader * 1000
+      : Math.min(1500 * (attempt + 1), 8000);
+    await sleep(retryDelay);
   }
 
+  throw new Error(`Request retries exhausted for ${url}`);
+}
+
+async function fetchJson(path) {
+  const response = await requestWithRetry(path);
   return response.json();
 }
 
 async function fetchJsonOrNull(path) {
-  const url = new URL(path, API_BASE);
-  const response = await fetch(url, {
-    headers: {
-      'X-API-Key': WORKER_ADMIN_API_KEY,
-    },
-  });
+  const response = await requestWithRetry(path);
 
   if (response.status === 404) {
     return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status} for ${url}: ${await response.text()}`);
   }
 
   return response.json();
@@ -102,6 +125,47 @@ function readDictionaryWords() {
       .map((word) => word.trim().toLowerCase())
       .filter(Boolean),
   )];
+}
+
+function slugFromDate(date) {
+  return String(date || '').toLowerCase().replace(/,\s*/g, '-').replace(/\s+/g, '-');
+}
+
+function collectPrebuiltArchiveSlugs(archiveSummaries, todayBundle, stats, recent) {
+  const slugs = new Set(
+    archiveSummaries
+      .slice(0, PREBUILT_ARCHIVE_WINDOW_DAYS)
+      .map((summary) => String(summary.slug || slugFromDate(summary.date)))
+      .filter(Boolean),
+  );
+
+  const addDate = (date) => {
+    const slug = slugFromDate(date);
+    if (slug) slugs.add(slug);
+  };
+
+  const addItems = (items) => {
+    for (const item of items || []) {
+      if (item?.date) addDate(item.date);
+    }
+  };
+
+  addItems(todayBundle?.analysis?.sameCenterPuzzles);
+  addItems(todayBundle?.analysis?.pangramHistoryCombined);
+  addItems(recent?.puzzles);
+
+  const extremes = stats?.extremes || {};
+  [
+    extremes.puzzleWithMostWords,
+    extremes.puzzleWithFewestWords,
+    extremes.puzzleWithMostPangrams,
+    extremes.highestScore,
+    extremes.lowestScore,
+  ].forEach((item) => {
+    if (item?.date) addDate(item.date);
+  });
+
+  return slugs;
 }
 
 async function fetchAllArchiveSummaries() {
@@ -173,10 +237,8 @@ async function main() {
 
   console.log('Generating site snapshot files from the worker...');
   ensureDir(publicDataRoot);
-  rmSync(archiveJsonRoot, { recursive: true, force: true });
-  rmSync(archiveHtmlRoot, { recursive: true, force: true });
-  ensureDir(archiveJsonRoot);
-  ensureDir(archiveHtmlRoot);
+  clearDirectory(archiveJsonRoot);
+  clearDirectory(archiveHtmlRoot);
 
   const [todaySummary, stats, centerFrequency, allLettersFrequency, wordLengthDistribution, recent, archiveSummaries] = await Promise.all([
     fetchJson('/today'),
@@ -202,6 +264,8 @@ async function main() {
     allLettersFrequency: allLettersFrequency.allLettersFrequency || [],
     totalPuzzles: allLettersFrequency.totalPuzzles || stats.overview?.totalPuzzles || 0,
   };
+  const prebuiltArchiveSlugs = collectPrebuiltArchiveSlugs(archiveSummaries, todayBundle, stats, recent);
+  const targetArchiveSummaries = archiveSummaries.filter((summary) => prebuiltArchiveSlugs.has(String(summary.slug || slugFromDate(summary.date))));
 
   writeJson('today.json', todayBundle);
   writeJson('stats.json', stats);
@@ -214,12 +278,14 @@ async function main() {
     generatedAt: new Date().toISOString(),
     todayDate: todayBundle.puzzle?.date || null,
     totalPuzzles: archiveSummaries.length,
+    prebuiltArchiveCount: targetArchiveSummaries.length,
   });
 
+  console.log(`Prebuilding ${targetArchiveSummaries.length}/${archiveSummaries.length} archive detail fragments.`);
+
   let completed = 0;
-  await mapWithConcurrency(archiveSummaries, 8, async (summary) => {
+  await mapWithConcurrency(targetArchiveSummaries, ARCHIVE_FETCH_CONCURRENCY, async (summary) => {
     const bundle = await fetchPuzzleBundle(summary.puzzle_id, summary);
-    writeJson(join('archive', `${summary.slug}.json`), bundle);
     writeText(
       join('archive-html', `${summary.slug}.html`),
       renderPuzzleDetailHTML(bundle, {
@@ -229,8 +295,8 @@ async function main() {
     );
 
     completed += 1;
-    if (completed % 50 === 0 || completed === archiveSummaries.length) {
-      console.log(`Generated ${completed}/${archiveSummaries.length} archive bundles`);
+    if (completed % 25 === 0 || completed === targetArchiveSummaries.length) {
+      console.log(`Generated ${completed}/${targetArchiveSummaries.length} archive fragments`);
     }
   });
 

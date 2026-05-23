@@ -167,6 +167,31 @@ const siteDomain = 'https://spellingbeesolver.dev';
         });
       });
     }
+
+    function storeArchiveSelection(link) {
+      const slug = link.getAttribute('data-archive-slug') || '';
+      const date = link.getAttribute('data-archive-date') || '';
+      if (slug) {
+        sessionStorage.setItem('sb_archive_slug', slug);
+      }
+      if (date) {
+        sessionStorage.setItem('sb_archive_date', date);
+      }
+      return { slug, date };
+    }
+
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest('a[data-archive-slug]');
+      if (!link) return;
+
+      const detail = storeArchiveSelection(link);
+      const onArchivePage = window.location.pathname === '/archive' || window.location.pathname === '/archive/';
+
+      if (onArchivePage) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('sb:archive-select', { detail }));
+      }
+    });
   </script>
   </body>
 </html>

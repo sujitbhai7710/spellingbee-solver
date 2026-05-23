@@ -2,6 +2,7 @@ export function GET() {
   const body = [
     'User-agent: *',
     'Allow: /',
+    'Disallow: /site-data/',
     '',
     'Sitemap: https://spellingbeesolver.dev/sitemap.xml',
     'Host: https://spellingbeesolver.dev',

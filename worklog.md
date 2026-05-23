@@ -494,3 +494,29 @@ Next Best Follow-Up:
     - `/solver` autofill uses the snapshot letters and only fetches `/twl06.txt`
     - archive detail pages render full answer/analysis HTML at build time
 
+## 2026-05-23 - Archive build scope reduced and on-demand detail restored
+
+- Reworked the archive so it no longer generates thousands of static date pages at build time.
+- Deleted `src/pages/archive/[slug].astro`; the only archive URL is now `/archive`.
+- `scripts/generate-site-data.mjs` now:
+  - prebuilds only the latest 30 archive detail HTML fragments
+  - also prebuilds any archive dates referenced by `/today`, `/stats`, and the recent-puzzle list
+  - fetches archive bundles with concurrency 10 for faster snapshot generation
+  - writes selected HTML fragments to `public/site-data/archive-html/`
+  - no longer writes or relies on per-date archive route pages
+- `src/pages/archive.astro` now keeps all detail inside the single `/archive` page:
+  - loads a prebuilt fragment first when available
+  - falls back to an API fetch for older dates
+  - stores the selected puzzle in `sessionStorage` so links from other pages can land inside `/archive`
+- Added archive selection link wiring in `src/layouts/BaseLayout.astro` and updated archive links across:
+  - `src/pages/index.astro`
+  - `src/pages/stats.astro`
+  - `src/pages/today.astro`
+  - `src/lib/render-puzzle-detail.js`
+- Added `functions/api/archive/[slug].js` as a real Pages Function proxy for same-domain archive HTML loading.
+- Added `_routes.json` so only `/api/archive/*` invokes Pages Functions; all other site traffic stays static.
+- Removed the broken `_redirects` external proxy rule for `/api/archive/:slug`.
+- Verified locally:
+  - `npm run build` now reports `Prebuilding 38/2936 archive detail fragments.`
+  - Astro static build now outputs only 9 pages instead of thousands of archive pages
+

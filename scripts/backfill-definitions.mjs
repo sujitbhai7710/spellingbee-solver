@@ -53,7 +53,15 @@ function parseArgs(argv) {
 }
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const headers = new Headers(options.headers || {});
+  if (WORKER_ADMIN_API_KEY && String(url).startsWith(API_BASE)) {
+    headers.set('X-API-Key', WORKER_ADMIN_API_KEY);
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
   if (!response.ok) {
     throw new Error(`Request failed ${response.status} for ${url}: ${await response.text()}`);
   }
