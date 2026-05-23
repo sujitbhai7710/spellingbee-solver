@@ -1,11 +1,44 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const API_BASE = process.env.API_BASE || 'https://spelling-bee-api.sbsolver.workers.dev';
-const WORKER_ADMIN_API_KEY = process.env.WORKER_ADMIN_API_KEY || '';
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(scriptDir, '..');
+
+function readEnvFile(path) {
+  if (!existsSync(path)) return {};
+  const values = {};
+  for (const rawLine of readFileSync(path, 'utf8').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const parts = line.split('=', 2);
+    if (parts.length !== 2) continue;
+    const key = parts[0].trim();
+    let value = parts[1].trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    values[key] = value;
+  }
+  return values;
+}
+
+function resolveWorkerKey() {
+  if (process.env.WORKER_ADMIN_API_KEY) return process.env.WORKER_ADMIN_API_KEY;
+  if (process.env.APIKEY) return process.env.APIKEY;
+
+  const localEnv = readEnvFile(join(repoRoot, 'cloudflare.local.env'));
+  if (localEnv.WORKER_ADMIN_API_KEY) return localEnv.WORKER_ADMIN_API_KEY;
+  if (localEnv.APIKEY) return localEnv.APIKEY;
+
+  const dotEnv = readEnvFile(join(repoRoot, '.env'));
+  return dotEnv.WORKER_ADMIN_API_KEY || dotEnv.APIKEY || '';
+}
+
+const WORKER_ADMIN_API_KEY = resolveWorkerKey();
 const NVIDIA_NIM_API_KEY = process.env.NVIDIA_NIM_API_KEY || '';
 const NVIDIA_NIM_MODEL = process.env.NVIDIA_NIM_MODEL || 'qwen/qwen3-next-80b-a3b-instruct';
 const NVIDIA_NIM_BASE_URL = process.env.NVIDIA_NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
@@ -13,7 +46,6 @@ const DEFINITION_BATCH_SIZE = 4;
 
 function loadHumanWritingGuide() {
   try {
-    const scriptDir = dirname(fileURLToPath(import.meta.url));
     const skillPath = join(scriptDir, '..', 'human-writing', 'SKILL.md');
     const raw = readFileSync(skillPath, 'utf8');
     return raw

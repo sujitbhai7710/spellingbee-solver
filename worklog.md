@@ -520,3 +520,21 @@ Next Best Follow-Up:
   - `npm run build` now reports `Prebuilding 38/2936 archive detail fragments.`
   - Astro static build now outputs only 9 pages instead of thousands of archive pages
 
+## 2026-05-24 - GitHub Actions rebuild auth hardening
+
+- Hardened `scripts/backfill-definitions.mjs` so it resolves the worker key from:
+  - `WORKER_ADMIN_API_KEY`
+  - `APIKEY`
+  - `cloudflare.local.env`
+  - `.env`
+- Hardened `.github/workflows/daily-rebuild.yml` so GitHub Actions accepts either secret name:
+  - `WORKER_ADMIN_API_KEY`
+  - `APIKEY`
+- Added an explicit workflow validation step that fails early with a clear message if the worker key or Cloudflare deploy secrets are missing.
+- Added trigger context logging so each workflow run now shows whether it came from:
+  - `workflow_dispatch`
+  - `repository_dispatch`
+  - and the worker payload source such as `scheduled-cron`
+- Wired the workflow to use `github.event.client_payload.puzzleId` and `github.event.client_payload.date` when the worker triggers the rebuild, instead of always auto-resolving the puzzle.
+- Added workflow concurrency to prevent overlapping duplicate rebuilds on the same branch.
+
