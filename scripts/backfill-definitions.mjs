@@ -128,8 +128,94 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getModelSequence() {
-  return [...new Set([NVIDIA_NIM_MODEL, ...NVIDIA_NIM_FALLBACK_MODELS])];
+function getModelSequence(preferredModel = '') {
+  const baseSequence = [...new Set([NVIDIA_NIM_MODEL, ...NVIDIA_NIM_FALLBACK_MODELS])];
+  if (!preferredModel) return baseSequence;
+  return [...new Set([preferredModel, ...baseSequence])];
+}
+
+function clipText(value, limit = 240) {
+  const text = String(value || '').trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, Math.max(0, limit - 3))}...`;
+}
+
+function buildModelError(message, meta = {}) {
+  const error = new Error(message);
+  Object.assign(error, meta);
+  return error;
+}
+
+function createRunContext(label = 'definitions') {
+  return {
+    label,
+    preferredModel: null,
+    modelStats: {},
+  };
+}
+
+function getModelStatsBucket(runContext, model) {
+  if (!runContext) return null;
+  if (!runContext.modelStats[model]) {
+    runContext.modelStats[model] = {
+      attempts: 0,
+      successes: 0,
+      httpFailures: 0,
+      transportFailures: 0,
+      responseFailures: 0,
+      totalDurationMs: 0,
+      lastError: null,
+      lastSuccessAt: null,
+      lastDurationMs: 0,
+    };
+  }
+  return runContext.modelStats[model];
+}
+
+function recordModelFailure(bucket, category, durationMs, message) {
+  if (!bucket) return;
+  bucket.totalDurationMs += Number(durationMs || 0);
+  if (category === 'http') bucket.httpFailures += 1;
+  else if (category === 'transport') bucket.transportFailures += 1;
+  else bucket.responseFailures += 1;
+  bucket.lastError = clipText(message, 320);
+  bucket.lastDurationMs = Number(durationMs || 0);
+}
+
+function recordModelSuccess(runContext, bucket, model, durationMs) {
+  if (bucket) {
+    bucket.successes += 1;
+    bucket.totalDurationMs += Number(durationMs || 0);
+    bucket.lastSuccessAt = new Date().toISOString();
+    bucket.lastDurationMs = Number(durationMs || 0);
+    bucket.lastError = null;
+  }
+
+  if (runContext) {
+    const previousModel = runContext.preferredModel;
+    runContext.preferredModel = model;
+    if (previousModel !== model) {
+      console.log(`[Definitions] Preferred model switched to ${model}. Future batches will try it first.`);
+    }
+  }
+}
+
+function summarizeAttempt(attempt) {
+  return `${attempt.model} [${attempt.kind}, ${attempt.durationMs}ms]: ${attempt.message}`;
+}
+
+function buildAggregateModelFailure(batchLabel, attempts) {
+  const message = `All NVIDIA models failed for ${batchLabel}. ${attempts.map(summarizeAttempt).join(' | ')}`;
+  return buildModelError(message, {
+    kind: 'all-models-failed',
+    attempts,
+    providerIssue: attempts.every((attempt) => attempt.providerIssue === true),
+    transient: attempts.every((attempt) => attempt.transient === true),
+  });
+}
+
+function extractAssistantText(payload) {
+  return payload?.choices?.[0]?.message?.content || '';
 }
 
 function isRetryableFetchError(error) {
@@ -146,16 +232,25 @@ function isRetryableFetchError(error) {
   );
 }
 
-async function requestNvidiaJson(body) {
-  const models = getModelSequence();
-  let lastError = null;
+async function requestNvidiaJson(body, options = {}) {
+  const runContext = options.runContext || null;
+  const batchLabel = options.batchLabel || 'definition batch';
+  const validateResponse = options.validateResponse;
+  const models = getModelSequence(runContext?.preferredModel || '');
+  const attempts = [];
 
   for (let index = 0; index < models.length; index += 1) {
     const model = models[index];
+    const bucket = getModelStatsBucket(runContext, model);
+    if (bucket) bucket.attempts += 1;
+
     const payload = {
       ...body,
       model,
     };
+
+    const startedAt = Date.now();
+    console.log(`[Definitions] ${batchLabel}: trying model ${model}${runContext?.preferredModel === model ? ' (preferred)' : ''}.`);
 
     try {
       const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
@@ -168,39 +263,105 @@ async function requestNvidiaJson(body) {
         signal: AbortSignal.timeout(NVIDIA_NIM_TIMEOUT_MS),
       });
 
-      if (response.ok) {
-        return {
-          payload: await response.json(),
+      const durationMs = Date.now() - startedAt;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+        const error = buildModelError(
+          `HTTP ${response.status} from ${model}: ${clipText(errorText, 260) || 'No response body'}`,
+          {
+            kind: 'http',
+            providerIssue: true,
+            transient: retryable,
+            status: response.status,
+            responseSnippet: clipText(errorText, 260),
+          },
+        );
+
+        recordModelFailure(bucket, 'http', durationMs, error.message);
+        attempts.push({
           model,
-        };
+          kind: 'http',
+          durationMs,
+          providerIssue: true,
+          transient: retryable,
+          message: clipText(error.message, 320),
+        });
+
+        if (index === models.length - 1) {
+          throw buildAggregateModelFailure(batchLabel, attempts);
+        }
+
+        console.warn(`[Definitions] ${batchLabel}: model ${model} failed with HTTP ${response.status} after ${durationMs}ms. Trying next model.`);
+        await sleep(1200 * (index + 1));
+        continue;
       }
 
-      const errorText = await response.text();
-      lastError = new Error(`NVIDIA NIM request failed ${response.status} with model ${model}: ${errorText}`);
-      const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+      const responsePayload = await response.json();
+      const validated = typeof validateResponse === 'function'
+        ? validateResponse({ payload: responsePayload, model })
+        : responsePayload;
 
-      if (!retryable || index === models.length - 1) {
-        throw new Error(`All NVIDIA models failed. Final model ${model}: ${lastError.message}`);
-      }
-
-      console.warn(`NVIDIA model ${model} failed with ${response.status}. Trying next fallback model...`);
-      await sleep(1200 * (index + 1));
-      continue;
+      recordModelSuccess(runContext, bucket, model, durationMs);
+      console.log(`[Definitions] ${batchLabel}: model ${model} succeeded in ${durationMs}ms.`);
+      return {
+        payload: responsePayload,
+        model,
+        durationMs,
+        attempts,
+        validated,
+      };
     } catch (error) {
-      lastError = error instanceof Error
-        ? error
-        : new Error(`Unknown NVIDIA NIM failure for model ${model}`);
-
-      if (!isRetryableFetchError(lastError) || index === models.length - 1) {
-        throw new Error(`All NVIDIA models failed. Final model ${model}: ${lastError.message}`);
+      if (error?.attempts) {
+        throw error;
       }
 
-      console.warn(`NVIDIA model ${model} hit a network/timeout error. Trying next fallback model...`);
+      const durationMs = Date.now() - startedAt;
+      const normalizedError = buildModelError(error instanceof Error ? error.message : String(error), {
+        kind: isRetryableFetchError(error) ? 'transport' : (error?.kind || 'response'),
+        providerIssue: error?.providerIssue ?? true,
+        transient: error?.transient ?? isRetryableFetchError(error),
+        status: error?.status || null,
+        responseSnippet: error?.responseSnippet || null,
+        missingWords: error?.missingWords || null,
+        cause: error,
+      });
+
+      const category = normalizedError.kind === 'http'
+        ? 'http'
+        : normalizedError.kind === 'transport'
+          ? 'transport'
+          : 'response';
+      recordModelFailure(bucket, category, durationMs, normalizedError.message);
+      attempts.push({
+        model,
+        kind: normalizedError.kind || 'response',
+        durationMs,
+        providerIssue: normalizedError.providerIssue === true,
+        transient: normalizedError.transient === true,
+        message: clipText(normalizedError.message, 320),
+      });
+
+      if (index === models.length - 1) {
+        throw buildAggregateModelFailure(batchLabel, attempts);
+      }
+
+      const issueLabel = normalizedError.kind === 'transport'
+        ? 'network/timeout issue'
+        : normalizedError.kind === 'http'
+          ? `HTTP issue${normalizedError.status ? ` ${normalizedError.status}` : ''}`
+          : 'response formatting issue';
+      console.warn(`[Definitions] ${batchLabel}: model ${model} hit a ${issueLabel} after ${durationMs}ms. Trying next model.`);
       await sleep(1200 * (index + 1));
     }
   }
 
-  throw lastError;
+  throw buildModelError(`No NVIDIA models were available for ${batchLabel}.`, {
+    kind: 'configuration',
+    providerIssue: false,
+    transient: false,
+  });
 }
 
 async function resolvePuzzleIds(args) {
@@ -232,17 +393,73 @@ function chunk(values, size) {
   return chunks;
 }
 
-function extractJsonArray(text) {
-  const cleaned = text.replace(/```json|```/gi, '').trim();
+function extractJsonArray(text, model) {
+  const cleaned = String(text || '').replace(/```json|```/gi, '').trim();
   const start = cleaned.indexOf('[');
   const end = cleaned.lastIndexOf(']');
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`Model did not return a JSON array: ${cleaned.slice(0, 400)}`);
+    throw buildModelError(`Model ${model} did not return a JSON array: ${clipText(cleaned, 400)}`, {
+      kind: 'response',
+      providerIssue: true,
+      transient: false,
+      responseSnippet: clipText(cleaned, 400),
+    });
   }
-  return JSON.parse(cleaned.slice(start, end + 1));
+
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1));
+  } catch (error) {
+    throw buildModelError(`Model ${model} returned invalid JSON: ${clipText(cleaned, 400)}`, {
+      kind: 'response',
+      providerIssue: true,
+      transient: false,
+      responseSnippet: clipText(cleaned, 400),
+      cause: error,
+    });
+  }
 }
 
-async function generateDefinitions(words) {
+function normalizeGeneratedDefinitions(items, expectedWords, model) {
+  const expected = expectedWords.map((word) => String(word || '').trim().toLowerCase()).filter(Boolean);
+  const expectedSet = new Set(expected);
+  const normalizedMap = new Map();
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const word = String(item?.word || '').trim().toLowerCase();
+    const definition = String(item?.definition || '').trim();
+    if (!word || !definition) continue;
+    if (!expectedSet.has(word)) continue;
+    if (normalizedMap.has(word)) continue;
+    normalizedMap.set(word, {
+      word,
+      definition,
+      partOfSpeech: item.partOfSpeech ? String(item.partOfSpeech).trim() : null,
+      synonyms: Array.isArray(item.synonyms) ? item.synonyms : [],
+      antonyms: Array.isArray(item.antonyms) ? item.antonyms : [],
+      usageNotes: item.usageNotes ? String(item.usageNotes).trim() : null,
+      sourceProvider: 'nvidia-nim',
+      sourceModel: model,
+    });
+  }
+
+  const missingWords = expected.filter((word) => !normalizedMap.has(word));
+  if (missingWords.length > 0) {
+    throw buildModelError(
+      `Model ${model} returned incomplete definitions. Missing ${missingWords.length}/${expected.length} words: ${missingWords.join(', ')}`,
+      {
+        kind: 'response',
+        providerIssue: true,
+        transient: false,
+        missingWords,
+      },
+    );
+  }
+
+  return expected.map((word) => normalizedMap.get(word));
+}
+
+async function generateDefinitions(words, options = {}) {
+  const expectedWords = words.map((word) => String(word || '').trim().toLowerCase()).filter(Boolean);
   const prompt = [
     'Return only JSON.',
     'You are writing rich, human-sounding dictionary notes for NYT Spelling Bee answer words.',
@@ -262,7 +479,7 @@ async function generateDefinitions(words) {
     `Words: ${JSON.stringify(words)}`,
   ].join('\n');
 
-  const { payload, model } = await requestNvidiaJson({
+  const { model, durationMs, attempts, validated } = await requestNvidiaJson({
     temperature: 0.15,
     top_p: 0.85,
     max_tokens: NVIDIA_NIM_MAX_TOKENS,
@@ -272,19 +489,20 @@ async function generateDefinitions(words) {
         content: prompt,
       },
     ],
+  }, {
+    runContext: options.runContext,
+    batchLabel: options.batchLabel || `definition batch (${expectedWords.join(', ')})`,
+    validateResponse: ({ payload, model: activeModel }) => {
+      const parsed = extractJsonArray(extractAssistantText(payload), activeModel);
+      return normalizeGeneratedDefinitions(parsed, expectedWords, activeModel);
+    },
   });
-  const text = payload.choices?.[0]?.message?.content || '';
-  const parsed = extractJsonArray(text);
-  return parsed.map((item) => ({
-    word: String(item.word || '').trim().toLowerCase(),
-    definition: String(item.definition || '').trim(),
-    partOfSpeech: item.partOfSpeech ? String(item.partOfSpeech).trim() : null,
-    synonyms: Array.isArray(item.synonyms) ? item.synonyms : [],
-    antonyms: Array.isArray(item.antonyms) ? item.antonyms : [],
-    usageNotes: item.usageNotes ? String(item.usageNotes).trim() : null,
-    sourceProvider: 'nvidia-nim',
-    sourceModel: model,
-  })).filter((item) => item.word && item.definition);
+  return {
+    definitions: validated,
+    model,
+    durationMs,
+    attempts,
+  };
 }
 
 async function upsertDefinitions(definitions) {
@@ -319,6 +537,10 @@ function writeSummary(summaryFile, summary) {
 }
 
 function isProviderBackoffError(error) {
+  if (error?.providerIssue === true && error?.transient === true) {
+    return true;
+  }
+
   const message = String(error?.message || '');
   return (
     message.includes('NVIDIA NIM request failed 408')
@@ -334,6 +556,7 @@ function isProviderBackoffError(error) {
 }
 
 async function processWords(words, options = {}) {
+  const runContext = options.runContext || createRunContext(options.label || options.mode || 'definitions');
   const summary = {
     mode: options.mode || 'puzzle',
     label: options.label || '',
@@ -343,20 +566,49 @@ async function processWords(words, options = {}) {
     upsertedDefinitions: 0,
     failedWords: [],
     failedBatchCount: 0,
+    successfulBatchCount: 0,
+    preferredModelStart: runContext.preferredModel || null,
+    preferredModelEnd: null,
+    modelStats: runContext.modelStats,
+    failedBatchesDetailed: [],
+    lastSuccessfulBatch: null,
   };
 
-  for (const batch of chunk(words, DEFINITION_BATCH_SIZE)) {
+  const batches = chunk(words, DEFINITION_BATCH_SIZE);
+  for (let index = 0; index < batches.length; index += 1) {
+    const batch = batches[index];
+    const batchLabel = `${options.label || summary.mode} batch ${index + 1}/${batches.length}`;
+    console.log(`[Definitions] Starting ${batchLabel} with words: ${batch.join(', ')}${runContext.preferredModel ? ` | preferred=${runContext.preferredModel}` : ''}`);
+
     try {
-      const generated = await generateDefinitions(batch);
-      console.log(`Generated ${generated.length} definition(s) for ${options.label || summary.mode}.`);
+      const generatedResult = await generateDefinitions(batch, {
+        runContext,
+        batchLabel,
+      });
+      const generated = generatedResult.definitions;
       const upserted = await upsertDefinitions(generated);
       summary.processedWords += batch.length;
       summary.generatedDefinitions += generated.length;
       summary.upsertedDefinitions += upserted;
+      summary.successfulBatchCount += 1;
+      summary.lastSuccessfulBatch = {
+        batchIndex: index + 1,
+        words: [...batch],
+        model: generatedResult.model,
+        durationMs: generatedResult.durationMs,
+        priorFallbackCount: Array.isArray(generatedResult.attempts) ? generatedResult.attempts.length : 0,
+      };
+      console.log(`[Definitions] ${batchLabel} completed with model ${generatedResult.model}. Generated ${generated.length} definition(s), upserted ${upserted}.`);
     } catch (error) {
       summary.failedBatchCount += 1;
       summary.failedWords.push(...batch);
-      console.error(`Failed definition batch for ${options.label || summary.mode}: ${batch.join(', ')}`);
+      summary.failedBatchesDetailed.push({
+        batchIndex: index + 1,
+        words: [...batch],
+        message: error instanceof Error ? clipText(error.message, 600) : String(error),
+        attempts: Array.isArray(error?.attempts) ? error.attempts : [],
+      });
+      console.error(`[Definitions] Failed ${batchLabel}: ${batch.join(', ')}`);
       console.error(error);
 
       if (options.stopOnFailure) {
@@ -365,10 +617,12 @@ async function processWords(words, options = {}) {
     }
   }
 
+  summary.preferredModelEnd = runContext.preferredModel || null;
   return summary;
 }
 
 async function processPuzzle(puzzleId, options = {}) {
+  const runContext = options.runContext || createRunContext(`puzzle-${puzzleId}`);
   let targetWords = [];
 
   if (options.force) {
@@ -398,12 +652,19 @@ async function processPuzzle(puzzleId, options = {}) {
       upsertedDefinitions: 0,
       failedWords: [],
       failedBatchCount: 0,
+      successfulBatchCount: 0,
+      preferredModelStart: runContext.preferredModel || null,
+      preferredModelEnd: runContext.preferredModel || null,
+      modelStats: runContext.modelStats,
+      failedBatchesDetailed: [],
+      lastSuccessfulBatch: null,
     };
   }
   const summary = await processWords(targetWords, {
     mode: 'puzzle',
     label: `puzzle ${puzzleId}`,
     stopOnFailure: false,
+    runContext,
   });
 
   return {
@@ -416,6 +677,7 @@ async function processPuzzle(puzzleId, options = {}) {
 }
 
 async function processBacklog(options = {}) {
+  const runContext = options.runContext || createRunContext('definition-backlog');
   const summary = {
     mode: 'backlog',
     bootstrapQueued: 0,
@@ -429,6 +691,10 @@ async function processBacklog(options = {}) {
     totalPending: 0,
     coolingDown: 0,
     stopReason: 'completed',
+    preferredModelStart: runContext.preferredModel || null,
+    preferredModelEnd: null,
+    modelStats: runContext.modelStats,
+    failedBatchesDetailed: [],
   };
 
   if (options.bootstrapBacklog) {
@@ -451,6 +717,10 @@ async function processBacklog(options = {}) {
       .map((item) => String(item?.word || '').trim().toLowerCase())
       .filter(Boolean);
 
+    console.log(
+      `[Definitions] Backlog pull ${summary.pulls}: received ${words.length} word(s) | pending=${summary.totalPending} | coolingDown=${summary.coolingDown}${runContext.preferredModel ? ` | preferred=${runContext.preferredModel}` : ''}`,
+    );
+
     if (words.length === 0) {
       summary.stopReason = summary.totalPending > 0 ? 'cooldown' : 'empty';
       break;
@@ -469,6 +739,7 @@ async function processBacklog(options = {}) {
           mode: 'backlog',
           label: 'definition backlog',
           stopOnFailure: true,
+          runContext,
         });
         summary.processedWords += batchSummary.processedWords;
         summary.generatedDefinitions += batchSummary.generatedDefinitions;
@@ -477,11 +748,18 @@ async function processBacklog(options = {}) {
       } catch (error) {
         summary.failedBatchCount += 1;
         summary.failedWords.push(...batch);
+        summary.failedBatchesDetailed.push({
+          words: [...batch],
+          message: error instanceof Error ? clipText(error.message, 600) : String(error),
+          attempts: Array.isArray(error?.attempts) ? error.attempts : [],
+        });
         consecutiveFailures += 1;
         const providerError = isProviderBackoffError(error);
 
         if (providerError || consecutiveFailures >= DEFINITION_BACKLOG_MAX_CONSECUTIVE_FAILURES) {
-          summary.stopReason = providerError ? 'provider-backoff' : 'failure-threshold';
+          summary.stopReason = providerError
+            ? (error?.transient === true ? 'provider-backoff' : 'provider-response')
+            : 'failure-threshold';
           break outer;
         }
       }
@@ -492,6 +770,7 @@ async function processBacklog(options = {}) {
     summary.stopReason = 'time-limit';
   }
 
+  summary.preferredModelEnd = runContext.preferredModel || null;
   return summary;
 }
 
@@ -506,19 +785,35 @@ async function main() {
   }
 
   const args = parseArgs(process.argv.slice(2));
+  console.log(
+    `[Definitions] Starting ${args.backlog ? 'backlog' : 'puzzle'} run | primary=${NVIDIA_NIM_MODEL} | fallbacks=${NVIDIA_NIM_FALLBACK_MODELS.join(', ') || '<none>'} | timeoutMs=${NVIDIA_NIM_TIMEOUT_MS} | maxTokens=${NVIDIA_NIM_MAX_TOKENS}`,
+  );
   let summary;
 
   if (args.backlog) {
-    summary = await processBacklog(args);
+    summary = await processBacklog({
+      ...args,
+      runContext: createRunContext('definition-backlog'),
+    });
     writeSummary(args.summaryFile, summary);
     console.log(`Backlog summary: ${JSON.stringify(summary)}`);
+    if (summary.failedBatchCount > 0 && !['empty', 'cooldown', 'time-limit'].includes(summary.stopReason)) {
+      throw new Error(
+        `Backlog definition pass ended early with stopReason=${summary.stopReason}. Failed batches=${summary.failedBatchCount}. Failed words=${summary.failedWords.join(', ')}`,
+      );
+    }
     return;
   }
 
   const puzzleIds = await resolvePuzzleIds(args);
+  const runContext = createRunContext('daily-definitions');
   const results = [];
   for (const puzzleId of puzzleIds) {
-    results.push(await processPuzzle(puzzleId, { force: args.force, date: args.date }));
+    results.push(await processPuzzle(puzzleId, {
+      force: args.force,
+      date: args.date,
+      runContext,
+    }));
   }
 
   summary = {
@@ -530,6 +825,11 @@ async function main() {
     upsertedDefinitions: results.reduce((sum, item) => sum + Number(item?.upsertedDefinitions || 0), 0),
     failedBatchCount: results.reduce((sum, item) => sum + Number(item?.failedBatchCount || 0), 0),
     failedWords: results.flatMap((item) => item?.failedWords || []),
+    successfulBatchCount: results.reduce((sum, item) => sum + Number(item?.successfulBatchCount || 0), 0),
+    preferredModelStart: null,
+    preferredModelEnd: runContext.preferredModel || null,
+    modelStats: runContext.modelStats,
+    failedBatchesDetailed: results.flatMap((item) => item?.failedBatchesDetailed || []),
     puzzles: results,
   };
 

@@ -76,6 +76,10 @@ jobs:
           echo "GitHub event: ${{ github.event_name }}"
           echo "Target puzzle id: ${TARGET_PUZZLE_ID:-<auto>}"
           echo "Target date: ${TARGET_DATE:-<auto>}"
+          echo "Primary NVIDIA model: $NVIDIA_NIM_MODEL"
+          echo "Fallback NVIDIA models: $NVIDIA_NIM_FALLBACK_MODELS"
+          echo "Backlog limit: $DEFINITION_BACKLOG_PULL_LIMIT words"
+          echo "Backlog time budget: $DEFINITION_BACKLOG_MAX_MINUTES minutes"
 
       - name: Validate Workflow Secrets
         run: |
@@ -112,6 +116,10 @@ jobs:
           fi
           node scripts/backfill-definitions.mjs "${args[@]}"
 
+      - name: Render Today's Definition Summary
+        if: ${{ always() && env.SKIP_DEFINITIONS != 'true' }}
+        run: node scripts/render-definition-summary.mjs today-definitions-summary.json "Today's Definition Pass"
+
       - name: Note Today Definition Failure
         if: ${{ steps.today_definitions.outcome == 'failure' }}
         run: echo "::warning::Today's definition pass had some failures. Any successful definitions were still written to D1."
@@ -147,6 +155,7 @@ jobs:
         id: backlog_definitions
         if: ${{ env.SKIP_DEFINITIONS != 'true' }}
         continue-on-error: true
+        timeout-minutes: 35
         run: |
           node scripts/backfill-definitions.mjs \
             --backlog \
@@ -156,6 +165,20 @@ jobs:
             --backlog-limit "$DEFINITION_BACKLOG_PULL_LIMIT" \
             --bootstrap-limit "$DEFINITION_BACKLOG_BOOTSTRAP_LIMIT"
 
+      - name: Render Backlog Definition Summary
+        if: ${{ always() && env.SKIP_DEFINITIONS != 'true' }}
+        run: node scripts/render-definition-summary.mjs backlog-definitions-summary.json "Backlog Definition Pass"
+
       - name: Note Backlog Backfill Failure
         if: ${{ steps.backlog_definitions.outcome == 'failure' }}
         run: echo "::warning::The post-deploy backlog definition pass stopped early. The live site is already deployed; the backlog can continue on the next run."
+
+      - name: Upload Definition Summaries
+        if: ${{ always() && env.SKIP_DEFINITIONS != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: definition-summaries
+          if-no-files-found: ignore
+          path: |
+            today-definitions-summary.json
+            backlog-definitions-summary.json

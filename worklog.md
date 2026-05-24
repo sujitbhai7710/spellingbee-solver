@@ -601,3 +601,20 @@ Next Best Follow-Up:
   - `bootstrap` successfully queued historical missing words
   - `pull` successfully returned prioritized missing words from D1
 
+## 2026-05-25 - Definition fallback and workflow logging improvements
+
+- Fixed the main NVIDIA fallback logic gap in `scripts/backfill-definitions.mjs`:
+  - malformed or empty model output now goes through the same fallback chain as timeout/network failures
+  - the run now keeps a sticky `preferredModel`, so once one model succeeds it is tried first for the rest of that run
+  - richer per-model stats are recorded: attempts, successes, HTTP failures, transport failures, response-format failures, and last error
+- Improved backlog observability:
+  - backlog pulls now log pending/cooling-down counts and the current preferred model
+  - backlog mode now exits nonzero when it stops early on provider issues or repeated batch failures, so GitHub Actions can mark the step as a warning/failure while keeping the deploy already finished
+- Added `scripts/render-definition-summary.mjs` so GitHub Actions can render readable console output and step-summary markdown from the JSON summary files.
+- Updated `.github/workflows/daily-rebuild.yml` to:
+  - print the active NVIDIA model config at the start
+  - render a structured summary after the today-definition pass
+  - render a structured summary after the backlog pass
+  - upload the definition summary JSON files as workflow artifacts
+  - give the backlog step an explicit timeout window
+
