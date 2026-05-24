@@ -578,3 +578,26 @@ Next Best Follow-Up:
 - This change preserves the main architecture goal:
   - puzzle ingestion and static publish should not be blocked by an external AI provider timeout
 
+## 2026-05-25 - Shared definition backlog architecture
+
+- Added a new shared `definition_backlog` table in `worker-backend-cloudflare/src/index.js`.
+- New puzzle ingestion now queues missing words once per word during `storePuzzleData()` instead of waiting for a puzzle-window scan later.
+- Added new authenticated admin endpoints:
+  - `POST /api/admin/definitions/backlog/bootstrap`
+  - `POST /api/admin/definitions/backlog/pull`
+- `bootstrap` seeds the backlog from historical words that still have no entry in `word_definitions`.
+- `pull` returns the next prioritized batch of unique missing words and updates attempt metadata so the backlog runner does not keep hammering the same failed words immediately.
+- Upserting a definition now automatically deletes that word from `definition_backlog`.
+- Reworked `scripts/backfill-definitions.mjs` into two modes:
+  - normal puzzle mode for today-only definitions
+  - backlog mode for timed post-deploy historical backfill
+- Added summary-file output support so GitHub Actions can decide whether a second deploy is actually needed.
+- Reworked `.github/workflows/daily-rebuild.yml` into this order:
+  - build and deploy immediately
+  - run today-only definition backfill
+  - rebuild and deploy again only if today's definitions were inserted
+  - run the 30-minute shared backlog pass with no third deploy
+- Verified live worker queue endpoints after deploy:
+  - `bootstrap` successfully queued historical missing words
+  - `pull` successfully returned prioritized missing words from D1
+

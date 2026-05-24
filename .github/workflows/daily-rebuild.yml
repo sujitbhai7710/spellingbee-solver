@@ -46,6 +46,10 @@ jobs:
       NVIDIA_NIM_FALLBACK_MODELS: minimaxai/minimax-m2.7,qwen/qwen3.5-397b-a17b
       NVIDIA_NIM_TIMEOUT_MS: 90000
       NVIDIA_NIM_MAX_TOKENS: 2600
+      DEFINITION_BACKLOG_PULL_LIMIT: 24
+      DEFINITION_BACKLOG_MAX_MINUTES: 30
+      DEFINITION_BACKLOG_BOOTSTRAP_LIMIT: 5000
+      DEFINITION_BACKLOG_MAX_CONSECUTIVE_FAILURES: 3
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TARGET_PUZZLE_ID: ${{ inputs.puzzle_id || github.event.client_payload.puzzleId || '' }}
@@ -87,12 +91,19 @@ jobs:
             fi
           fi
 
-      - name: Backfill Missing Definitions
-        id: definitions
+      - name: Build Site Snapshot (Initial Deploy)
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages (Initial)
+        if: ${{ env.SKIP_DEPLOY != 'true' }}
+        run: npx wrangler pages deploy dist --project-name spellingbee-solver
+
+      - name: Backfill Today's Definitions
+        id: today_definitions
         if: ${{ env.SKIP_DEFINITIONS != 'true' }}
         continue-on-error: true
         run: |
-          args=()
+          args=(--summary-file today-definitions-summary.json)
           if [ -n "$TARGET_PUZZLE_ID" ]; then
             args+=(--puzzle-id "$TARGET_PUZZLE_ID")
           fi
@@ -101,14 +112,50 @@ jobs:
           fi
           node scripts/backfill-definitions.mjs "${args[@]}"
 
-      - name: Note Definition Backfill Failure
-        if: ${{ steps.definitions.outcome == 'failure' }}
-        run: echo "::warning::Definition backfill failed, but the site rebuild will continue with existing stored definitions."
+      - name: Note Today Definition Failure
+        if: ${{ steps.today_definitions.outcome == 'failure' }}
+        run: echo "::warning::Today's definition pass had some failures. Any successful definitions were still written to D1."
 
-      - name: Build Site
-        if: ${{ always() }}
+      - name: Decide Whether Second Deploy Is Needed
+        id: second_deploy
+        if: ${{ env.SKIP_DEFINITIONS != 'true' }}
+        run: |
+          if [ ! -f today-definitions-summary.json ]; then
+            echo "redeploy=false" >> "$GITHUB_OUTPUT"
+            echo "upserted=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          upserted=$(node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('today-definitions-summary.json','utf8')); process.stdout.write(String(Number(data.upsertedDefinitions||0)));")
+          echo "upserted=$upserted" >> "$GITHUB_OUTPUT"
+
+          if [ "$upserted" -gt 0 ]; then
+            echo "redeploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "redeploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build Site Snapshot (With Today's Definitions)
+        if: ${{ env.SKIP_DEFINITIONS != 'true' && steps.second_deploy.outputs.redeploy == 'true' }}
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages
-        if: ${{ always() && env.SKIP_DEPLOY != 'true' }}
+      - name: Deploy to Cloudflare Pages (With Today's Definitions)
+        if: ${{ env.SKIP_DEFINITIONS != 'true' && env.SKIP_DEPLOY != 'true' && steps.second_deploy.outputs.redeploy == 'true' }}
         run: npx wrangler pages deploy dist --project-name spellingbee-solver
+
+      - name: Backfill Definition Backlog
+        id: backlog_definitions
+        if: ${{ env.SKIP_DEFINITIONS != 'true' }}
+        continue-on-error: true
+        run: |
+          node scripts/backfill-definitions.mjs \
+            --backlog \
+            --bootstrap-backlog \
+            --summary-file backlog-definitions-summary.json \
+            --max-minutes "$DEFINITION_BACKLOG_MAX_MINUTES" \
+            --backlog-limit "$DEFINITION_BACKLOG_PULL_LIMIT" \
+            --bootstrap-limit "$DEFINITION_BACKLOG_BOOTSTRAP_LIMIT"
+
+      - name: Note Backlog Backfill Failure
+        if: ${{ steps.backlog_definitions.outcome == 'failure' }}
+        run: echo "::warning::The post-deploy backlog definition pass stopped early. The live site is already deployed; the backlog can continue on the next run."

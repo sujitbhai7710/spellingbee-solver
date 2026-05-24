@@ -1,7 +1,13 @@
 /**
- * Spelling Bee API Worker v2.1
+ * Spelling Bee API Worker v2.2
  * Cloudflare Worker providing access to Spelling Bee puzzle data
  * 
+ * Changelog v2.2:
+ * - Added a shared definition_backlog queue so missing words are tracked once per word
+ * - New admin backlog bootstrap/pull endpoints for post-deploy definition enrichment
+ * - New puzzles now enqueue missing words during ingestion
+ * - Upserting a definition now clears that word from the backlog automatically
+ *
  * Changelog v2.1:
  * - CRITICAL FIX: Date sorting now uses date_iso (YYYY-MM-DD) column instead of
  *   the human-readable "Month Day, Year" format which sorted alphabetically.
@@ -42,7 +48,7 @@ import { renderPuzzleDetailHTML } from '../../src/lib/render-puzzle-detail.js';
 // CONSTANTS & CONFIGURATION
 // ============================================================
 
-const API_VERSION = '2.1.0';
+const API_VERSION = '2.2.0';
 const BASE_URL = 'https://spellingbeesolver.dev';
 const MAX_PAGINATION_LIMIT = 100;
 const DEFAULT_PAGINATION_LIMIT = 20;
@@ -56,6 +62,9 @@ const ANALYSIS_CACHE_VERSION = 'v8';
 const ANALYSIS_KV_WRITE_LIMIT_PER_DAY = 1000;
 const SITE_TIMEZONE = 'Asia/Kolkata';
 const SITE_ORIGIN = 'https://spellingbeesolver.dev';
+const DEFINITION_BACKLOG_BOOTSTRAP_LIMIT = 5000;
+const DEFINITION_BACKLOG_PULL_LIMIT = 24;
+const DEFINITION_BACKLOG_RETRY_COOLDOWN_HOURS = 6;
 
 let historicalAnalyticsCache = {
   expiresAt: 0,
@@ -337,7 +346,22 @@ async function ensureAuxTables(env) {
           updated_at TEXT NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS definition_backlog (
+          word TEXT PRIMARY KEY,
+          last_seen_date TEXT NOT NULL,
+          last_seen_date_iso TEXT NOT NULL,
+          last_puzzle_id INTEGER,
+          appearance_count INTEGER NOT NULL DEFAULT 1,
+          attempt_count INTEGER NOT NULL DEFAULT 0,
+          last_attempted_at TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `),
       env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_word_definitions_updated_at ON word_definitions(updated_at)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_definition_backlog_last_seen ON definition_backlog(last_seen_date_iso DESC, appearance_count DESC)`),
+      env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_definition_backlog_attempts ON definition_backlog(last_attempted_at ASC, attempt_count ASC)`),
     ]).catch((error) => {
       auxTablesReadyPromise = null;
       throw error;
@@ -449,7 +473,196 @@ async function upsertWordDefinitions(env, definitions) {
   ));
 
   await env.DB.batch(statements);
+  const placeholders = cleaned.map(() => '?').join(', ');
+  await env.DB.prepare(`DELETE FROM definition_backlog WHERE word IN (${placeholders})`).bind(...cleaned.map((item) => item.word)).run();
   return { upserted: cleaned.length };
+}
+
+async function queueDefinitionBacklogEntries(env, words, puzzleMeta = {}) {
+  const normalizedWords = toSortedUniqueList((words || []).map((word) => normalizeWord(word)));
+  if (normalizedWords.length === 0) {
+    return { queued: 0, skippedDefined: 0 };
+  }
+
+  await ensureAuxTables(env);
+  const definitionsByWord = await getDefinitionsMap(env, normalizedWords);
+  const queuedWords = normalizedWords.filter((word) => !definitionsByWord[word]);
+  if (queuedWords.length === 0) {
+    return { queued: 0, skippedDefined: normalizedWords.length };
+  }
+
+  const lastSeenDate = normalizeDate(puzzleMeta.date || '');
+  const lastSeenDateIso = puzzleMeta.dateIso || dateToISO(lastSeenDate);
+  const lastPuzzleId = Number(puzzleMeta.puzzleId) || null;
+  const now = new Date().toISOString();
+
+  const statements = queuedWords.map((word) => env.DB.prepare(`
+    INSERT INTO definition_backlog (
+      word,
+      last_seen_date,
+      last_seen_date_iso,
+      last_puzzle_id,
+      appearance_count,
+      attempt_count,
+      last_attempted_at,
+      created_at,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, 1, 0, NULL, ?, ?)
+    ON CONFLICT(word) DO UPDATE SET
+      last_seen_date = CASE
+        WHEN excluded.last_seen_date_iso >= definition_backlog.last_seen_date_iso THEN excluded.last_seen_date
+        ELSE definition_backlog.last_seen_date
+      END,
+      last_seen_date_iso = CASE
+        WHEN excluded.last_seen_date_iso >= definition_backlog.last_seen_date_iso THEN excluded.last_seen_date_iso
+        ELSE definition_backlog.last_seen_date_iso
+      END,
+      last_puzzle_id = CASE
+        WHEN excluded.last_seen_date_iso >= definition_backlog.last_seen_date_iso THEN excluded.last_puzzle_id
+        ELSE definition_backlog.last_puzzle_id
+      END,
+      appearance_count = definition_backlog.appearance_count + 1,
+      updated_at = excluded.updated_at
+  `).bind(
+    word,
+    lastSeenDate,
+    lastSeenDateIso,
+    lastPuzzleId,
+    now,
+    now,
+  ));
+
+  await env.DB.batch(statements);
+  return {
+    queued: queuedWords.length,
+    skippedDefined: normalizedWords.length - queuedWords.length,
+  };
+}
+
+async function bootstrapDefinitionBacklog(env, limit = DEFINITION_BACKLOG_BOOTSTRAP_LIMIT) {
+  await ensureAuxTables(env);
+
+  const boundedLimit = Math.max(0, Math.min(Number(limit) || 0, 10000));
+  const now = new Date().toISOString();
+  const limitClause = boundedLimit > 0 ? 'LIMIT ?' : '';
+  const bindings = boundedLimit > 0 ? [boundedLimit, now, now] : [now, now];
+
+  const result = await env.DB.prepare(`
+    WITH ranked_words AS (
+      SELECT
+        lower(trim(w.word)) AS word,
+        p.date AS last_seen_date,
+        p.date_iso AS last_seen_date_iso,
+        p.puzzle_id AS last_puzzle_id,
+        COUNT(*) OVER (PARTITION BY lower(trim(w.word))) AS appearance_count,
+        ROW_NUMBER() OVER (
+          PARTITION BY lower(trim(w.word))
+          ORDER BY p.date_iso DESC, p.puzzle_id DESC
+        ) AS row_num
+      FROM words w
+      INNER JOIN puzzles p ON p.puzzle_id = w.puzzle_id
+      LEFT JOIN word_definitions wd ON wd.word = lower(trim(w.word))
+      LEFT JOIN definition_backlog db ON db.word = lower(trim(w.word))
+      WHERE wd.word IS NULL
+        AND db.word IS NULL
+    ),
+    missing_words AS (
+      SELECT
+        word,
+        last_seen_date,
+        last_seen_date_iso,
+        last_puzzle_id,
+        appearance_count
+      FROM ranked_words
+      WHERE row_num = 1
+      ORDER BY last_seen_date_iso DESC, appearance_count DESC, word ASC
+      ${limitClause}
+    )
+    INSERT INTO definition_backlog (
+      word,
+      last_seen_date,
+      last_seen_date_iso,
+      last_puzzle_id,
+      appearance_count,
+      attempt_count,
+      last_attempted_at,
+      created_at,
+      updated_at
+    )
+    SELECT
+      word,
+      last_seen_date,
+      last_seen_date_iso,
+      last_puzzle_id,
+      appearance_count,
+      0,
+      NULL,
+      ?,
+      ?
+    FROM missing_words
+  `).bind(...bindings).run();
+
+  return { queued: Number(result.meta?.changes || 0) };
+}
+
+async function getDefinitionBacklogBatch(env, limit = DEFINITION_BACKLOG_PULL_LIMIT) {
+  await ensureAuxTables(env);
+
+  const boundedLimit = Math.max(1, Math.min(Number(limit) || DEFINITION_BACKLOG_PULL_LIMIT, 100));
+  const now = new Date().toISOString();
+  const cooldownThreshold = new Date(Date.now() - (DEFINITION_BACKLOG_RETRY_COOLDOWN_HOURS * 60 * 60 * 1000)).toISOString();
+
+  const result = await env.DB.prepare(`
+    SELECT
+      word,
+      last_seen_date,
+      last_seen_date_iso,
+      last_puzzle_id,
+      appearance_count,
+      attempt_count,
+      last_attempted_at
+    FROM definition_backlog
+    WHERE last_attempted_at IS NULL OR last_attempted_at <= ?
+    ORDER BY
+      CASE WHEN last_attempted_at IS NULL THEN 0 ELSE 1 END ASC,
+      last_attempted_at ASC,
+      last_seen_date_iso DESC,
+      appearance_count DESC,
+      word ASC
+    LIMIT ?
+  `).bind(cooldownThreshold, boundedLimit).all();
+
+  const rows = result.results || [];
+  if (rows.length > 0) {
+    const statements = rows.map((row) => env.DB.prepare(`
+      UPDATE definition_backlog
+      SET attempt_count = attempt_count + 1,
+          last_attempted_at = ?,
+          updated_at = ?
+      WHERE word = ?
+    `).bind(now, now, row.word));
+    await env.DB.batch(statements);
+  }
+
+  const [totalPending, coolingDown] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS count FROM definition_backlog`).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS count FROM definition_backlog WHERE last_attempted_at IS NOT NULL AND last_attempted_at > ?`).bind(cooldownThreshold).first(),
+  ]);
+
+  return {
+    words: rows.map((row) => ({
+      word: row.word,
+      lastSeenDate: row.last_seen_date,
+      lastSeenDateIso: row.last_seen_date_iso,
+      lastPuzzleId: row.last_puzzle_id,
+      appearanceCount: Number(row.appearance_count) || 0,
+      attemptCount: Number(row.attempt_count) || 0,
+      lastAttemptedAt: row.last_attempted_at || null,
+    })),
+    totalPending: Number(totalPending?.count || 0),
+    coolingDown: Number(coolingDown?.count || 0),
+  };
 }
 
 async function reserveAnalysisCacheWrite(env) {
@@ -847,6 +1060,12 @@ async function storePuzzleData(env, puzzleData) {
       await env.DB.batch(batch);
     }
 
+    const backlogResult = await queueDefinitionBacklogEntries(env, insertedWords, {
+      date,
+      dateIso,
+      puzzleId: nextPuzzleId,
+    });
+
     historicalAnalyticsCache = {
       expiresAt: 0,
       value: null,
@@ -864,6 +1083,7 @@ async function storePuzzleData(env, puzzleData) {
       wordCount,
       pangramsCount,
       wordsInserted: insertedWords.length,
+      definitionsQueued: backlogResult.queued,
     };
   } catch (error) {
     console.error('Error storing puzzle data:', error);
@@ -1981,6 +2201,8 @@ router.get('/', async (request, env) => {
         deleteByDate: { method: 'POST', path: '/api/delete/date/:date', auth: true, description: 'Delete puzzle by date' },
         puzzleBundle: { method: 'GET', path: '/api/admin/puzzleBundle/:id', auth: true, description: 'Get a single puzzle bundle with words, definitions, and analysis for static site generation' },
         missingDefinitions: { method: 'GET', path: '/api/admin/definitions/missing/puzzle/:id', auth: true, description: 'List words in a puzzle that still need definitions' },
+        bootstrapDefinitionBacklog: { method: 'POST', path: '/api/admin/definitions/backlog/bootstrap', auth: true, description: 'Seed the shared missing-definition backlog from historical words' },
+        pullDefinitionBacklog: { method: 'POST', path: '/api/admin/definitions/backlog/pull', auth: true, description: 'Pull the next prioritized batch of unique missing words for backfill' },
         upsertDefinitions: { method: 'POST', path: '/api/admin/definitions/upsert', auth: true, description: 'Insert or update generated word definitions' },
       },
       feeds: {
@@ -1998,6 +2220,8 @@ router.get('/', async (request, env) => {
         '/api/admin/puzzleBundle/2935?key=YOUR_API_KEY',
         '/api/update/nyt?key=YOUR_API_KEY',
         '/api/admin/definitions/missing/puzzle/2933?key=YOUR_API_KEY',
+        '/api/admin/definitions/backlog/bootstrap?key=YOUR_API_KEY',
+        '/api/admin/definitions/backlog/pull?limit=24&key=YOUR_API_KEY',
       ],
     },
   }));
@@ -2853,6 +3077,44 @@ router.get('/api/admin/definitions/missing/puzzle/([0-9]+)', async (request, env
     definedWords: puzzleData.words.length - missingWords.length,
     missingWords,
   }));
+});
+
+router.post('/api/admin/definitions/backlog/bootstrap', async (request, env) => {
+  if (!isAuthenticated(request, env)) {
+    return jsonResponse(errorResponse('Unauthorized', 401), 401);
+  }
+
+  try {
+    const url = new URL(request.url);
+    const limit = Number(url.searchParams.get('limit') || DEFINITION_BACKLOG_BOOTSTRAP_LIMIT);
+    const result = await bootstrapDefinitionBacklog(env, limit);
+    return jsonResponse(successResponse({
+      limit: Math.max(0, Math.min(limit || DEFINITION_BACKLOG_BOOTSTRAP_LIMIT, 10000)),
+      queued: result.queued,
+    }));
+  } catch (error) {
+    return jsonResponse(errorResponse(error.message, 500), 500);
+  }
+});
+
+router.post('/api/admin/definitions/backlog/pull', async (request, env) => {
+  if (!isAuthenticated(request, env)) {
+    return jsonResponse(errorResponse('Unauthorized', 401), 401);
+  }
+
+  try {
+    const url = new URL(request.url);
+    const limit = Number(url.searchParams.get('limit') || DEFINITION_BACKLOG_PULL_LIMIT);
+    const result = await getDefinitionBacklogBatch(env, limit);
+    return jsonResponse(successResponse({
+      limit: Math.max(1, Math.min(limit || DEFINITION_BACKLOG_PULL_LIMIT, 100)),
+      totalPending: result.totalPending,
+      coolingDown: result.coolingDown,
+      words: result.words,
+    }));
+  } catch (error) {
+    return jsonResponse(errorResponse(error.message, 500), 500);
+  }
 });
 
 // Admin: upsert generated definitions
