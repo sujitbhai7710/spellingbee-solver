@@ -43,6 +43,9 @@ jobs:
       APIKEY: ${{ secrets.APIKEY || secrets.WORKER_ADMIN_API_KEY }}
       NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
       NVIDIA_NIM_MODEL: qwen/qwen3-next-80b-a3b-instruct
+      NVIDIA_NIM_FALLBACK_MODELS: minimaxai/minimax-m2.7,qwen/qwen3.5-397b-a17b
+      NVIDIA_NIM_TIMEOUT_MS: 90000
+      NVIDIA_NIM_MAX_TOKENS: 2600
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TARGET_PUZZLE_ID: ${{ inputs.puzzle_id || github.event.client_payload.puzzleId || '' }}
@@ -85,7 +88,9 @@ jobs:
           fi
 
       - name: Backfill Missing Definitions
+        id: definitions
         if: ${{ env.SKIP_DEFINITIONS != 'true' }}
+        continue-on-error: true
         run: |
           args=()
           if [ -n "$TARGET_PUZZLE_ID" ]; then
@@ -96,9 +101,14 @@ jobs:
           fi
           node scripts/backfill-definitions.mjs "${args[@]}"
 
+      - name: Note Definition Backfill Failure
+        if: ${{ steps.definitions.outcome == 'failure' }}
+        run: echo "::warning::Definition backfill failed, but the site rebuild will continue with existing stored definitions."
+
       - name: Build Site
+        if: ${{ always() }}
         run: npm run build
 
       - name: Deploy to Cloudflare Pages
-        if: ${{ env.SKIP_DEPLOY != 'true' }}
+        if: ${{ always() && env.SKIP_DEPLOY != 'true' }}
         run: npx wrangler pages deploy dist --project-name spellingbee-solver

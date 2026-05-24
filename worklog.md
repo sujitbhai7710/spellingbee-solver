@@ -560,3 +560,21 @@ Next Best Follow-Up:
 - Rewrote `PROJECT_STRUCTURE.txt` so the active, legacy, and useless areas are clearly separated.
 - Added small text files inside `worker-backend-cloudflare/`, `old-version/`, and `useless/` to explain what belongs there.
 
+## 2026-05-24 - Definition pipeline hardening
+
+- Hardened `scripts/backfill-definitions.mjs` so NVIDIA definition generation now:
+  - catches fetch/network/header-timeout failures instead of crashing immediately
+  - falls back across three models in order:
+    - `qwen/qwen3-next-80b-a3b-instruct`
+    - `minimaxai/minimax-m2.7`
+    - `qwen/qwen3.5-397b-a17b`
+  - uses a lower `max_tokens` ceiling to reduce slow-response risk without removing rich definitions
+  - records the actual model used in `sourceModel`
+  - keeps processing remaining batches even if one batch fails
+- Hardened `.github/workflows/daily-rebuild.yml` so the daily publish architecture is safer:
+  - definition backfill now uses `continue-on-error`
+  - site build and Pages deploy continue even if NVIDIA definition generation fails
+  - workflow emits an explicit warning when definition enrichment fails instead of silently masking it
+- This change preserves the main architecture goal:
+  - puzzle ingestion and static publish should not be blocked by an external AI provider timeout
+

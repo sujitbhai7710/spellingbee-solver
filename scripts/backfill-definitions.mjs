@@ -41,7 +41,15 @@ function resolveWorkerKey() {
 const WORKER_ADMIN_API_KEY = resolveWorkerKey();
 const NVIDIA_NIM_API_KEY = process.env.NVIDIA_NIM_API_KEY || '';
 const NVIDIA_NIM_MODEL = process.env.NVIDIA_NIM_MODEL || 'qwen/qwen3-next-80b-a3b-instruct';
+const NVIDIA_NIM_FALLBACK_MODELS = String(
+  process.env.NVIDIA_NIM_FALLBACK_MODELS || 'minimaxai/minimax-m2.7,qwen/qwen3.5-397b-a17b',
+)
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
 const NVIDIA_NIM_BASE_URL = process.env.NVIDIA_NIM_BASE_URL || 'https://integrate.api.nvidia.com/v1';
+const NVIDIA_NIM_TIMEOUT_MS = Number(process.env.NVIDIA_NIM_TIMEOUT_MS || 90000);
+const NVIDIA_NIM_MAX_TOKENS = Number(process.env.NVIDIA_NIM_MAX_TOKENS || 2600);
 const DEFINITION_BATCH_SIZE = 4;
 
 function loadHumanWritingGuide() {
@@ -104,33 +112,76 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function requestNvidiaJson(body, maxAttempts = 3) {
+function getModelSequence() {
+  return [...new Set([NVIDIA_NIM_MODEL, ...NVIDIA_NIM_FALLBACK_MODELS])];
+}
+
+function isRetryableFetchError(error) {
+  const message = String(error?.message || '');
+  const causeCode = error?.cause?.code || '';
+  return (
+    causeCode === 'UND_ERR_HEADERS_TIMEOUT'
+    || causeCode === 'UND_ERR_CONNECT_TIMEOUT'
+    || causeCode === 'ECONNRESET'
+    || causeCode === 'ETIMEDOUT'
+    || message.includes('Headers Timeout')
+    || message.includes('fetch failed')
+    || message.includes('aborted')
+  );
+}
+
+async function requestNvidiaJson(body) {
+  const models = getModelSequence();
   let lastError = null;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NVIDIA_NIM_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+  for (let index = 0; index < models.length; index += 1) {
+    const model = models[index];
+    const payload = {
+      ...body,
+      model,
+    };
 
-    if (response.ok) {
-      return response.json();
+    try {
+      const response = await fetch(`${NVIDIA_NIM_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${NVIDIA_NIM_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(NVIDIA_NIM_TIMEOUT_MS),
+      });
+
+      if (response.ok) {
+        return {
+          payload: await response.json(),
+          model,
+        };
+      }
+
+      const errorText = await response.text();
+      lastError = new Error(`NVIDIA NIM request failed ${response.status} with model ${model}: ${errorText}`);
+      const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+
+      if (!retryable || index === models.length - 1) {
+        throw new Error(`All NVIDIA models failed. Final model ${model}: ${lastError.message}`);
+      }
+
+      console.warn(`NVIDIA model ${model} failed with ${response.status}. Trying next fallback model...`);
+      await sleep(1200 * (index + 1));
+      continue;
+    } catch (error) {
+      lastError = error instanceof Error
+        ? error
+        : new Error(`Unknown NVIDIA NIM failure for model ${model}`);
+
+      if (!isRetryableFetchError(lastError) || index === models.length - 1) {
+        throw new Error(`All NVIDIA models failed. Final model ${model}: ${lastError.message}`);
+      }
+
+      console.warn(`NVIDIA model ${model} hit a network/timeout error. Trying next fallback model...`);
+      await sleep(1200 * (index + 1));
     }
-
-    const errorText = await response.text();
-    lastError = new Error(`NVIDIA NIM request failed ${response.status}: ${errorText}`);
-    const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
-
-    if (!retryable || attempt === maxAttempts) {
-      throw lastError;
-    }
-
-    console.warn(`NVIDIA NIM attempt ${attempt} failed with ${response.status}. Retrying...`);
-    await sleep(1500 * attempt);
   }
 
   throw lastError;
@@ -195,11 +246,10 @@ async function generateDefinitions(words) {
     `Words: ${JSON.stringify(words)}`,
   ].join('\n');
 
-  const payload = await requestNvidiaJson({
-    model: NVIDIA_NIM_MODEL,
+  const { payload, model } = await requestNvidiaJson({
     temperature: 0.15,
     top_p: 0.85,
-    max_tokens: 4000,
+    max_tokens: NVIDIA_NIM_MAX_TOKENS,
     messages: [
       {
         role: 'user',
@@ -217,7 +267,7 @@ async function generateDefinitions(words) {
     antonyms: Array.isArray(item.antonyms) ? item.antonyms : [],
     usageNotes: item.usageNotes ? String(item.usageNotes).trim() : null,
     sourceProvider: 'nvidia-nim',
-    sourceModel: NVIDIA_NIM_MODEL,
+    sourceModel: model,
   })).filter((item) => item.word && item.definition);
 }
 
@@ -253,10 +303,25 @@ async function processPuzzle(puzzleId, options = {}) {
 
   if (targetWords.length === 0) return;
 
+  const failedBatches = [];
   for (const batch of chunk(targetWords, DEFINITION_BATCH_SIZE)) {
-    const generated = await generateDefinitions(batch);
-    console.log(`Generated ${generated.length} definition(s) for puzzle ${puzzleId}.`);
-    await upsertDefinitions(generated);
+    try {
+      const generated = await generateDefinitions(batch);
+      console.log(`Generated ${generated.length} definition(s) for puzzle ${puzzleId}.`);
+      await upsertDefinitions(generated);
+    } catch (error) {
+      failedBatches.push({
+        words: [...batch],
+        message: error instanceof Error ? error.message : String(error),
+      });
+      console.error(`Failed definition batch for puzzle ${puzzleId}: ${batch.join(', ')}`);
+      console.error(error);
+    }
+  }
+
+  if (failedBatches.length > 0) {
+    const failedWords = failedBatches.flatMap((item) => item.words);
+    throw new Error(`Definition generation partially failed for puzzle ${puzzleId}. Failed words: ${failedWords.join(', ')}`);
   }
 }
 
